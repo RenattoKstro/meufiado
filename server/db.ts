@@ -1,11 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  branches,
+  InsertUser,
+  metricSettings,
+  userProfiles,
+  users,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -19,74 +24,179 @@ export async function getDb() {
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
+  if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
+  if (!db) return;
+
+  const values: InsertUser = { openId: user.openId, lastSignedIn: new Date() };
+  const updateSet: Record<string, unknown> = { lastSignedIn: new Date() };
+  for (const field of ["name", "email", "loginMethod"] as const) {
+    if (user[field] !== undefined) {
+      values[field] = user[field] ?? null;
+      updateSet[field] = user[field] ?? null;
+    }
   }
-
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
+  if (user.role !== undefined) {
+    values.role = user.role;
+    updateSet.role = user.role;
+  } else if (user.openId === ENV.ownerOpenId) {
+    values.role = "admin";
+    updateSet.role = "admin";
   }
+  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function listActiveBranches() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(branches).where(eq(branches.isActive, true)).orderBy(branches.name);
+}
+
+export async function listAllBranches() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(branches).orderBy(branches.name);
+}
+
+export async function createBranch(input: { name: string; code?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(branches).values({ name: input.name, code: input.code || null });
+}
+
+export async function setBranchStatus(id: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(branches).set({ isActive }).where(eq(branches.id, id));
+}
+
+export async function getMyProfile(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select({ profile: userProfiles, branch: branches })
+    .from(userProfiles)
+    .innerJoin(branches, eq(userProfiles.branchId, branches.id))
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+  return result[0];
+}
+
+type ProfileInput = {
+  fullName: string;
+  email: string;
+  branchId: number;
+  phone: string;
+  instagram?: string | null;
+  operatorType: "leader" | "assistant";
+};
+
+export async function completeMyProfile(userId: number, input: ProfileInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const existing = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  const preRegistered = await db
+    .select()
+    .from(userProfiles)
+    .where(and(eq(userProfiles.email, input.email), isNull(userProfiles.userId)))
+    .limit(1);
+  const values = {
+    fullName: input.fullName,
+    email: input.email.toLowerCase(),
+    branchId: input.branchId,
+    phone: input.phone,
+    instagram: input.instagram || null,
+    operatorType: input.operatorType,
+    profileComplete: true,
+  } as const;
+  if (existing[0]) {
+    await db.update(userProfiles).set(values).where(eq(userProfiles.id, existing[0].id));
+  } else if (preRegistered[0]) {
+    await db.update(userProfiles).set({ ...values, userId }).where(eq(userProfiles.id, preRegistered[0].id));
+  } else {
+    await db.insert(userProfiles).values({ ...values, userId });
+  }
+}
+
+export async function updateMyPreferences(
+  userId: number,
+  input: { colorMode?: "light" | "dark"; colorPalette?: "ocean" | "violet" | "forest" | "sunset"; showLostGoal?: boolean; isOnVacation?: boolean },
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(userProfiles).set(input).where(eq(userProfiles.userId, userId));
+}
+
+const emptyMetrics = {
+  portfolioTotal: 0,
+  monthOpening: 0,
+  dayOpening: 0,
+  currentOverdue: 0,
+  creditGoal: 0,
+  challengeGoal: 0,
+  lostGoal: 0,
+  lostReceived: 0,
+  workingDaysTotal: 0,
+  workingDaysElapsed: 0,
+  fiadoAtDay15: false,
+};
+
+export async function getMyMetrics(userId: number) {
+  const db = await getDb();
+  if (!db) return emptyMetrics;
+  const result = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
+  return result[0] ?? emptyMetrics;
+}
+
+export async function saveMyMetrics(userId: number, input: typeof emptyMetrics) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(metricSettings).values({ userId, ...input }).onDuplicateKeyUpdate({ set: input });
+}
+
+export async function listManagedUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ profile: userProfiles, branch: branches, account: users })
+    .from(userProfiles)
+    .innerJoin(branches, eq(userProfiles.branchId, branches.id))
+    .leftJoin(users, eq(userProfiles.userId, users.id))
+    .orderBy(desc(userProfiles.updatedAt));
+}
+
+export async function createPreRegisteredUser(input: ProfileInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(userProfiles).values({
+    fullName: input.fullName,
+    email: input.email.toLowerCase(),
+    branchId: input.branchId,
+    phone: input.phone,
+    instagram: input.instagram || null,
+    operatorType: input.operatorType,
+    profileComplete: false,
+  });
+}
+
+export async function updateManagedUser(
+  id: number,
+  input: Partial<Pick<typeof userProfiles.$inferInsert, "isActive" | "isOnVacation" | "operatorType" | "branchId">>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(userProfiles).set(input).where(eq(userProfiles.id, id));
+}
+
+export async function updateAccountRole(userId: number, role: "admin" | "user") {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+}

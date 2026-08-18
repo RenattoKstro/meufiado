@@ -1,42 +1,39 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { trpc } from "@/lib/trpc";
+import Admin from "@/pages/Admin";
+import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
+import Onboarding from "@/pages/Onboarding";
+import { AppearanceSettings, MetricsSettings } from "@/pages/Settings";
+import Welcome from "@/pages/Welcome";
+import { ShieldAlert } from "lucide-react";
+import { useEffect } from "react";
 import { Route, Switch } from "wouter";
-import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
 
-function Router() {
-  // make sure to consider if you need authentication for certain routes
-  return (
-    <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
-  );
+const OverviewPage = (_props: unknown) => <Dashboard />;
+const FiadoPage = (_props: unknown) => <Dashboard view="fiado" />;
+const ChallengePage = (_props: unknown) => <Dashboard view="challenge" />;
+
+function AuthenticatedApp() {
+  const { user, loading } = useAuth();
+  const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const { applyPreferences } = useTheme();
+  useEffect(() => { const profile = profileQuery.data?.profile; if (profile) applyPreferences(profile.colorMode, profile.colorPalette); }, [applyPreferences, profileQuery.data?.profile]);
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Welcome />;
+  if (profileQuery.isLoading) return <LoadingScreen />;
+  if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />;
+  if (!profileQuery.data.profile.isActive) return <SuspendedScreen />;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
-function App() {
-  return (
-    <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
-  );
-}
-
+function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+function LoadingScreen() { return <div className="grid min-h-screen place-items-center bg-background"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" /></div>; }
+function SuspendedScreen() { return <main className="grid min-h-screen place-items-center bg-background p-6"><div className="max-w-md rounded-[2rem] border border-border bg-card p-8 text-center shadow-xl shadow-primary/10"><p className="text-xl font-black">Acesso temporariamente inativo</p><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Seu cadastro está desativado. Fale com a administração da sua filial para regularizar o acesso.</p></div></main>; }
+function AdminAccessDenied() { return <section className="mx-auto grid min-h-[60vh] max-w-xl place-items-center"><div className="rounded-[1.6rem] border border-border bg-card p-8 text-center shadow-sm"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-destructive/10 text-destructive"><ShieldAlert className="h-5 w-5" /></span><h1 className="mt-5 text-xl font-black">Acesso administrativo necessário</h1><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Esta área é exclusiva para administradores autorizados.</p></div></section>; }
 export default App;

@@ -1,28 +1,84 @@
-import { COOKIE_NAME } from "@shared/const";
+import { z } from "zod";
+import {
+  completeMyProfile,
+  createBranch,
+  createPreRegisteredUser,
+  getMyMetrics,
+  getMyProfile,
+  listActiveBranches,
+  listAllBranches,
+  listManagedUsers,
+  saveMyMetrics,
+  setBranchStatus,
+  updateManagedUser,
+  updateAccountRole,
+  updateMyPreferences,
+} from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { COOKIE_NAME } from "@shared/const";
+
+const operatorType = z.enum(["leader", "assistant"]);
+const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
+const nonNegativeNumber = z.number().min(0).finite();
+const profileInput = z.object({
+  fullName: z.string().trim().min(2).max(160),
+  email: z.string().trim().email().max(320),
+  branchId: z.number().int().positive(),
+  phone: z.string().trim().min(8).max(32),
+  instagram: z.string().trim().max(120).optional().nullable(),
+  operatorType,
+});
+const metricsInput = z.object({
+  portfolioTotal: nonNegativeNumber,
+  monthOpening: nonNegativeNumber,
+  dayOpening: nonNegativeNumber,
+  currentOverdue: nonNegativeNumber,
+  creditGoal: nonNegativeNumber,
+  challengeGoal: nonNegativeNumber,
+  lostGoal: nonNegativeNumber,
+  lostReceived: nonNegativeNumber,
+  workingDaysTotal: z.number().int().min(0).max(31),
+  workingDaysElapsed: z.number().int().min(0).max(31),
+  fiadoAtDay15: z.boolean(),
+});
 
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
+      return { success: true } as const;
     }),
   }),
-
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  profile: router({
+    mine: protectedProcedure.query(({ ctx }) => getMyProfile(ctx.user.id)),
+    branches: protectedProcedure.query(() => listActiveBranches()),
+    complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => completeMyProfile(ctx.user.id, input)),
+    preferences: protectedProcedure
+      .input(z.object({ colorMode: z.enum(["light", "dark"]).optional(), colorPalette: palette.optional(), showLostGoal: z.boolean().optional(), isOnVacation: z.boolean().optional() }))
+      .mutation(({ ctx, input }) => updateMyPreferences(ctx.user.id, input)),
+  }),
+  metrics: router({
+    mine: protectedProcedure.query(({ ctx }) => getMyMetrics(ctx.user.id)),
+    save: protectedProcedure.input(metricsInput).mutation(({ ctx, input }) => saveMyMetrics(ctx.user.id, input)),
+  }),
+  admin: router({
+    users: adminProcedure.query(() => listManagedUsers()),
+    branches: adminProcedure.query(() => listAllBranches()),
+    createBranch: adminProcedure.input(z.object({ name: z.string().trim().min(2).max(120), code: z.string().trim().max(32).optional() })).mutation(({ input }) => createBranch(input)),
+    setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
+    preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
+    updateUser: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), isActive: z.boolean().optional(), isOnVacation: z.boolean().optional(), operatorType: operatorType.optional(), branchId: z.number().int().positive().optional() }))
+      .mutation(({ input }) => {
+        const { id, ...changes } = input;
+        return updateManagedUser(id, changes);
+      }),
+    updateRole: adminProcedure.input(z.object({ userId: z.number().int().positive(), role: z.enum(["admin", "user"]) })).mutation(({ input }) => updateAccountRole(input.userId, input.role)),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
