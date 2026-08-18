@@ -20,9 +20,26 @@ function contextFor(role: "user" | "admin"): TrpcContext {
   };
 }
 
+function contextWithoutUser(): TrpcContext {
+  return {
+    user: null,
+    req: { protocol: "https", headers: {} } as TrpcContext["req"],
+    res: {} as TrpcContext["res"],
+  };
+}
+
 describe("permissões administrativas", () => {
   it("bloqueia a consulta administrativa para operador comum", async () => {
     const caller = appRouter.createCaller(contextFor("user"));
     await expect(caller.admin.branches()).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("entrega a visão de filiais a operadores autenticados e bloqueia visitantes", async () => {
+    const operatorCaller = appRouter.createCaller(contextFor("user"));
+    const overview = await operatorCaller.branches.overview();
+    expect(overview).toEqual(expect.any(Array));
+
+    const guestCaller = appRouter.createCaller(contextWithoutUser());
+    await expect(guestCaller.branches.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

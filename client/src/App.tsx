@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
+import Branches from "@/pages/Branches";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
 import Onboarding from "@/pages/Onboarding";
@@ -21,6 +22,7 @@ import { Route, Switch, useLocation } from "wouter";
 const OverviewPage = (_props: unknown) => <Dashboard />;
 const FiadoPage = (_props: unknown) => <Dashboard view="fiado" />;
 const ChallengePage = (_props: unknown) => <Dashboard view="challenge" />;
+const BranchesPage = (_props: unknown) => <Branches />;
 const SecurityPage = (_props: unknown) => <SecuritySettings />;
 
 function AuthenticatedApp() {
@@ -37,7 +39,7 @@ function AuthenticatedApp() {
   if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />;
   if (!profileQuery.data.profile.isActive) return <SuspendedScreen />;
   if (credentialStatus.data?.mustChangePassword) return <DashboardLayout><SecuritySettings required /></DashboardLayout>;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/seguranca" component={SecurityPage} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/seguranca" component={SecurityPage} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

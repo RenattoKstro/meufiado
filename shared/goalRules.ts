@@ -62,6 +62,14 @@ export function challengePercentage(challengeGoal: number, currentOverdue: numbe
   return percentage(challengeGoal, currentOverdue);
 }
 
+export function delinquencyPercentage(currentOverdue: number, portfolioTotal: number) {
+  return percentage(currentOverdue, portfolioTotal);
+}
+
+export function lostGoalMissingForTarget(targetPercent: number, lostGoal: number, lostReceived: number) {
+  return Math.max(0, (lostGoal * targetPercent) / 100 - lostReceived);
+}
+
 export function receiptAmounts(monthOpening: number, dayOpening: number, currentOverdue: number) {
   return {
     accumulated: Math.max(monthOpening - currentOverdue, 0),

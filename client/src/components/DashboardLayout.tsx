@@ -30,6 +30,7 @@ const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
   { label: "Meta Fiado", path: "/fiado", icon: CircleDollarSign },
   { label: "Meta Desafio", path: "/desafio", icon: Target },
+  { label: "Filiais", path: "/filiais", icon: Building2 },
   { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },
   { label: "Preferências", path: "/configuracoes", icon: Palette },
   { label: "Senha de acesso", path: "/seguranca", icon: KeyRound },

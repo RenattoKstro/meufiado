@@ -45,3 +45,11 @@
 - [x] Invalidar automaticamente a Meta Ticket após o dia 15 quando o valor-alvo de 80% não tiver sido recebido.
 - [x] Exibir no painel o valor-alvo, saldo, dias úteis restantes e situação da Meta de 80%.
 - [x] Cobrir valor-alvo, prazo e invalidação da Meta de 80% com testes automatizados.
+- [x] Exibir na Meta Perdido o valor necessário para atingir as faixas de 100% e 105%.
+- [x] Adicionar na Visão geral o percentual de inadimplência: Vencido Atual dividido pela Carteira Total, com verde abaixo de 7% e vermelho a partir de 7%.
+- [x] Criar a guia Filiais com cartões resumidos, operador, filial, percentuais atuais, tempo desde a atualização e detalhes expansíveis.
+- [x] Adicionar um favicon próprio do Meu Fiado.
+- [x] Revisar os textos solicitados em Ajustes, Visão geral, Meta Fiado e Meta Desafio.
+- [x] Cobrir os novos cálculos e a consulta de filiais com testes automatizados.
+- [x] Garantir o armazenamento verificável do favicon usado pelo Meu Fiado.
+- [x] Cobrir diretamente a procedure Filiais com teste de retorno e permissões.

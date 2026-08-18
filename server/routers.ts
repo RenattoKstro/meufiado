@@ -7,6 +7,7 @@ import {
   importBranches,
   getMyMetrics,
   getMyProfile,
+  listBranchOverviews,
   listActiveBranches,
   listAllBranches,
   listManagedUsers,
@@ -98,6 +99,9 @@ export const appRouter = router({
   metrics: router({
     mine: protectedProcedure.query(({ ctx }) => getMyMetrics(ctx.user.id)),
     save: protectedProcedure.input(metricsInput).mutation(({ ctx, input }) => saveMyMetrics(ctx.user.id, input)),
+  }),
+  branches: router({
+    overview: protectedProcedure.query(() => listBranchOverviews()),
   }),
   admin: router({
     users: adminProcedure.query(() => listManagedUsers()),

@@ -15,6 +15,7 @@ import { ENV } from "./_core/env";
 import { hashPassword, verifyPassword } from "./localAdminAuth";
 import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
 import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
+import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -77,6 +78,36 @@ export async function listAllBranches() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(branches).orderBy(branches.name);
+}
+
+export async function listBranchOverviews() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({ branch: branches, profile: userProfiles, account: users, metrics: metricSettings, branchMetrics })
+    .from(branches)
+    .leftJoin(userProfiles, and(eq(userProfiles.branchId, branches.id), eq(userProfiles.isActive, true)))
+    .leftJoin(users, eq(userProfiles.userId, users.id))
+    .leftJoin(metricSettings, eq(metricSettings.userId, userProfiles.userId))
+    .leftJoin(branchMetrics, eq(branchMetrics.branchId, branches.id))
+    .where(eq(branches.isActive, true))
+    .orderBy(branches.name, userProfiles.fullName);
+
+  return rows.map(({ branch, profile, account, metrics, branchMetrics: defaults }) => ({
+    branch,
+    operator: profile
+      ? {
+          id: profile.id,
+          fullName: profile.fullName,
+          operatorType: profile.operatorType,
+          isOnVacation: profile.isOnVacation,
+          lastSignedIn: account?.lastSignedIn ?? null,
+        }
+      : null,
+    metrics: resolveBranchOverviewMetrics(metrics, defaults),
+    updatedAt: latestOverviewUpdate(metrics?.updatedAt, defaults?.updatedAt, profile?.updatedAt, branch.updatedAt),
+  }));
 }
 
 export async function createBranch(input: { name: string; code?: string; regional?: string }) {

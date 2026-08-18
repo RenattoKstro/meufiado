@@ -6,10 +6,12 @@ import {
   challengePercentage,
   CHALLENGE_TIERS,
   dailyRequirement,
+  delinquencyPercentage,
   fiadoMissingForTarget,
   fiadoPercentage,
   FIADO_TIERS,
   isTicketValid,
+  lostGoalMissingForTarget,
   missingForTarget,
   receiptAmounts,
   ticketPercentage,
@@ -68,5 +70,13 @@ describe("regras de premiação", () => {
     expect(afterDeadline.status).toBe("expired");
     const reachedOnTime = ticketGoalState({ receivedAccumulated: 800000, receivableAmount: receivable, workingDaysRemaining: 0, reachedByDay15: true, referenceDate: new Date("2026-08-16T12:00:00") });
     expect(reachedOnTime.status).toBe("achieved");
+  });
+
+  it("calcula a inadimplência e os saldos da Meta Perdido para 100% e 105%", () => {
+    expect(delinquencyPercentage(65000, 1000000)).toBe(6.5);
+    expect(delinquencyPercentage(70000, 1000000)).toBeCloseTo(7, 10);
+    expect(lostGoalMissingForTarget(100, 10000, 8200)).toBe(1800);
+    expect(lostGoalMissingForTarget(105, 10000, 8200)).toBe(2300);
+    expect(lostGoalMissingForTarget(100, 10000, 10500)).toBe(0);
   });
 });
