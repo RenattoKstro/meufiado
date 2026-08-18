@@ -23,3 +23,10 @@
 - [x] Importar metas por planilha Analítico e atualizar Meta Fiado, Meta Desafio, Vencido Atual, Meta Perdido e Perdido Realizado por filial.
 - [x] Exibir prévia, validações por linha e resumo do resultado antes de confirmar cada importação administrativa.
 - [x] Cobrir a normalização de códigos de filiais e os mapeamentos de importação com testes automatizados.
+- [x] Renomear a marca e os metadados do sistema para Meu Fiado.
+- [x] Corrigir os botões da navegação lateral para abrir as telas de Meta Fiado, Meta Desafio, Ajustes e Configurações.
+- [x] Diferenciar Ajustes de metas e Configurações pessoais por conteúdo e finalidade.
+- [x] Permitir ao administrador definir uma senha inicial no cadastro de cada usuário.
+- [x] Criar acesso local de usuário com troca de senha no primeiro acesso e sessão protegida.
+- [x] Cobrir hash, logout e isolamento das sessões administrativas e de operador com testes automatizados.
+- [ ] Validar manualmente a navegação lateral entre Meta Fiado, Meta Desafio, Ajustes, Preferências e Segurança após a conclusão do perfil do administrador.

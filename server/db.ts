@@ -7,8 +7,10 @@ import {
   InsertUser,
   metricSettings,
   userProfiles,
+  userCredentials,
   users,
 } from "../drizzle/schema";
+import { randomUUID } from "crypto";
 import { ENV } from "./_core/env";
 import { hashPassword, verifyPassword } from "./localAdminAuth";
 import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
@@ -252,18 +254,57 @@ export async function listManagedUsers() {
     .orderBy(desc(userProfiles.updatedAt));
 }
 
-export async function createPreRegisteredUser(input: ProfileInput) {
+export async function createPreRegisteredUser(input: ProfileInput & { password: string }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  await db.insert(userProfiles).values({
-    fullName: input.fullName,
-    email: input.email.toLowerCase(),
-    branchId: input.branchId,
-    phone: input.phone,
-    instagram: input.instagram || null,
-    operatorType: input.operatorType,
-    profileComplete: false,
-  });
+  const email = input.email.toLowerCase();
+  const existingProfile = await db.select().from(userProfiles).where(eq(userProfiles.email, email)).limit(1);
+  if (existingProfile[0]?.userId) throw new Error("Já existe uma conta vinculada a este e-mail.");
+  const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  let userId = existingUser[0]?.id;
+  if (!userId) {
+    await db.insert(users).values({ openId: `local-${randomUUID()}`, name: input.fullName, email, loginMethod: "password", role: "user", lastSignedIn: new Date() });
+    const created = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    userId = created[0]?.id;
+  }
+  if (!userId) throw new Error("Não foi possível criar a conta do operador.");
+  const profileValues = { fullName: input.fullName, email, branchId: input.branchId, phone: input.phone, instagram: input.instagram || null, operatorType: input.operatorType, profileComplete: true } as const;
+  if (existingProfile[0]) await db.update(userProfiles).set({ ...profileValues, userId }).where(eq(userProfiles.id, existingProfile[0].id));
+  else await db.insert(userProfiles).values({ ...profileValues, userId });
+  const passwordHash = await hashPassword(input.password);
+  await db.insert(userCredentials).values({ userId, passwordHash, mustChangePassword: true }).onDuplicateKeyUpdate({ set: { passwordHash, mustChangePassword: true } });
+}
+
+export async function loginLocalUser(emailInput: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const email = emailInput.trim().toLowerCase();
+  const result = await db
+    .select({ user: users, credential: userCredentials, profile: userProfiles })
+    .from(userCredentials)
+    .innerJoin(users, eq(userCredentials.userId, users.id))
+    .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+    .where(eq(users.email, email))
+    .limit(1);
+  const account = result[0];
+  if (!account || !account.profile?.isActive || !(await verifyPassword(password, account.credential.passwordHash))) return null;
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, account.user.id));
+  return account.user;
+}
+
+export async function getUserCredentialStatus(userId: number) {
+  const db = await getDb();
+  if (!db) return { hasPassword: false, mustChangePassword: false };
+  const credential = await db.select().from(userCredentials).where(eq(userCredentials.userId, userId)).limit(1);
+  return { hasPassword: Boolean(credential[0]), mustChangePassword: credential[0]?.mustChangePassword ?? false };
+}
+
+export async function changeMyPassword(userId: number, currentPassword: string, newPassword: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const credential = await db.select().from(userCredentials).where(eq(userCredentials.userId, userId)).limit(1);
+  if (!credential[0] || !(await verifyPassword(currentPassword, credential[0].passwordHash))) throw new Error("Senha atual inválida.");
+  await db.update(userCredentials).set({ passwordHash: await hashPassword(newPassword), mustChangePassword: false }).where(eq(userCredentials.id, credential[0].id));
 }
 
 export async function updateManagedUser(

@@ -29,6 +29,13 @@
       "when": 1787064048412,
       "tag": "0003_secret_mentallo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787066494621,
+      "tag": "0004_fine_gateway",
+      "breakpoints": true
     }
   ]
 }

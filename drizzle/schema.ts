@@ -71,6 +71,14 @@ export const adminCredentials = mysqlTable("adminCredentials", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const userCredentials = mysqlTable("userCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const metricSettings = mysqlTable("metricSettings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id),
@@ -107,3 +115,4 @@ export type Branch = typeof branches.$inferSelect;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type MetricSettings = typeof metricSettings.$inferSelect;
 export type BranchMetric = typeof branchMetrics.$inferSelect;
+export type UserCredential = typeof userCredentials.$inferSelect;

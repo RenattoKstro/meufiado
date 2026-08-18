@@ -23,15 +23,16 @@ import {
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BarChart3, Building2, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Moon, Settings2, ShieldCheck, Sun, Target, Users } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, CircleDollarSign, KeyRound, LayoutDashboard, LogOut, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
 import { useLocation } from "wouter";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
   { label: "Meta Fiado", path: "/fiado", icon: CircleDollarSign },
   { label: "Meta Desafio", path: "/desafio", icon: Target },
-  { label: "Ajustes", path: "/ajustes", icon: Settings2 },
-  { label: "Configurações", path: "/configuracoes", icon: Sun },
+  { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },
+  { label: "Preferências", path: "/configuracoes", icon: Palette },
+  { label: "Senha de acesso", path: "/seguranca", icon: KeyRound },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -52,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <BarChart3 className="h-5 w-5" />
             </div>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="text-sm font-extrabold tracking-tight text-sidebar-foreground">Recebe+</p>
+              <p className="text-sm font-extrabold tracking-tight text-sidebar-foreground">Meu Fiado</p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Painel de metas</p>
             </div>
           </div>
@@ -77,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {user?.role === "admin" && (
             <div className="mx-1 mt-8 rounded-2xl bg-primary/10 p-3 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center gap-2 text-primary"><Building2 className="h-4 w-4" /><span className="text-xs font-extrabold">Modo administrador</span></div>
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">Acompanhe filiais e mantenha os operadores atualizados.</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">Acompanhe filiais, metas e mantenha os operadores atualizados.</p>
             </div>
           )}
         </SidebarContent>

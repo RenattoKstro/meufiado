@@ -4,6 +4,7 @@ import { jwtVerify, SignJWT } from "jose";
 
 const scryptAsync = promisify(scrypt);
 export const ADMIN_SESSION_COOKIE = "recebe_admin_session";
+export const USER_SESSION_COOKIE = "meu_fiado_user_session";
 const SESSION_ISSUER = "painel-recebimentos";
 const SESSION_LIFETIME = "12h";
 
@@ -42,6 +43,28 @@ export async function getAdminSessionUserId(token: string | undefined) {
   try {
     const { payload } = await jwtVerify(token, sessionKey(), { issuer: SESSION_ISSUER });
     if (payload.role !== "admin" || !payload.sub) return null;
+    const userId = Number(payload.sub);
+    return Number.isSafeInteger(userId) && userId > 0 ? userId : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createUserSession(userId: number) {
+  return new SignJWT({ role: "user" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuer(SESSION_ISSUER)
+    .setSubject(String(userId))
+    .setIssuedAt()
+    .setExpirationTime(SESSION_LIFETIME)
+    .sign(sessionKey());
+}
+
+export async function getUserSessionUserId(token: string | undefined) {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, sessionKey(), { issuer: SESSION_ISSUER });
+    if (payload.role !== "user" || !payload.sub) return null;
     const userId = Number(payload.sub);
     return Number.isSafeInteger(userId) && userId > 0 ? userId : null;
   } catch {
