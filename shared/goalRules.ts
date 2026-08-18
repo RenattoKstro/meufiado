@@ -65,6 +65,14 @@ export function receiptAmounts(monthOpening: number, dayOpening: number, current
   };
 }
 
+export function amountReceivable(monthOpening: number, creditGoal: number) {
+  return Math.max(monthOpening - creditGoal, 0);
+}
+
+export function ticketPercentage(receivedAccumulated: number, receivableAmount: number) {
+  return percentage(receivedAccumulated, receivableAmount);
+}
+
 export function fiadoMissingForTarget(targetPercent: number, creditGoal: number, currentOverdue: number) {
   return Math.max(0, (currentOverdue * targetPercent) / 100 - creditGoal);
 }

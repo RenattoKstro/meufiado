@@ -8,3 +8,5 @@
 - A suíte automatizada final executou 15 testes aprovados e a verificação de tipos foi concluída sem erros.
 
 Em dispositivo móvel, as telas de Meta Fiado, Meta Desafio, Preferências, Senha de acesso e Administração renderizaram com conteúdo correto, sem barra de rolagem visível. A navegação lateral foi reforçada com links nativos para cada rota, em vez de depender exclusivamente de eventos de clique em botões.
+
+A validação do dashboard confirmou a Meta de 80% em **72,04%**, resultado de R$ 701.566,23 de recebido acumulado dividido por R$ 973.898,82 a receber. O valor é exibido arredondado a duas casas decimais; o cálculo bruto é 72,0368703%.

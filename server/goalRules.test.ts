@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   accumulatedReward,
+  amountReceivable,
   CHALLENGE_TIERS,
   dailyRequirement,
   fiadoMissingForTarget,
@@ -9,6 +10,7 @@ import {
   isTicketValid,
   missingForTarget,
   receiptAmounts,
+  ticketPercentage,
   totalReward,
 } from "../shared/goalRules";
 
@@ -38,5 +40,11 @@ describe("regras de premiação", () => {
     expect(fiadoPercentage(667582.89, 939915.48)).toBeCloseTo(71.03, 2);
     expect(receiptAmounts(1641481.71, 939915.48, 939915.48)).toEqual({ accumulated: 701566.23, today: 0 });
     expect(fiadoMissingForTarget(80, 667582.89, 939915.48)).toBeCloseTo(84349.49, 2);
+  });
+
+  it("calcula a Meta de 80% sobre o valor a receber", () => {
+    const receivable = amountReceivable(1641481.71, 667582.89);
+    expect(receivable).toBeCloseTo(973898.82, 2);
+    expect(ticketPercentage(701566.23, receivable)).toBeCloseTo(72.0368703, 6);
   });
 });

@@ -34,3 +34,6 @@
 - [x] Calcular o percentual da Meta Fiado como Meta Fiado dividida pelo Vencido Atual.
 - [x] Exibir Recebido acumulado como Abertura do Mês menos Vencido Atual e Recebido hoje como Abertura do Dia menos Vencido Atual.
 - [x] Cobrir as novas fórmulas de recebimento com testes automatizados.
+- [x] Calcular o valor a receber como Abertura do Mês menos Meta Fiado.
+- [x] Calcular e exibir a Meta de 80% como Recebido Acumulado dividido pelo valor a receber, multiplicado por 100.
+- [x] Cobrir a fórmula da Meta de 80% com teste automatizado.
