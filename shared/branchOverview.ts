@@ -43,3 +43,18 @@ export function latestOverviewUpdate(...values: Array<Date | null | undefined>) 
 
   return latestTimestamp === null ? null : new Date(latestTimestamp);
 }
+
+export function hasBranchFinancialActivity(metrics: BranchMetricSnapshot) {
+  const fields: Array<keyof BranchMetricSnapshot> = [
+    "portfolioTotal",
+    "monthOpening",
+    "dayOpening",
+    "currentOverdue",
+    "creditGoal",
+    "challengeGoal",
+    "lostGoal",
+    "lostReceived",
+  ];
+
+  return fields.some(field => Number(metrics[field] ?? 0) !== 0);
+}

@@ -53,3 +53,5 @@
 - [x] Cobrir os novos cálculos e a consulta de filiais com testes automatizados.
 - [x] Garantir o armazenamento verificável do favicon usado pelo Meu Fiado.
 - [x] Cobrir diretamente a procedure Filiais com teste de retorno e permissões.
+- [x] Remover o card da Meta de 80% da tela exclusiva de Meta Desafio.
+- [x] Permitir ocultar na guia Filiais as operações sem metas ou valores informados.

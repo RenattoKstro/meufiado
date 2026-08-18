@@ -21,10 +21,11 @@ type GoalCardProps = {
   daysElapsed: number;
   referenceGoal: number;
   targetMissing?: (target: number) => number;
+  projectionTargets?: number[];
   accent?: "primary" | "violet";
 };
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, accent = "primary" }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, projectionTargets = [80, 94], accent = "primary" }: GoalCardProps) {
   const [open, setOpen] = useState(false);
   const visualProgress = Math.min(progress, 105);
   const missing = (target: number) => targetMissing ? targetMissing(target) : Math.max(0, (referenceGoal * target) / 100 - received);
@@ -51,7 +52,7 @@ export default function GoalCard({ title, description, progress, received, accum
       </button>
       {open && <div className="border-t border-border/70 bg-muted/35 p-5">
         <div className="mb-4 grid grid-cols-2 gap-3">
-          {[80, 94].map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Falta receber · {currency(daily(target))}/dia</p></div>)}
+          {projectionTargets.map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Falta receber · {currency(daily(target))}/dia</p></div>)}
         </div>
         <div className="space-y-2">
           {tiers.map(tier => {
