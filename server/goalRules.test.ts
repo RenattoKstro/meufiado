@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   accumulatedReward,
   amountReceivable,
+  challengeMissingForTarget,
+  challengePercentage,
   CHALLENGE_TIERS,
   dailyRequirement,
   fiadoMissingForTarget,
@@ -40,6 +42,11 @@ describe("regras de premiação", () => {
     expect(fiadoPercentage(667582.89, 939915.48)).toBeCloseTo(71.03, 2);
     expect(receiptAmounts(1641481.71, 939915.48, 939915.48)).toEqual({ accumulated: 701566.23, today: 0 });
     expect(fiadoMissingForTarget(80, 667582.89, 939915.48)).toBeCloseTo(84349.49, 2);
+  });
+
+  it("calcula a Meta Desafio pela meta cadastrada sobre o vencido atual", () => {
+    expect(challengePercentage(667582.89, 939915.48)).toBeCloseTo(71.03, 2);
+    expect(challengeMissingForTarget(96, 667582.89, 939915.48)).toBeCloseTo(234735.9708, 4);
   });
 
   it("calcula a Meta de 80% sobre o valor a receber", () => {

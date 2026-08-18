@@ -58,6 +58,10 @@ export function fiadoPercentage(creditGoal: number, currentOverdue: number) {
   return percentage(creditGoal, currentOverdue);
 }
 
+export function challengePercentage(challengeGoal: number, currentOverdue: number) {
+  return percentage(challengeGoal, currentOverdue);
+}
+
 export function receiptAmounts(monthOpening: number, dayOpening: number, currentOverdue: number) {
   return {
     accumulated: Math.max(monthOpening - currentOverdue, 0),
@@ -75,6 +79,10 @@ export function ticketPercentage(receivedAccumulated: number, receivableAmount: 
 
 export function fiadoMissingForTarget(targetPercent: number, creditGoal: number, currentOverdue: number) {
   return Math.max(0, (currentOverdue * targetPercent) / 100 - creditGoal);
+}
+
+export function challengeMissingForTarget(targetPercent: number, challengeGoal: number, currentOverdue: number) {
+  return Math.max(0, (currentOverdue * targetPercent) / 100 - challengeGoal);
 }
 
 export function missingForTarget(targetPercent: number, referenceGoal: number, received: number) {

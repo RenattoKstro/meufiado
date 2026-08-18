@@ -37,3 +37,6 @@
 - [x] Calcular o valor a receber como Abertura do Mês menos Meta Fiado.
 - [x] Calcular e exibir a Meta de 80% como Recebido Acumulado dividido pelo valor a receber, multiplicado por 100.
 - [x] Cobrir a fórmula da Meta de 80% com teste automatizado.
+- [x] Calcular o percentual da Meta Desafio como Meta Desafio dividida pelo Vencido Atual.
+- [x] Atualizar as faixas e a premiação da Meta Desafio com a nova base de cálculo.
+- [x] Cobrir a fórmula da Meta Desafio com teste automatizado.

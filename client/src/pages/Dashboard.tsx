@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
-import { accumulatedReward, amountReceivable, CHALLENGE_TIERS, fiadoMissingForTarget, fiadoPercentage, FIADO_TIERS, isTicketValid, LOST_TIERS, percentage, receiptAmounts, ticketPercentage, totalReward } from "../../../shared/goalRules";
+import { accumulatedReward, amountReceivable, challengeMissingForTarget, challengePercentage, CHALLENGE_TIERS, fiadoMissingForTarget, fiadoPercentage, FIADO_TIERS, isTicketValid, LOST_TIERS, percentage, receiptAmounts, ticketPercentage, totalReward } from "../../../shared/goalRules";
 import { ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, Medal, TicketCheck, Trophy } from "lucide-react";
 import { Link } from "wouter";
 
@@ -21,7 +21,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const fiadoProgress = fiadoPercentage(metrics.creditGoal, metrics.currentOverdue);
   const receivableAmount = amountReceivable(metrics.monthOpening, metrics.creditGoal);
   const ticketProgress = ticketPercentage(receipts.accumulated, receivableAmount);
-  const challengeProgress = percentage(receipts.accumulated, metrics.challengeGoal);
+  const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const ticketValid = type === "leader" && ticketProgress >= 80 && isTicketValid(metrics.fiadoAtDay15);
@@ -29,7 +29,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const pendingSetup = metrics.creditGoal <= 0 || metrics.challengeGoal <= 0 || metrics.currentOverdue <= 0;
 
   const fiado = <GoalCard title="Meta Fiado" description="Percentual: Meta Fiado ÷ Vencido Atual. Premiação acumulativa por faixa." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} />;
-  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as três faixas de bonificação da campanha." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} accent="violet" />;
+  const challenge = <GoalCard title="Meta Desafio" description="Percentual: Meta Desafio ÷ Vencido Atual. Acompanhe as faixas de bonificação." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} accent="violet" />;
 
   return <section className="mx-auto max-w-7xl animate-in fade-in duration-500"><header className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><div className="mb-2 flex items-center gap-2"><Badge className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary hover:bg-primary/10">{branch.name}</Badge>{profile.isOnVacation && <Badge className="rounded-full bg-amber-500/10 px-2.5 py-1 font-bold text-amber-600 hover:bg-amber-500/10">Em férias</Badge>}</div><h1 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">Olá, {profile.fullName.split(" ")[0]}.</h1><p className="mt-2 text-sm text-muted-foreground">{view === "overview" ? "Confira o desempenho e a projeção da sua cobrança." : view === "fiado" ? "Detalhamento da sua Meta Fiado." : "Detalhamento da sua Meta Desafio."}</p></div><div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><CalendarDays className="h-4 w-4 text-primary" /><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Dias úteis</p><p className="text-sm font-black">{metrics.workingDaysElapsed} de {metrics.workingDaysTotal || "–"}</p></div></div></header>
   {pendingSetup && <div className="mb-7 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p className="text-xs leading-relaxed text-muted-foreground">Configure os valores iniciais em <Link href="/ajustes" className="font-extrabold text-primary underline-offset-2 hover:underline">Ajustes</Link> para ativar os cálculos e projeções do painel.</p></div>}
