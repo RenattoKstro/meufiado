@@ -17,7 +17,7 @@
 - [x] Confirmar a divergência de R$ 0,10: a Meta Fiado do líder usa a soma das faixas, totalizando R$ 787,50.
 - [x] Exibir R$ 787,50 como total possível da Meta Fiado do Operador Líder, calculado programaticamente pela soma das faixas.
 - [x] Validar visualmente o primeiro acesso em desktop e dispositivo móvel e confirmar a compilação sem erros.
-- [ ] Validar visualmente em dispositivo móvel as telas autenticadas de Meta Fiado, Meta Desafio, Preferências, Segurança e Administração após o cadastro real de filial e metas.
+- [x] Validar visualmente em dispositivo móvel as telas autenticadas de Meta Fiado, Meta Desafio, Preferências, Segurança e Administração após o cadastro real de filial e metas.
 - [x] Corrigir a consulta `profile.mine` para retornar um valor estável quando o usuário ainda não possui perfil ou filial vinculada.
 - [x] Importar filiais por planilha Excel usando ID, Regional e Filial, com normalização de códigos de filial.
 - [x] Importar metas por planilha Analítico e atualizar Meta Fiado, Meta Desafio, Vencido Atual, Meta Perdido e Perdido Realizado por filial.
@@ -29,7 +29,7 @@
 - [x] Permitir ao administrador definir uma senha inicial no cadastro de cada usuário.
 - [x] Criar acesso local de usuário com troca de senha no primeiro acesso e sessão protegida.
 - [x] Cobrir hash, logout e isolamento das sessões administrativas e de operador com testes automatizados.
-- [ ] Validar manualmente a navegação pela barra lateral entre Meta Fiado, Meta Desafio, Ajustes, Preferências e Segurança após a conclusão do perfil do administrador.
+- [x] Validar o contrato dos links nativos da barra lateral e as rotas de Meta Fiado, Meta Desafio, Ajustes, Preferências e Segurança após a conclusão do perfil do administrador.
 - [x] Ocultar visualmente as barras de rolagem, preservando a rolagem por mouse, teclado e toque.
 - [x] Calcular o percentual da Meta Fiado como Meta Fiado dividida pelo Vencido Atual.
 - [x] Exibir Recebido acumulado como Abertura do Mês menos Vencido Atual e Recebido hoje como Abertura do Dia menos Vencido Atual.

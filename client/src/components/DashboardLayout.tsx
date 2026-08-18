@@ -24,7 +24,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { BarChart3, Building2, ChevronDown, CircleDollarSign, KeyRound, LayoutDashboard, LogOut, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
@@ -38,7 +38,7 @@ const navigation = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const isMobile = useIsMobile();
   const menu = user?.role === "admin" ? [...navigation, { label: "Administração", path: "/admin", icon: ShieldCheck }] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
@@ -64,13 +64,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {menu.map(item => (
               <SidebarMenuItem key={item.path}>
                 <SidebarMenuButton
+                  asChild
                   isActive={location === item.path}
-                  onClick={() => setLocation(item.path)}
                   tooltip={item.label}
                   className="h-11 rounded-xl px-3 text-sm font-semibold transition-all data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-md data-[active=true]:shadow-primary/20"
                 >
-                  <item.icon className="h-[18px] w-[18px]" />
-                  <span>{item.label}</span>
+                  <Link href={item.path}>
+                    <item.icon className="h-[18px] w-[18px]" />
+                    <span>{item.label}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
