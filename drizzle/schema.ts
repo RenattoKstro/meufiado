@@ -28,11 +28,12 @@ export const branches = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     name: varchar("name", { length: 120 }).notNull(),
     code: varchar("code", { length: 32 }),
+    regional: varchar("regional", { length: 120 }),
     isActive: boolean("isActive").default(true).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
-  table => [uniqueIndex("branches_name_unique").on(table.name)],
+  table => [uniqueIndex("branches_name_unique").on(table.name), uniqueIndex("branches_code_unique").on(table.code)],
 );
 
 export const operatorType = mysqlEnum("operatorType", ["leader", "assistant"]);
@@ -87,8 +88,22 @@ export const metricSettings = mysqlTable("metricSettings", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const branchMetrics = mysqlTable("branchMetrics", {
+  id: int("id").autoincrement().primaryKey(),
+  branchId: int("branchId").notNull().unique().references(() => branches.id),
+  creditGoal: double("creditGoal").default(0).notNull(),
+  challengeGoal: double("challengeGoal").default(0).notNull(),
+  currentOverdue: double("currentOverdue").default(0).notNull(),
+  monthlyLoss: double("monthlyLoss").default(0).notNull(),
+  lossSalesPercent: double("lossSalesPercent").default(0).notNull(),
+  lostGoal: double("lostGoal").default(0).notNull(),
+  lostReceived: double("lostReceived").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Branch = typeof branches.$inferSelect;
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type MetricSettings = typeof metricSettings.$inferSelect;
+export type BranchMetric = typeof branchMetrics.$inferSelect;

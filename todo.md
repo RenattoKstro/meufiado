@@ -19,3 +19,7 @@
 - [x] Validar visualmente o primeiro acesso em desktop e dispositivo móvel e confirmar a compilação sem erros.
 - [ ] Validar visualmente em desktop e dispositivo móvel as telas autenticadas de dashboard, metas, ajustes, configurações e administração após o primeiro cadastro real de filial e metas.
 - [x] Corrigir a consulta `profile.mine` para retornar um valor estável quando o usuário ainda não possui perfil ou filial vinculada.
+- [x] Importar filiais por planilha Excel usando ID, Regional e Filial, com normalização de códigos de filial.
+- [x] Importar metas por planilha Analítico e atualizar Meta Fiado, Meta Desafio, Vencido Atual, Meta Perdido e Perdido Realizado por filial.
+- [x] Exibir prévia, validações por linha e resumo do resultado antes de confirmar cada importação administrativa.
+- [x] Cobrir a normalização de códigos de filiais e os mapeamentos de importação com testes automatizados.

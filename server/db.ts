@@ -2,6 +2,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
+  branchMetrics,
   branches,
   InsertUser,
   metricSettings,
@@ -10,6 +11,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { hashPassword, verifyPassword } from "./localAdminAuth";
+import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -74,10 +76,70 @@ export async function listAllBranches() {
   return db.select().from(branches).orderBy(branches.name);
 }
 
-export async function createBranch(input: { name: string; code?: string }) {
+export async function createBranch(input: { name: string; code?: string; regional?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  await db.insert(branches).values({ name: input.name, code: input.code || null });
+  const code = normalizeBranchCode(input.code);
+  await db.insert(branches).values({ name: input.name, code: code || null, regional: input.regional || null });
+}
+
+export async function importBranches(rows: BranchImportRow[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const allBranches = await db.select().from(branches);
+  const byCode = new Map(allBranches.filter(branch => branch.code).map(branch => [normalizeBranchCode(branch.code), branch]));
+  const byName = new Map(allBranches.map(branch => [branch.name.toLocaleLowerCase(), branch]));
+  let created = 0;
+  let updated = 0;
+  for (const row of rows) {
+    const existing = byCode.get(row.code) ?? byName.get(row.name.toLocaleLowerCase());
+    if (existing) {
+      await db.update(branches).set({ name: row.name, code: row.code, regional: row.regional || null, isActive: true }).where(eq(branches.id, existing.id));
+      updated += 1;
+    } else {
+      await db.insert(branches).values({ name: row.name, code: row.code, regional: row.regional || null, isActive: true });
+      created += 1;
+    }
+  }
+  return { created, updated };
+}
+
+export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const allBranches = await db.select().from(branches);
+  const byCode = new Map(allBranches.filter(branch => branch.code).map(branch => [normalizeBranchCode(branch.code), branch]));
+  let imported = 0;
+  let unmatched = 0;
+  for (const row of rows) {
+    const branch = byCode.get(row.code);
+    if (!branch) { unmatched += 1; continue; }
+    const values = {
+      creditGoal: row.creditGoal,
+      challengeGoal: row.challengeGoal,
+      currentOverdue: row.currentOverdue,
+      monthlyLoss: row.monthlyLoss,
+      lossSalesPercent: row.lossSalesPercent,
+      lostGoal: row.lostGoal,
+      lostReceived: row.lostReceived,
+    };
+    await db.insert(branchMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
+    if (row.regional) await db.update(branches).set({ regional: row.regional }).where(eq(branches.id, branch.id));
+    const profiles = await db.select({ userId: userProfiles.userId }).from(userProfiles).where(eq(userProfiles.branchId, branch.id));
+    for (const profile of profiles) {
+      if (!profile.userId) continue;
+      const userMetricValues = {
+        creditGoal: row.creditGoal,
+        challengeGoal: row.challengeGoal,
+        currentOverdue: row.currentOverdue,
+        lostGoal: row.lostGoal,
+        lostReceived: row.lostReceived,
+      };
+      await db.insert(metricSettings).values({ userId: profile.userId, ...emptyMetrics, ...userMetricValues }).onDuplicateKeyUpdate({ set: userMetricValues });
+    }
+    imported += 1;
+  }
+  return { imported, unmatched };
 }
 
 export async function setBranchStatus(id: number, isActive: boolean) {
@@ -161,7 +223,16 @@ export async function getMyMetrics(userId: number) {
   const db = await getDb();
   if (!db) return emptyMetrics;
   const result = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  return result[0] ?? emptyMetrics;
+  if (result[0]) return result[0];
+  const branchDefault = await db
+    .select({ metrics: branchMetrics })
+    .from(userProfiles)
+    .innerJoin(branchMetrics, eq(userProfiles.branchId, branchMetrics.branchId))
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+  if (!branchDefault[0]) return emptyMetrics;
+  const { metrics } = branchDefault[0];
+  return { ...emptyMetrics, creditGoal: metrics.creditGoal, challengeGoal: metrics.challengeGoal, currentOverdue: metrics.currentOverdue, lostGoal: metrics.lostGoal, lostReceived: metrics.lostReceived };
 }
 
 export async function saveMyMetrics(userId: number, input: typeof emptyMetrics) {

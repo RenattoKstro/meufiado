@@ -3,6 +3,8 @@ import {
   completeMyProfile,
   createBranch,
   createPreRegisteredUser,
+  importAnalyticMetrics,
+  importBranches,
   getMyMetrics,
   getMyProfile,
   listActiveBranches,
@@ -21,6 +23,7 @@ import { ADMIN_SESSION_COOKIE, createAdminSession } from "./localAdminAuth";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 import { COOKIE_NAME } from "@shared/const";
+import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, uniqueRowsByBranchCode } from "../shared/importRules";
 
 const operatorType = z.enum(["leader", "assistant"]);
 const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
@@ -46,6 +49,7 @@ const metricsInput = z.object({
   workingDaysElapsed: z.number().int().min(0).max(31),
   fiadoAtDay15: z.boolean(),
 });
+const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));
 
 export const appRouter = router({
   system: systemRouter,
@@ -83,6 +87,16 @@ export const appRouter = router({
     users: adminProcedure.query(() => listManagedUsers()),
     branches: adminProcedure.query(() => listAllBranches()),
     createBranch: adminProcedure.input(z.object({ name: z.string().trim().min(2).max(120), code: z.string().trim().max(32).optional() })).mutation(({ input }) => createBranch(input)),
+    importBranches: adminProcedure.input(z.object({ rows: z.array(spreadsheetRow).min(1).max(5000) })).mutation(({ input }) => {
+      const parsedRows = input.rows.map(branchRowFromSpreadsheet).filter((row): row is NonNullable<typeof row> => row !== null);
+      const rows = uniqueRowsByBranchCode(parsedRows);
+      return importBranches(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
+    }),
+    importAnalytics: adminProcedure.input(z.object({ rows: z.array(spreadsheetRow).min(1).max(5000) })).mutation(({ input }) => {
+      const parsedRows = input.rows.map(analyticRowFromSpreadsheet).filter((row): row is NonNullable<typeof row> => row !== null);
+      const rows = uniqueRowsByBranchCode(parsedRows);
+      return importAnalyticMetrics(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
+    }),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
     preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
     updateUser: adminProcedure
