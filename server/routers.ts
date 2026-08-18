@@ -50,6 +50,7 @@ const metricsInput = z.object({
   lostReceived: nonNegativeNumber,
   workingDaysTotal: z.number().int().min(0).max(31),
   workingDaysElapsed: z.number().int().min(0).max(31),
+  ticketWorkingDaysRemaining: z.number().int().min(0).max(31),
   fiadoAtDay15: z.boolean(),
 });
 const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));

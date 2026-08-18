@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import { ENV } from "./_core/env";
 import { hashPassword, verifyPassword } from "./localAdminAuth";
 import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
+import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -218,6 +219,7 @@ const emptyMetrics = {
   lostReceived: 0,
   workingDaysTotal: 0,
   workingDaysElapsed: 0,
+  ticketWorkingDaysRemaining: 0,
   fiadoAtDay15: false,
 };
 
@@ -240,7 +242,12 @@ export async function getMyMetrics(userId: number) {
 export async function saveMyMetrics(userId: number, input: typeof emptyMetrics) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  await db.insert(metricSettings).values({ userId, ...input }).onDuplicateKeyUpdate({ set: input });
+  const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
+  const dayInBrazil = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "numeric" }).format(new Date()));
+  const received = receiptAmounts(input.monthOpening, input.dayOpening, input.currentOverdue).accumulated;
+  const reachedBeforeDeadline = dayInBrazil <= 15 && received >= ticketGoalAmount(amountReceivable(input.monthOpening, input.creditGoal));
+  const values = { ...input, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+  await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
 }
 
 export async function listManagedUsers() {

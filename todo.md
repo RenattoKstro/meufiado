@@ -40,3 +40,8 @@
 - [x] Calcular o percentual da Meta Desafio como Meta Desafio dividida pelo Vencido Atual.
 - [x] Atualizar as faixas e a premiação da Meta Desafio com a nova base de cálculo.
 - [x] Cobrir a fórmula da Meta Desafio com teste automatizado.
+- [x] Calcular o valor-alvo da Meta de 80% como 80% do valor a receber.
+- [x] Calcular o saldo para a Meta de 80% e a média necessária por dia útil restante até o dia 15.
+- [x] Invalidar automaticamente a Meta Ticket após o dia 15 quando o valor-alvo de 80% não tiver sido recebido.
+- [x] Exibir no painel o valor-alvo, saldo, dias úteis restantes e situação da Meta de 80%.
+- [x] Cobrir valor-alvo, prazo e invalidação da Meta de 80% com testes automatizados.

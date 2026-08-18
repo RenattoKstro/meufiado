@@ -92,6 +92,7 @@ export const metricSettings = mysqlTable("metricSettings", {
   lostReceived: double("lostReceived").default(0).notNull(),
   workingDaysTotal: int("workingDaysTotal").default(0).notNull(),
   workingDaysElapsed: int("workingDaysElapsed").default(0).notNull(),
+  ticketWorkingDaysRemaining: int("ticketWorkingDaysRemaining").default(0).notNull(),
   fiadoAtDay15: boolean("fiadoAtDay15").default(false).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

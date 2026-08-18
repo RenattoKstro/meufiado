@@ -13,6 +13,8 @@ import {
   missingForTarget,
   receiptAmounts,
   ticketPercentage,
+  ticketGoalAmount,
+  ticketGoalState,
   totalReward,
 } from "../shared/goalRules";
 
@@ -53,5 +55,18 @@ describe("regras de premiação", () => {
     const receivable = amountReceivable(1641481.71, 667582.89);
     expect(receivable).toBeCloseTo(973898.82, 2);
     expect(ticketPercentage(701566.23, receivable)).toBeCloseTo(72.0368703, 6);
+  });
+
+  it("calcula valor-alvo, saldo diário e invalida a Meta de 80% após o dia 15", () => {
+    const receivable = 973898.82;
+    expect(ticketGoalAmount(receivable)).toBeCloseTo(779119.056, 3);
+    const beforeDeadline = ticketGoalState({ receivedAccumulated: 701566.23, receivableAmount: receivable, workingDaysRemaining: 4, reachedByDay15: false, referenceDate: new Date("2026-08-14T12:00:00") });
+    expect(beforeDeadline.status).toBe("in_progress");
+    expect(beforeDeadline.remaining).toBeCloseTo(77552.826, 3);
+    expect(beforeDeadline.dailyNeeded).toBeCloseTo(19388.2065, 4);
+    const afterDeadline = ticketGoalState({ receivedAccumulated: 701566.23, receivableAmount: receivable, workingDaysRemaining: 0, reachedByDay15: false, referenceDate: new Date("2026-08-16T12:00:00") });
+    expect(afterDeadline.status).toBe("expired");
+    const reachedOnTime = ticketGoalState({ receivedAccumulated: 800000, receivableAmount: receivable, workingDaysRemaining: 0, reachedByDay15: true, referenceDate: new Date("2026-08-16T12:00:00") });
+    expect(reachedOnTime.status).toBe("achieved");
   });
 });

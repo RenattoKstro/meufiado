@@ -77,6 +77,35 @@ export function ticketPercentage(receivedAccumulated: number, receivableAmount: 
   return percentage(receivedAccumulated, receivableAmount);
 }
 
+export function ticketGoalAmount(receivableAmount: number) {
+  return receivableAmount * 0.8;
+}
+
+export type TicketStatus = "in_progress" | "achieved" | "expired";
+
+export function ticketGoalState(input: {
+  receivedAccumulated: number;
+  receivableAmount: number;
+  workingDaysRemaining: number;
+  reachedByDay15: boolean;
+  referenceDate?: Date;
+}) {
+  const target = ticketGoalAmount(input.receivableAmount);
+  const remaining = Math.max(target - input.receivedAccumulated, 0);
+  const dailyNeeded = input.workingDaysRemaining > 0 ? remaining / input.workingDaysRemaining : 0;
+  const afterDay15 = (input.referenceDate ?? new Date()).getDate() > 15;
+  const reachedNow = input.receivedAccumulated >= target;
+  const achieved = afterDay15 ? input.reachedByDay15 : reachedNow;
+  return {
+    target,
+    remaining,
+    dailyNeeded,
+    progress: ticketPercentage(input.receivedAccumulated, input.receivableAmount),
+    afterDay15,
+    status: achieved ? "achieved" as TicketStatus : afterDay15 ? "expired" as TicketStatus : "in_progress" as TicketStatus,
+  };
+}
+
 export function fiadoMissingForTarget(targetPercent: number, creditGoal: number, currentOverdue: number) {
   return Math.max(0, (currentOverdue * targetPercent) / 100 - creditGoal);
 }
