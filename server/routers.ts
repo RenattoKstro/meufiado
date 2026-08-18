@@ -68,7 +68,7 @@ export const appRouter = router({
     updateCredentials: adminProcedure.input(z.object({ username: z.string().trim().min(3).max(80), newPassword: z.string().min(8).max(256).optional() })).mutation(({ input }) => updateLocalAdminCredentials(input)),
   }),
   profile: router({
-    mine: protectedProcedure.query(({ ctx }) => getMyProfile(ctx.user.id)),
+    mine: protectedProcedure.query(async ({ ctx }) => (await getMyProfile(ctx.user.id)) ?? null),
     branches: protectedProcedure.query(() => listActiveBranches()),
     complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => completeMyProfile(ctx.user.id, input)),
     preferences: protectedProcedure

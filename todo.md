@@ -17,3 +17,4 @@
 - [ ] Confirmar as fórmulas definitivas, incluindo a divergência de R$ 0,10 entre as faixas informadas da Meta Fiado do líder (R$ 787,50) e o total declarado (R$ 787,60).
 - [x] Validar visualmente o primeiro acesso em desktop e dispositivo móvel e confirmar a compilação sem erros.
 - [ ] Validar visualmente em desktop e dispositivo móvel as telas autenticadas de dashboard, metas, ajustes, configurações e administração após o primeiro cadastro real de filial e metas.
+- [x] Corrigir a consulta `profile.mine` para retornar um valor estável quando o usuário ainda não possui perfil ou filial vinculada.
