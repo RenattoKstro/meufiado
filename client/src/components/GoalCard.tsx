@@ -20,13 +20,14 @@ type GoalCardProps = {
   daysTotal: number;
   daysElapsed: number;
   referenceGoal: number;
+  targetMissing?: (target: number) => number;
   accent?: "primary" | "violet";
 };
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, accent = "primary" }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, accent = "primary" }: GoalCardProps) {
   const [open, setOpen] = useState(false);
   const visualProgress = Math.min(progress, 105);
-  const missing = (target: number) => Math.max(0, (referenceGoal * target) / 100 - received);
+  const missing = (target: number) => targetMissing ? targetMissing(target) : Math.max(0, (referenceGoal * target) / 100 - received);
   const daily = (target: number) => {
     const days = Math.max(daysTotal - daysElapsed, 0);
     return days > 0 ? missing(target) / days : 0;
@@ -43,7 +44,7 @@ export default function GoalCard({ title, description, progress, received, accum
           <Badge variant="secondary" className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-extrabold text-primary">{progress.toFixed(1)}%</Badge>
         </div>
         <div className="mt-6">
-          <div className="mb-2 flex items-end justify-between"><div><p className="text-2xl font-black tracking-tight">{currency(accumulated)}</p><p className="text-[11px] font-medium text-muted-foreground">de {currency(total)} possíveis</p></div><p className="text-right text-[11px] font-semibold text-muted-foreground">Recebido<br /><span className="text-foreground">{currency(received)}</span></p></div>
+          <div className="mb-2 flex items-end justify-between"><div><p className="text-2xl font-black tracking-tight">{currency(accumulated)}</p><p className="text-[11px] font-medium text-muted-foreground">de {currency(total)} possíveis</p></div><p className="text-right text-[11px] font-semibold text-muted-foreground">Recebido acumulado<br /><span className="text-foreground">{currency(received)}</span></p></div>
           <Progress value={Math.min((progress / 105) * 100, 100)} className="h-2.5 bg-muted [&>div]:bg-primary" />
         </div>
         <div className="mt-5 flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-muted-foreground"><span>{open ? "Ocultar projeções" : "Ver faixas e projeções"}</span><ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} /></div>

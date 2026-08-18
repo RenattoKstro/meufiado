@@ -3,9 +3,12 @@ import {
   accumulatedReward,
   CHALLENGE_TIERS,
   dailyRequirement,
+  fiadoMissingForTarget,
+  fiadoPercentage,
   FIADO_TIERS,
   isTicketValid,
   missingForTarget,
+  receiptAmounts,
   totalReward,
 } from "../shared/goalRules";
 
@@ -29,5 +32,11 @@ describe("regras de premiação", () => {
   it("valida a meta ticket apenas quando 80% foi confirmado até o dia 15", () => {
     expect(isTicketValid(true)).toBe(true);
     expect(isTicketValid(false)).toBe(false);
+  });
+
+  it("calcula o percentual de fiado e os recebimentos pelas aberturas informadas", () => {
+    expect(fiadoPercentage(667582.89, 939915.48)).toBeCloseTo(71.03, 2);
+    expect(receiptAmounts(1641481.71, 939915.48, 939915.48)).toEqual({ accumulated: 701566.23, today: 0 });
+    expect(fiadoMissingForTarget(80, 667582.89, 939915.48)).toBeCloseTo(84349.49, 2);
   });
 });

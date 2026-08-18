@@ -54,6 +54,21 @@ export function percentage(numerator: number, denominator: number) {
   return Math.max(0, (numerator / denominator) * 100);
 }
 
+export function fiadoPercentage(creditGoal: number, currentOverdue: number) {
+  return percentage(creditGoal, currentOverdue);
+}
+
+export function receiptAmounts(monthOpening: number, dayOpening: number, currentOverdue: number) {
+  return {
+    accumulated: Math.max(monthOpening - currentOverdue, 0),
+    today: Math.max(dayOpening - currentOverdue, 0),
+  };
+}
+
+export function fiadoMissingForTarget(targetPercent: number, creditGoal: number, currentOverdue: number) {
+  return Math.max(0, (currentOverdue * targetPercent) / 100 - creditGoal);
+}
+
 export function missingForTarget(targetPercent: number, referenceGoal: number, received: number) {
   return Math.max(0, (referenceGoal * targetPercent) / 100 - received);
 }
