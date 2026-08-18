@@ -14,7 +14,8 @@
 - [x] Construir painel administrativo para filiais, usuários, status, férias, inatividade e cadastro manual.
 - [x] Implementar login administrativo separado por usuário e senha, com hash de senha, cookie de sessão protegido e alteração de credenciais no painel.
 - [x] Cobrir cálculos e regras de permissão com testes automatizados.
-- [ ] Confirmar as fórmulas definitivas, incluindo a divergência de R$ 0,10 entre as faixas informadas da Meta Fiado do líder (R$ 787,50) e o total declarado (R$ 787,60).
+- [x] Confirmar a divergência de R$ 0,10: a Meta Fiado do líder usa a soma das faixas, totalizando R$ 787,50.
+- [x] Exibir R$ 787,50 como total possível da Meta Fiado do Operador Líder, calculado programaticamente pela soma das faixas.
 - [x] Validar visualmente o primeiro acesso em desktop e dispositivo móvel e confirmar a compilação sem erros.
 - [ ] Validar visualmente em desktop e dispositivo móvel as telas autenticadas de dashboard, metas, ajustes, configurações e administração após o primeiro cadastro real de filial e metas.
 - [x] Corrigir a consulta `profile.mine` para retornar um valor estável quando o usuário ainda não possui perfil ou filial vinculada.
