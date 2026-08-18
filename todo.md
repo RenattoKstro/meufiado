@@ -55,3 +55,6 @@
 - [x] Cobrir diretamente a procedure Filiais com teste de retorno e permissões.
 - [x] Remover o card da Meta de 80% da tela exclusiva de Meta Desafio.
 - [x] Permitir ocultar na guia Filiais as operações sem metas ou valores informados.
+- [x] Exibir por filial os saldos necessários para Meta Fiado, Meta Desafio, Meta 80% e Meta Perdido.
+- [x] Exibir por filial as premiações acumuladas e o conjunto ampliado de indicadores operacionais disponíveis.
+- [x] Cobrir os cálculos de detalhamento ampliado da guia Filiais com testes automatizados.
