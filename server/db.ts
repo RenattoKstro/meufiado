@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
+  adminCredentials,
   branches,
   InsertUser,
   metricSettings,
@@ -8,6 +9,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { hashPassword, verifyPassword } from "./localAdminAuth";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -50,6 +52,13 @@ export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  return result[0];
+}
+
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
   return result[0];
 }
 
@@ -199,4 +208,49 @@ export async function updateAccountRole(userId: number, role: "admin" | "user") 
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   await db.update(users).set({ role }).where(eq(users.id, userId));
+}
+
+async function ensureLocalAdmin() {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const existingCredential = await db.select().from(adminCredentials).limit(1);
+  if (existingCredential[0]) return existingCredential[0];
+  const existingUser = await db.select().from(users).where(eq(users.openId, "local-admin-account")).limit(1);
+  let userId = existingUser[0]?.id;
+  if (!userId) {
+    await db.insert(users).values({
+      openId: "local-admin-account",
+      name: "Administrador",
+      email: "admin@local.invalid",
+      loginMethod: "password",
+      role: "admin",
+      lastSignedIn: new Date(),
+    });
+    const createdUser = await db.select().from(users).where(eq(users.openId, "local-admin-account")).limit(1);
+    userId = createdUser[0]?.id;
+  }
+  if (!userId) throw new Error("Não foi possível preparar o acesso administrativo.");
+  await db.insert(adminCredentials).values({ userId, username: "admin", passwordHash: await hashPassword("admin") });
+  const credential = await db.select().from(adminCredentials).where(eq(adminCredentials.userId, userId)).limit(1);
+  if (!credential[0]) throw new Error("Não foi possível preparar a credencial administrativa.");
+  return credential[0];
+}
+
+export async function loginLocalAdmin(username: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const credential = await ensureLocalAdmin();
+  if (credential.username.toLowerCase() !== username.trim().toLowerCase()) return null;
+  if (!(await verifyPassword(password, credential.passwordHash))) return null;
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, credential.userId));
+  return getUserById(credential.userId);
+}
+
+export async function updateLocalAdminCredentials(input: { username: string; newPassword?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const credential = await ensureLocalAdmin();
+  const values: { username: string; passwordHash?: string } = { username: input.username.trim() };
+  if (input.newPassword) values.passwordHash = await hashPassword(input.newPassword);
+  await db.update(adminCredentials).set(values).where(eq(adminCredentials.id, credential.id));
 }

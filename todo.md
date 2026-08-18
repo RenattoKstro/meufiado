@@ -12,7 +12,7 @@
 - [x] Criar tela de ajustes com Carteira Total, aberturas, vencido, metas, dias úteis e marcador de férias.
 - [x] Criar temas claro, escuro e paletas de cores persistentes por usuário.
 - [x] Construir painel administrativo para filiais, usuários, status, férias, inatividade e cadastro manual.
-- [ ] Implementar login administrativo separado por usuário e senha após a definição segura das credenciais e do fluxo de sessão.
+- [x] Implementar login administrativo separado por usuário e senha, com hash de senha, cookie de sessão protegido e alteração de credenciais no painel.
 - [x] Cobrir cálculos e regras de permissão com testes automatizados.
 - [ ] Confirmar as fórmulas definitivas, incluindo a divergência de R$ 0,10 entre as faixas informadas da Meta Fiado do líder (R$ 787,50) e o total declarado (R$ 787,60).
 - [x] Validar visualmente o primeiro acesso em desktop e dispositivo móvel e confirmar a compilação sem erros.

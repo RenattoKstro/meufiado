@@ -13,8 +13,11 @@ import {
   updateManagedUser,
   updateAccountRole,
   updateMyPreferences,
+  loginLocalAdmin,
+  updateLocalAdminCredentials,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { ADMIN_SESSION_COOKIE, createAdminSession } from "./localAdminAuth";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 import { COOKIE_NAME } from "@shared/const";
@@ -50,8 +53,19 @@ export const appRouter = router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
+      ctx.res.clearCookie(ADMIN_SESSION_COOKIE, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+  adminAuth: router({
+    login: publicProcedure.input(z.object({ username: z.string().trim().min(1).max(80), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {
+      const user = await loginLocalAdmin(input.username, input.password);
+      if (!user) return { success: false } as const;
+      const token = await createAdminSession(user.id);
+      ctx.res.cookie(ADMIN_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
+      return { success: true } as const;
+    }),
+    updateCredentials: adminProcedure.input(z.object({ username: z.string().trim().min(3).max(80), newPassword: z.string().min(8).max(256).optional() })).mutation(({ input }) => updateLocalAdminCredentials(input)),
   }),
   profile: router({
     mine: protectedProcedure.query(({ ctx }) => getMyProfile(ctx.user.id)),

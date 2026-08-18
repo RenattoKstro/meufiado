@@ -62,6 +62,14 @@ export const userProfiles = mysqlTable(
   table => [uniqueIndex("profiles_email_unique").on(table.email)],
 );
 
+export const adminCredentials = mysqlTable("adminCredentials", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id),
+  username: varchar("username", { length: 80 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const metricSettings = mysqlTable("metricSettings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id),
