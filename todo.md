@@ -62,3 +62,7 @@
 - [x] Validar o acesso Google de operador sem alterar o login local por senha.
 - [x] Testar o disparo do fluxo OAuth pelo botão Google da tela de operador.
 - [x] Comprovar por teste de regressão que o login local do operador permanece operacional após incluir a entrada Google.
+- [x] Substituir o início de login gerenciado pela plataforma por OAuth diretamente configurado no Google para operadores.
+- [x] Configurar de forma segura as credenciais necessárias do aplicativo OAuth do Google.
+- [x] Validar o novo fluxo Google e remover entradas de operador incompatíveis.
+- [x] Corrigir a rota de entrada Google para não exibir página inexistente durante uma sessão ativa.

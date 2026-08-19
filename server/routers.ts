@@ -18,9 +18,7 @@ import {
   updateMyPreferences,
   loginLocalAdmin,
   updateLocalAdminCredentials,
-  changeMyPassword,
-  getUserCredentialStatus,
-  loginLocalUser,
+  loginGoogleOperator,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ADMIN_SESSION_COOKIE, createAdminSession, createUserSession, USER_SESSION_COOKIE } from "./localAdminAuth";
@@ -28,6 +26,7 @@ import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_
 import { systemRouter } from "./_core/systemRouter";
 import { COOKIE_NAME } from "@shared/const";
 import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, uniqueRowsByBranchCode } from "../shared/importRules";
+import { OAuth2Client } from "google-auth-library";
 
 const operatorType = z.enum(["leader", "assistant"]);
 const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
@@ -55,6 +54,13 @@ const metricsInput = z.object({
   fiadoAtDay15: z.boolean(),
 });
 const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));
+const googleClient = new OAuth2Client();
+
+function getGoogleClientId() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) throw new Error("Login Google não está configurado.");
+  return clientId;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -77,16 +83,23 @@ export const appRouter = router({
     }),
     updateCredentials: adminProcedure.input(z.object({ username: z.string().trim().min(3).max(80), newPassword: z.string().min(8).max(256).optional() })).mutation(({ input }) => updateLocalAdminCredentials(input)),
   }),
-  userAuth: router({
-    login: publicProcedure.input(z.object({ email: z.string().trim().email().max(320), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {
-      const user = await loginLocalUser(input.email, input.password);
-      if (!user) return { success: false } as const;
-      const token = await createUserSession(user.id);
-      ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
-      return { success: true } as const;
+  googleAuth: router({
+    config: publicProcedure.query(() => ({ clientId: getGoogleClientId() })),
+    login: publicProcedure.input(z.object({ credential: z.string().min(20).max(8192) })).mutation(async ({ ctx, input }) => {
+      try {
+        const ticket = await googleClient.verifyIdToken({ idToken: input.credential, audience: getGoogleClientId() });
+        const payload = ticket.getPayload();
+        if (!payload?.sub || !payload.email || !payload.email_verified) return { success: false } as const;
+        const user = await loginGoogleOperator({ subject: payload.sub, email: payload.email, name: payload.name });
+        if (!user) return { success: false } as const;
+        const token = await createUserSession(user.id);
+        ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
+        ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
+        return { success: true } as const;
+      } catch {
+        return { success: false } as const;
+      }
     }),
-    status: protectedProcedure.query(({ ctx }) => getUserCredentialStatus(ctx.user.id)),
-    changePassword: protectedProcedure.input(z.object({ currentPassword: z.string().min(1).max(256), newPassword: z.string().min(8).max(256) })).mutation(({ ctx, input }) => changeMyPassword(ctx.user.id, input.currentPassword, input.newPassword)),
   }),
   profile: router({
     mine: protectedProcedure.query(async ({ ctx }) => (await getMyProfile(ctx.user.id)) ?? null),
@@ -118,7 +131,7 @@ export const appRouter = router({
       return importAnalyticMetrics(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
     }),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
-    preRegister: adminProcedure.input(profileInput.extend({ password: z.string().min(8).max(256) })).mutation(({ input }) => createPreRegisteredUser(input)),
+    preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
     updateUser: adminProcedure
       .input(z.object({ id: z.number().int().positive(), isActive: z.boolean().optional(), isOnVacation: z.boolean().optional(), operatorType: operatorType.optional(), branchId: z.number().int().positive().optional() }))
       .mutation(({ input }) => {

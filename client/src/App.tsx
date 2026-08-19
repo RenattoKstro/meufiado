@@ -11,7 +11,6 @@ import Branches from "@/pages/Branches";
 import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
 import Onboarding from "@/pages/Onboarding";
-import SecuritySettings from "@/pages/SecuritySettings";
 import { AppearanceSettings, MetricsSettings } from "@/pages/Settings";
 import UserLogin from "@/pages/UserLogin";
 import Welcome from "@/pages/Welcome";
@@ -23,23 +22,21 @@ const OverviewPage = (_props: unknown) => <Dashboard />;
 const FiadoPage = (_props: unknown) => <Dashboard view="fiado" />;
 const ChallengePage = (_props: unknown) => <Dashboard view="challenge" />;
 const BranchesPage = (_props: unknown) => <Branches />;
-const SecurityPage = (_props: unknown) => <SecuritySettings />;
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
-  const credentialStatus = trpc.userAuth.status.useQuery(undefined, { enabled: Boolean(user) });
   const { applyPreferences } = useTheme();
   useEffect(() => { const profile = profileQuery.data?.profile; if (profile) applyPreferences(profile.colorMode, profile.colorPalette); }, [applyPreferences, profileQuery.data?.profile]);
+  useEffect(() => { if (user && location === "/entrar") navigate("/", { replace: true }); }, [location, navigate, user]);
   if (loading) return <LoadingScreen />;
   if (!user) return location === "/admin/login" ? <AdminLogin /> : location === "/entrar" ? <UserLogin /> : <Welcome />;
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!profileQuery.data?.profile && user.role === "admin" && location === "/admin") return <DashboardLayout><Admin /></DashboardLayout>;
   if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />;
   if (!profileQuery.data.profile.isActive) return <SuspendedScreen />;
-  if (credentialStatus.data?.mustChangePassword) return <DashboardLayout><SecuritySettings required /></DashboardLayout>;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/seguranca" component={SecurityPage} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

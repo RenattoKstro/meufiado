@@ -292,7 +292,7 @@ export async function listManagedUsers() {
     .orderBy(desc(userProfiles.updatedAt));
 }
 
-export async function createPreRegisteredUser(input: ProfileInput & { password: string }) {
+export async function createPreRegisteredUser(input: ProfileInput) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const email = input.email.toLowerCase();
@@ -301,7 +301,7 @@ export async function createPreRegisteredUser(input: ProfileInput & { password: 
   const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
   let userId = existingUser[0]?.id;
   if (!userId) {
-    await db.insert(users).values({ openId: `local-${randomUUID()}`, name: input.fullName, email, loginMethod: "password", role: "user", lastSignedIn: new Date() });
+    await db.insert(users).values({ openId: `pending-google-${randomUUID()}`, name: input.fullName, email, loginMethod: "google", role: "user", lastSignedIn: new Date() });
     const created = await db.select().from(users).where(eq(users.email, email)).limit(1);
     userId = created[0]?.id;
   }
@@ -309,8 +309,24 @@ export async function createPreRegisteredUser(input: ProfileInput & { password: 
   const profileValues = { fullName: input.fullName, email, branchId: input.branchId, phone: input.phone, instagram: input.instagram || null, operatorType: input.operatorType, profileComplete: true } as const;
   if (existingProfile[0]) await db.update(userProfiles).set({ ...profileValues, userId }).where(eq(userProfiles.id, existingProfile[0].id));
   else await db.insert(userProfiles).values({ ...profileValues, userId });
-  const passwordHash = await hashPassword(input.password);
-  await db.insert(userCredentials).values({ userId, passwordHash, mustChangePassword: true }).onDuplicateKeyUpdate({ set: { passwordHash, mustChangePassword: true } });
+}
+
+export async function loginGoogleOperator(input: { subject: string; email: string; name?: string | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const email = input.email.trim().toLowerCase();
+  const account = await db
+    .select({ user: users, profile: userProfiles })
+    .from(userProfiles)
+    .innerJoin(users, eq(userProfiles.userId, users.id))
+    .where(and(eq(userProfiles.email, email), eq(userProfiles.isActive, true)))
+    .limit(1);
+  if (!account[0]) return null;
+  const googleOpenId = `google-${input.subject}`;
+  const linkedAccount = await db.select({ id: users.id }).from(users).where(eq(users.openId, googleOpenId)).limit(1);
+  if (linkedAccount[0] && linkedAccount[0].id !== account[0].user.id) return null;
+  await db.update(users).set({ openId: googleOpenId, email, name: input.name || account[0].user.name, loginMethod: "google", lastSignedIn: new Date() }).where(eq(users.id, account[0].user.id));
+  return { ...account[0].user, openId: googleOpenId, email, name: input.name || account[0].user.name, loginMethod: "google" };
 }
 
 export async function loginLocalUser(emailInput: string, password: string) {
