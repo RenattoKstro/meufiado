@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ChevronDown, CircleCheck, LockKeyhole, Sparkles } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 import type { RewardTier } from "../../../shared/goalRules";
 
 export function currency(value: number) {
@@ -25,9 +25,10 @@ type GoalCardProps = {
   accent?: "primary" | "violet";
 };
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, projectionTargets = [80, 94], accent = "primary" }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, projectionTargets, accent = "primary" }: GoalCardProps) {
   const [open, setOpen] = useState(false);
   const visualProgress = Math.min(progress, 105);
+  const displayedTargets = Array.from(new Set(projectionTargets ?? tiers.map(tier => tier.target)));
   const missing = (target: number) => targetMissing ? targetMissing(target) : Math.max(0, (referenceGoal * target) / 100 - received);
   const daily = (target: number) => {
     const days = Math.max(daysTotal - daysElapsed, 0);
@@ -52,7 +53,7 @@ export default function GoalCard({ title, description, progress, received, accum
       </button>
       {open && <div className="border-t border-border/70 bg-muted/35 p-5">
         <div className="mb-4 grid grid-cols-2 gap-3">
-          {projectionTargets.map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Falta receber · {currency(daily(target))}/dia</p></div>)}
+          {displayedTargets.map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Falta para {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Saldo a receber · {currency(daily(target))}/dia</p></div>)}
         </div>
         <div className="space-y-2">
           {tiers.map(tier => {

@@ -113,6 +113,8 @@
 - [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
 - [x] Tornar o acesso à pesquisa de filiais permanentemente visível e mais eficiente para listas extensas.
 - [x] Substituir a frase de apresentação pela mensagem solicitada pelo usuário.
+- [x] Exibir o valor faltante para as faixas 94%, 96%, 98%, 99%, 100%, 101%, 103% e 105% da Meta Fiado.
+- [x] Exibir o valor faltante para as faixas 96%, 98% e 100% da Meta Desafio.
 - [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
 - [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
