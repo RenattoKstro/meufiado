@@ -102,6 +102,7 @@
 - [x] Testar a leitura e a gravação efetivas de métricas por `branchId` para dois operadores da mesma filial.
 - [x] Testar o helper real de vagas e o bloqueio real da conclusão duplicada de cadastro.
 - [x] Testar o retorno real de vagas disponíveis por filial utilizado pelo cadastro.
+- [x] Adicionar um botão explícito para pesquisar filiais na guia Filiais, além do campo de busca rápida.
 - [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
 - [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.

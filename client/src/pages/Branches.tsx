@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { getBranchPerformance, hasBranchFinancialActivity } from "../../../shared/branchOverview";
 import { filterBranchOverviewsBySearch } from "../../../shared/branchSearch";
 import { Building2, ChevronDown, Clock3, Search, Trophy, TrendingUp, UserRound, X } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 type BranchOverviewItem = {
   branch: { id: number; name: string; code: string | null; regional: string | null };
@@ -23,6 +24,7 @@ export default function Branches() {
   const overviewQuery = trpc.branches.overview.useQuery();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [hideZeroed, setHideZeroed] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [search, setSearch] = useState("");
   if (overviewQuery.isLoading) return <BranchesLoading />;
   if (overviewQuery.isError) return <BranchesError />;
@@ -31,10 +33,12 @@ export default function Branches() {
   const roleFilteredItems = hideZeroed ? activeItems : items;
   const visibleItems = filterBranchOverviewsBySearch(roleFilteredItems, search);
   const zeroedCount = items.length - activeItems.length;
+  const runSearch = () => setSearch(searchTerm);
+  const clearSearch = () => { setSearchTerm(""); setSearch(""); };
 
   return <section className="mx-auto max-w-7xl animate-in fade-in duration-500">
     <header className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><div className="flex items-center gap-2 text-primary"><Building2 className="h-4 w-4" /><p className="text-xs font-bold uppercase tracking-[0.14em]">Acompanhamento em rede</p></div><h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Filiais</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Consulte o andamento de cada operação. Abra uma filial para acessar metas, premiações, saldos e indicadores completos.</p></div><div className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><div><p className="text-sm font-extrabold">Ocultar filiais zeradas</p><p className="mt-0.5 text-[11px] text-muted-foreground">{hideZeroed ? `${visibleItems.length} filiais exibidas` : zeroedCount > 0 ? `${zeroedCount} filiais sem valores` : "Todas as filiais têm valores"}</p></div><Switch aria-label="Ocultar filiais zeradas" checked={hideZeroed} onCheckedChange={setHideZeroed} /></div></header>
-    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm sm:flex-row sm:items-center"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Pesquisar filial" value={search} onChange={event => setSearch(event.target.value)} placeholder="Pesquisar por filial, código, regional ou operador" className="h-11 rounded-xl border-0 bg-muted/55 pl-10 pr-10 shadow-none focus-visible:ring-1" />{search && <button type="button" aria-label="Limpar pesquisa" onClick={() => setSearch("")} className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground"><X className="h-4 w-4" /></button>}</div><p className="shrink-0 text-xs font-semibold text-muted-foreground">{visibleItems.length} {visibleItems.length === 1 ? "resultado" : "resultados"}</p></div>
+    <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm sm:flex-row sm:items-center"><div className="relative flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Pesquisar filial" value={searchTerm} onChange={event => setSearchTerm(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); runSearch(); } }} placeholder="Pesquisar por filial, código, regional ou operador" className="h-11 rounded-xl border-0 bg-muted/55 pl-10 pr-10 shadow-none focus-visible:ring-1" />{searchTerm && <button type="button" aria-label="Limpar pesquisa" onClick={clearSearch} className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground"><X className="h-4 w-4" /></button>}</div><Button type="button" onClick={runSearch} className="h-11 shrink-0 rounded-xl px-5 font-extrabold"><Search className="mr-2 h-4 w-4" />Pesquisar</Button><p className="shrink-0 text-xs font-semibold text-muted-foreground">{visibleItems.length} {visibleItems.length === 1 ? "resultado" : "resultados"}</p></div>
     {visibleItems.length === 0 ? <EmptyBranches filtered={hideZeroed && items.length > 0} searched={Boolean(search.trim())} /> : <div className="grid gap-4 lg:grid-cols-2">{visibleItems.map(item => <BranchCard key={`${item.branch.id}-${item.operator?.id ?? "sem-operador"}`} item={item} expandedKey={expandedKey} setExpandedKey={setExpandedKey} />)}</div>}
   </section>;
 }
