@@ -6,6 +6,9 @@ import type { Server } from "node:http";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
+// Lote carregado pela tela /admin: as três procedures devem retornar envelopes tRPC JSON.
+const ADMIN_DASHBOARD_BATCH_PATH = "/api/trpc/admin.users,admin.branches,auth.me";
+
 function adminContext(): TrpcContext {
   return {
     user: {
@@ -77,5 +80,21 @@ describe("HTTP tRPC da administração", () => {
     expect(payload).toHaveLength(3);
     expect(payload[0].error.json.data.code).toBe("UNAUTHORIZED");
     expect(payload[1].error.json.data.code).toBe("UNAUTHORIZED");
+  });
+
+  it("retorna envelope JSON mesmo quando uma procedure administrativa inexistente é consultada", async () => {
+    const app = express();
+    app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext: adminContext }));
+    server = createServer(app);
+    await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Porta de teste indisponível.");
+
+    const input = encodeURIComponent(JSON.stringify({ json: null }));
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/trpc/admin.procedureInexistente?batch=1&input=${input}`);
+
+    expect(response.headers.get("content-type")).toContain("application/json");
+    const payload = await response.json();
+    expect(payload[0].error.json.data.code).toBe("NOT_FOUND");
   });
 });
