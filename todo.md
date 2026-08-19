@@ -58,3 +58,7 @@
 - [x] Exibir por filial os saldos necessários para Meta Fiado, Meta Desafio, Meta 80% e Meta Perdido.
 - [x] Exibir por filial as premiações acumuladas e o conjunto ampliado de indicadores operacionais disponíveis.
 - [x] Cobrir os cálculos de detalhamento ampliado da guia Filiais com testes automatizados.
+- [x] Adicionar uma opção explícita de login com Google na entrada de operadores.
+- [x] Validar o acesso Google de operador sem alterar o login local por senha.
+- [x] Testar o disparo do fluxo OAuth pelo botão Google da tela de operador.
+- [x] Comprovar por teste de regressão que o login local do operador permanece operacional após incluir a entrada Google.
