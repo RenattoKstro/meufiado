@@ -43,7 +43,7 @@ describe("botão de pesquisa de Filiais", () => {
     });
 
     render(<Branches />);
-    fireEvent.change(screen.getByRole("textbox", { name: "Pesquisar filial" }), { target: { value: "Douradina" } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Pesquisar filial" }), { target: { value: "Douradina" } });
     fireEvent.click(screen.getByRole("button", { name: "Pesquisar" }));
 
     expect(screen.getByText("Douradina")).toBeInTheDocument();
@@ -62,9 +62,28 @@ describe("botão de pesquisa de Filiais", () => {
     });
 
     render(<Branches />);
-    const field = screen.getByRole("textbox", { name: "Pesquisar filial" });
+    const field = screen.getByRole("searchbox", { name: "Pesquisar filial" });
     fireEvent.change(field, { target: { value: "Mundo Novo" } });
     fireEvent.keyDown(field, { key: "Enter" });
+
+    expect(screen.getByText("Mundo Novo")).toBeInTheDocument();
+    expect(screen.queryByText("Douradina")).not.toBeInTheDocument();
+  });
+
+  it("mantém o acesso de pesquisa identificado e filtra imediatamente durante a digitação", () => {
+    overviewQuery.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [
+        { branch: { id: 1, name: "Douradina", code: "10002", regional: "MS" }, operator: null, metrics, updatedAt: new Date() },
+        { branch: { id: 2, name: "Mundo Novo", code: "10003", regional: "MS" }, operator: null, metrics, updatedAt: new Date() },
+      ],
+    });
+
+    render(<Branches />);
+    expect(screen.getByRole("search", { name: "" })).toBeInTheDocument();
+    expect(screen.getByText("Pesquisar filial")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Pesquisar filial" }), { target: { value: "Mundo" } });
 
     expect(screen.getByText("Mundo Novo")).toBeInTheDocument();
     expect(screen.queryByText("Douradina")).not.toBeInTheDocument();

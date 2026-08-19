@@ -6,6 +6,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { apiNotFoundHandler } from "./apiFallback";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -42,6 +43,8 @@ async function startServer() {
       createContext,
     })
   );
+  // Nunca deixe uma chamada de API desconhecida cair no fallback do SPA, que responde HTML.
+  app.use("/api", apiNotFoundHandler);
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

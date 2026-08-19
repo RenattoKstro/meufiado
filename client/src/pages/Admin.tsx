@@ -41,8 +41,9 @@ export default function Admin() {
     try { await updateRole.mutateAsync({ userId, role }); await refresh(); toast.success("Permissão atualizada."); }
     catch { toast.error("Não foi possível alterar a permissão."); }
   }
-
+  
   if (usersQuery.isLoading || branchesQuery.isLoading) return <AdminLoading />;
+  if (usersQuery.isError || branchesQuery.isError) return <AdminError onRetry={() => { void Promise.all([usersQuery.refetch(), branchesQuery.refetch()]); }} />;
   const branches = branchesQuery.data || [];
   return <section className="mx-auto max-w-7xl">
     <header className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -132,3 +133,4 @@ function UserDialog({ branches, onComplete }: { branches: { id: number; name: st
 function AlertPanel({ title, description, items, icon: Icon }: { title: string; description: string; items: string[]; icon: typeof Activity }) { return <Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Icon className="h-4 w-4 text-primary" />{title}</CardTitle><CardDescription>{description}</CardDescription></CardHeader><CardContent>{items.length ? <div className="space-y-2">{items.map(item => <div key={item} className="rounded-xl bg-muted/50 px-3 py-2 text-xs font-bold">{item}</div>)}</div> : <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">Nenhum usuário nesta situação.</p>}</CardContent></Card>; }
 function EmptyState({ text }: { text: string }) { return <p className="col-span-full p-7 text-center text-sm text-muted-foreground">{text}</p>; }
 function AdminLoading() { return <section className="mx-auto max-w-7xl animate-pulse"><div className="h-10 w-72 rounded-xl bg-muted" /><div className="mt-8 grid gap-4 sm:grid-cols-3">{[1, 2, 3].map(item => <div key={item} className="h-24 rounded-2xl bg-muted" />)}</div><div className="mt-7 h-80 rounded-[1.6rem] bg-muted" /></section>; }
+function AdminError({ onRetry }: { onRetry: () => void }) { return <section className="mx-auto grid min-h-[52vh] max-w-2xl place-items-center"><Card className="w-full rounded-[1.6rem] border-border/70 p-8 text-center shadow-sm"><CardHeader className="p-0"><CardTitle className="text-xl">Não foi possível carregar a administração</CardTitle><CardDescription className="mt-2">A conexão com os dados administrativos falhou. Tente novamente; se o problema continuar, recarregue a página.</CardDescription></CardHeader><CardContent className="pt-6"><Button onClick={onRetry} className="rounded-xl font-bold">Tentar novamente</Button></CardContent></Card></section>; }
