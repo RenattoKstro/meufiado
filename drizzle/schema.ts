@@ -60,7 +60,10 @@ export const userProfiles = mysqlTable(
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
-  table => [uniqueIndex("profiles_email_unique").on(table.email)],
+  table => [
+    uniqueIndex("profiles_email_unique").on(table.email),
+    uniqueIndex("profiles_branch_operator_unique").on(table.branchId, table.operatorType),
+  ],
 );
 
 export const adminCredentials = mysqlTable("adminCredentials", {
@@ -100,6 +103,9 @@ export const metricSettings = mysqlTable("metricSettings", {
 export const branchMetrics = mysqlTable("branchMetrics", {
   id: int("id").autoincrement().primaryKey(),
   branchId: int("branchId").notNull().unique().references(() => branches.id),
+  portfolioTotal: double("portfolioTotal").default(0).notNull(),
+  monthOpening: double("monthOpening").default(0).notNull(),
+  dayOpening: double("dayOpening").default(0).notNull(),
   creditGoal: double("creditGoal").default(0).notNull(),
   challengeGoal: double("challengeGoal").default(0).notNull(),
   currentOverdue: double("currentOverdue").default(0).notNull(),
@@ -107,6 +113,10 @@ export const branchMetrics = mysqlTable("branchMetrics", {
   lossSalesPercent: double("lossSalesPercent").default(0).notNull(),
   lostGoal: double("lostGoal").default(0).notNull(),
   lostReceived: double("lostReceived").default(0).notNull(),
+  workingDaysTotal: int("workingDaysTotal").default(0).notNull(),
+  workingDaysElapsed: int("workingDaysElapsed").default(0).notNull(),
+  ticketWorkingDaysRemaining: int("ticketWorkingDaysRemaining").default(0).notNull(),
+  fiadoAtDay15: boolean("fiadoAtDay15").default(false).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 

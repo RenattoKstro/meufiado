@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -16,6 +16,8 @@ import { hashPassword, verifyPassword } from "./localAdminAuth";
 import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
 import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
+import { resolveMetricStorageScope } from "../shared/branchMetricScope";
+import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type OperatorRole } from "../shared/branchSlots";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -70,10 +72,46 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
-export async function listActiveBranches() {
-  const db = await getDb();
+export async function listActiveBranches(database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) return [];
   return db.select().from(branches).where(eq(branches.isActive, true)).orderBy(branches.name);
+}
+
+export async function getBranchSlotAvailability(branchId: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return { leader: false, assistant: false };
+  const occupied = await db
+    .select({ operatorType: userProfiles.operatorType })
+    .from(userProfiles)
+    .where(and(eq(userProfiles.branchId, branchId), eq(userProfiles.profileComplete, true)));
+  return deriveBranchSlotAvailability(occupied.map(profile => profile.operatorType));
+}
+
+export async function listActiveBranchesWithSlots(database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return [];
+  const activeBranches = await listActiveBranches(db);
+  const availability = await Promise.all(activeBranches.map(async branch => ({
+    branch,
+    slots: await getBranchSlotAvailability(branch.id, db),
+  })));
+  return availability.map(({ branch, slots }) => ({
+    ...branch,
+    availableSlots: { leader: !slots.leader, assistant: !slots.assistant },
+  }));
+}
+
+async function assertDatabaseBranchRoleSlotAvailable(
+  db: ApplicationDatabase,
+  branchId: number,
+  operatorType: OperatorRole,
+  ignoredProfileId?: number,
+) {
+  const conditions = [eq(userProfiles.branchId, branchId), eq(userProfiles.operatorType, operatorType), eq(userProfiles.profileComplete, true)];
+  if (ignoredProfileId) conditions.push(ne(userProfiles.id, ignoredProfileId));
+  const occupied = await db.select({ id: userProfiles.id }).from(userProfiles).where(and(...conditions)).limit(1);
+  assertOperatorSlotAvailable(occupied.map(() => operatorType), operatorType);
 }
 
 export async function listAllBranches() {
@@ -87,16 +125,15 @@ export async function listBranchOverviews() {
   if (!db) return [];
 
   const rows = await db
-    .select({ branch: branches, profile: userProfiles, account: users, metrics: metricSettings, branchMetrics })
+    .select({ branch: branches, profile: userProfiles, account: users, branchMetrics })
     .from(branches)
     .leftJoin(userProfiles, and(eq(userProfiles.branchId, branches.id), eq(userProfiles.isActive, true)))
     .leftJoin(users, eq(userProfiles.userId, users.id))
-    .leftJoin(metricSettings, eq(metricSettings.userId, userProfiles.userId))
     .leftJoin(branchMetrics, eq(branchMetrics.branchId, branches.id))
     .where(eq(branches.isActive, true))
     .orderBy(branches.name, userProfiles.fullName);
 
-  return rows.map(({ branch, profile, account, metrics, branchMetrics: defaults }) => ({
+  return rows.map(({ branch, profile, account, branchMetrics: metrics }) => ({
     branch,
     operator: profile
       ? {
@@ -107,8 +144,8 @@ export async function listBranchOverviews() {
           lastSignedIn: account?.lastSignedIn ?? null,
         }
       : null,
-    metrics: resolveBranchOverviewMetrics(metrics, defaults),
-    updatedAt: latestOverviewUpdate(metrics?.updatedAt, defaults?.updatedAt, profile?.updatedAt, branch.updatedAt),
+    metrics: resolveBranchOverviewMetrics(metrics),
+    updatedAt: latestOverviewUpdate(metrics?.updatedAt, profile?.updatedAt, branch.updatedAt),
   }));
 }
 
@@ -161,18 +198,6 @@ export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
     };
     await db.insert(branchMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
     if (row.regional) await db.update(branches).set({ regional: row.regional }).where(eq(branches.id, branch.id));
-    const profiles = await db.select({ userId: userProfiles.userId }).from(userProfiles).where(eq(userProfiles.branchId, branch.id));
-    for (const profile of profiles) {
-      if (!profile.userId) continue;
-      const userMetricValues = {
-        creditGoal: row.creditGoal,
-        challengeGoal: row.challengeGoal,
-        currentOverdue: row.currentOverdue,
-        lostGoal: row.lostGoal,
-        lostReceived: row.lostReceived,
-      };
-      await db.insert(metricSettings).values({ userId: profile.userId, ...emptyMetrics, ...userMetricValues }).onDuplicateKeyUpdate({ set: userMetricValues });
-    }
     imported += 1;
   }
   return { imported, unmatched };
@@ -205,8 +230,8 @@ type ProfileInput = {
   operatorType: "leader" | "assistant";
 };
 
-export async function completeMyProfile(userId: number, input: ProfileInput) {
-  const db = await getDb();
+export async function completeMyProfile(userId: number, input: ProfileInput, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const existing = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
   const preRegistered = await db
@@ -223,6 +248,8 @@ export async function completeMyProfile(userId: number, input: ProfileInput) {
     operatorType: input.operatorType,
     profileComplete: true,
   } as const;
+  const targetProfile = existing[0] ?? preRegistered[0];
+  await assertDatabaseBranchRoleSlotAvailable(db, input.branchId, input.operatorType, targetProfile?.id);
   if (existing[0]) {
     await db.update(userProfiles).set(values).where(eq(userProfiles.id, existing[0].id));
   } else if (preRegistered[0]) {
@@ -256,29 +283,34 @@ const emptyMetrics = {
   fiadoAtDay15: false,
 };
 
-export async function getMyMetrics(userId: number) {
-  const db = await getDb();
+export async function getMyMetrics(userId: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) return emptyMetrics;
-  const result = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  if (result[0]) return result[0];
-  const branchDefault = await db
-    .select({ metrics: branchMetrics })
-    .from(userProfiles)
-    .innerJoin(branchMetrics, eq(userProfiles.branchId, branchMetrics.branchId))
-    .where(eq(userProfiles.userId, userId))
-    .limit(1);
-  if (!branchDefault[0]) return emptyMetrics;
-  const { metrics } = branchDefault[0];
-  return { ...emptyMetrics, creditGoal: metrics.creditGoal, challengeGoal: metrics.challengeGoal, currentOverdue: metrics.currentOverdue, lostGoal: metrics.lostGoal, lostReceived: metrics.lostReceived };
+  const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
+  if (storageScope.type === "branch") {
+    const sharedMetrics = await db.select().from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
+    return sharedMetrics[0] ?? emptyMetrics;
+  }
+  const legacyMetrics = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
+  return legacyMetrics[0] ?? emptyMetrics;
 }
 
-export async function saveMyMetrics(userId: number, input: typeof emptyMetrics) {
-  const db = await getDb();
+export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
+  const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
   const dayInBrazil = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "numeric" }).format(new Date()));
   const received = receiptAmounts(input.monthOpening, input.dayOpening, input.currentOverdue).accumulated;
   const reachedBeforeDeadline = dayInBrazil <= 15 && received >= ticketGoalAmount(amountReceivable(input.monthOpening, input.creditGoal));
+  const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
+  if (storageScope.type === "branch") {
+    const existing = await db.select({ fiadoAtDay15: branchMetrics.fiadoAtDay15 }).from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
+    const values = { ...input, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+    await db.insert(branchMetrics).values({ branchId: storageScope.branchId, ...values }).onDuplicateKeyUpdate({ set: values });
+    return;
+  }
+  const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
   const values = { ...input, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
   await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
 }
@@ -300,6 +332,7 @@ export async function createPreRegisteredUser(input: ProfileInput) {
   const email = input.email.toLowerCase();
   const existingProfile = await db.select().from(userProfiles).where(eq(userProfiles.email, email)).limit(1);
   if (existingProfile[0]?.userId) throw new Error("Já existe uma conta vinculada a este e-mail.");
+  await assertDatabaseBranchRoleSlotAvailable(db, input.branchId, input.operatorType, existingProfile[0]?.id);
   const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
   let userId = existingUser[0]?.id;
   if (!userId) {
@@ -396,6 +429,11 @@ export async function updateManagedUser(
 ) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
+  const current = await db.select().from(userProfiles).where(eq(userProfiles.id, id)).limit(1);
+  if (!current[0]) throw new Error("Usuário não encontrado.");
+  const branchId = input.branchId ?? current[0].branchId;
+  const operatorType = input.operatorType ?? current[0].operatorType;
+  if (branchId) await assertDatabaseBranchRoleSlotAvailable(db, branchId, operatorType, id);
   await db.update(userProfiles).set(input).where(eq(userProfiles.id, id));
 }
 

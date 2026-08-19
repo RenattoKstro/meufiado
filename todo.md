@@ -92,6 +92,16 @@
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
 - [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
 - [x] Cobrir a sequência escolha inicial, cadastro Google e encaminhamento ao onboarding em um contrato integrado.
+- [x] Adicionar busca rápida por código, nome, regional ou operador na guia Filiais.
+- [x] Limitar cada filial a uma vaga de Operador Líder e uma de Operador Auxiliar durante o cadastro.
+- [x] Exibir somente as funções ainda disponíveis ao operador que escolhe uma filial no cadastro.
+- [x] Compartilhar metas, recebimentos e demais métricas entre o Líder e o Auxiliar vinculados à mesma filial.
+- [x] Cobrir busca, disponibilidade de vagas e sincronização de métricas compartilhadas com testes automatizados.
+- [x] Testar diretamente o cálculo de vagas por função e o bloqueio de cadastro duplicado em cada filial.
+- [x] Testar diretamente a seleção da fonte de métricas compartilhadas por filial para Líder e Auxiliar.
+- [x] Testar a leitura e a gravação efetivas de métricas por `branchId` para dois operadores da mesma filial.
+- [x] Testar o helper real de vagas e o bloqueio real da conclusão duplicada de cadastro.
+- [x] Testar o retorno real de vagas disponíveis por filial utilizado pelo cadastro.
 - [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
 - [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.

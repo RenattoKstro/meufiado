@@ -8,7 +8,7 @@ import {
   getMyMetrics,
   getMyProfile,
   listBranchOverviews,
-  listActiveBranches,
+  listActiveBranchesWithSlots,
   listAllBranches,
   listManagedUsers,
   saveMyMetrics,
@@ -65,11 +65,19 @@ function getGoogleClientId() {
 type RouterDependencies = {
   loginGoogleOperator?: typeof loginGoogleOperator;
   getMyProfile?: typeof getMyProfile;
+  listActiveBranchesWithSlots?: typeof listActiveBranchesWithSlots;
+  completeMyProfile?: typeof completeMyProfile;
+  getMyMetrics?: typeof getMyMetrics;
+  saveMyMetrics?: typeof saveMyMetrics;
 };
 
 export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveGoogleOperator = dependencies.loginGoogleOperator ?? loginGoogleOperator;
   const resolveMyProfile = dependencies.getMyProfile ?? getMyProfile;
+  const resolveBranchesWithSlots = dependencies.listActiveBranchesWithSlots ?? listActiveBranchesWithSlots;
+  const resolveProfileCompletion = dependencies.completeMyProfile ?? completeMyProfile;
+  const resolveMetrics = dependencies.getMyMetrics ?? getMyMetrics;
+  const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
 
   return router({
   system: systemRouter,
@@ -116,15 +124,15 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   profile: router({
     mine: protectedProcedure.query(async ({ ctx }) => (await resolveMyProfile(ctx.user.id)) ?? null),
-    branches: protectedProcedure.query(() => listActiveBranches()),
-    complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => completeMyProfile(ctx.user.id, input)),
+    branches: protectedProcedure.query(() => resolveBranchesWithSlots()),
+    complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => resolveProfileCompletion(ctx.user.id, input)),
     preferences: protectedProcedure
       .input(z.object({ colorMode: z.enum(["light", "dark"]).optional(), colorPalette: palette.optional(), showLostGoal: z.boolean().optional(), isOnVacation: z.boolean().optional() }))
       .mutation(({ ctx, input }) => updateMyPreferences(ctx.user.id, input)),
   }),
   metrics: router({
-    mine: protectedProcedure.query(({ ctx }) => getMyMetrics(ctx.user.id)),
-    save: protectedProcedure.input(metricsInput).mutation(({ ctx, input }) => saveMyMetrics(ctx.user.id, input)),
+    mine: protectedProcedure.query(({ ctx }) => resolveMetrics(ctx.user.id)),
+    save: protectedProcedure.input(metricsInput).mutation(({ ctx, input }) => resolveMetricsSave(ctx.user.id, input)),
   }),
   branches: router({
     overview: protectedProcedure.query(() => listBranchOverviews()),
