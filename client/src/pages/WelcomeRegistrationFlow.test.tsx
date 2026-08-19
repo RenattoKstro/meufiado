@@ -16,6 +16,7 @@ describe("sequência inicial de cadastro", () => {
 
   it("apresenta a escolha inicial sem renderizar a conexão Google", () => {
     render(<Welcome />);
+    expect(screen.getByRole("heading", { name: "Acompanhando de suas metas todos dias." })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Entrar no painel" })).toHaveAttribute("href", "/entrar");
     const registrationLinks = screen.getAllByRole("link", { name: "Cadastrar" });
     expect(registrationLinks).toHaveLength(2);

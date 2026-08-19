@@ -112,6 +112,7 @@
 - [x] Tratar no cliente tRPC qualquer resposta HTML inesperada como erro de conexão compreensível, sem tentar parseá-la como JSON.
 - [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
 - [x] Tornar o acesso à pesquisa de filiais permanentemente visível e mais eficiente para listas extensas.
+- [x] Substituir a frase de apresentação pela mensagem solicitada pelo usuário.
 - [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
 - [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.

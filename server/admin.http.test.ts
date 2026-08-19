@@ -24,6 +24,14 @@ function adminContext(): TrpcContext {
   };
 }
 
+function guestContext(): TrpcContext {
+  return {
+    user: null,
+    req: { protocol: "http", headers: {} } as TrpcContext["req"],
+    res: {} as TrpcContext["res"],
+  };
+}
+
 describe("HTTP tRPC da administração", () => {
   let server: Server | undefined;
 
@@ -51,5 +59,23 @@ describe("HTTP tRPC da administração", () => {
     expect(payload[0].result.data.json).toEqual(expect.any(Array));
     expect(payload[1].result.data.json).toEqual(expect.any(Array));
     expect(payload[2].result.data.json).toMatchObject({ id: 1, role: "admin" });
+  });
+
+  it("mantém resposta JSON tRPC quando a sessão administrativa não está disponível", async () => {
+    const app = express();
+    app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext: guestContext }));
+    server = createServer(app);
+    await new Promise<void>(resolve => server!.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Porta de teste indisponível.");
+
+    const input = encodeURIComponent(JSON.stringify({ 0: { json: null }, 1: { json: null }, 2: { json: null } }));
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/trpc/admin.users,admin.branches,auth.me?batch=1&input=${input}`);
+
+    expect(response.headers.get("content-type")).toContain("application/json");
+    const payload = await response.json();
+    expect(payload).toHaveLength(3);
+    expect(payload[0].error.json.data.code).toBe("UNAUTHORIZED");
+    expect(payload[1].error.json.data.code).toBe("UNAUTHORIZED");
   });
 });
