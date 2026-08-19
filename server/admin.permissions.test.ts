@@ -9,7 +9,7 @@ function contextFor(role: "user" | "admin"): TrpcContext {
       openId: "permission-check",
       email: "operador@example.com",
       name: "Operador",
-      loginMethod: "oauth",
+      loginMethod: "google",
       role,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -29,7 +29,7 @@ function contextWithoutUser(): TrpcContext {
 }
 
 describe("permissões administrativas", () => {
-  it("bloqueia a consulta administrativa para operador comum", async () => {
+  it("bloqueia a consulta administrativa para operador comum autenticado pelo Google", async () => {
     const caller = appRouter.createCaller(contextFor("user"));
     await expect(caller.admin.branches()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

@@ -31,6 +31,8 @@ export async function getDb() {
   return _db;
 }
 
+type ApplicationDatabase = Exclude<Awaited<ReturnType<typeof getDb>>, null>;
+
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
@@ -182,13 +184,13 @@ export async function setBranchStatus(id: number, isActive: boolean) {
   await db.update(branches).set({ isActive }).where(eq(branches.id, id));
 }
 
-export async function getMyProfile(userId: number) {
-  const db = await getDb();
+export async function getMyProfile(userId: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) return undefined;
   const result = await db
     .select({ profile: userProfiles, branch: branches })
     .from(userProfiles)
-    .innerJoin(branches, eq(userProfiles.branchId, branches.id))
+    .leftJoin(branches, eq(userProfiles.branchId, branches.id))
     .where(eq(userProfiles.userId, userId))
     .limit(1);
   return result[0];
@@ -311,22 +313,44 @@ export async function createPreRegisteredUser(input: ProfileInput) {
   else await db.insert(userProfiles).values({ ...profileValues, userId });
 }
 
-export async function loginGoogleOperator(input: { subject: string; email: string; name?: string | null }) {
-  const db = await getDb();
+export async function loginGoogleOperator(input: { subject: string; email: string; name?: string | null }, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const email = input.email.trim().toLowerCase();
-  const account = await db
-    .select({ user: users, profile: userProfiles })
-    .from(userProfiles)
-    .innerJoin(users, eq(userProfiles.userId, users.id))
-    .where(and(eq(userProfiles.email, email), eq(userProfiles.isActive, true)))
-    .limit(1);
-  if (!account[0]) return null;
   const googleOpenId = `google-${input.subject}`;
-  const linkedAccount = await db.select({ id: users.id }).from(users).where(eq(users.openId, googleOpenId)).limit(1);
-  if (linkedAccount[0] && linkedAccount[0].id !== account[0].user.id) return null;
-  await db.update(users).set({ openId: googleOpenId, email, name: input.name || account[0].user.name, loginMethod: "google", lastSignedIn: new Date() }).where(eq(users.id, account[0].user.id));
-  return { ...account[0].user, openId: googleOpenId, email, name: input.name || account[0].user.name, loginMethod: "google" };
+  const [linkedAccount] = await db.select().from(users).where(eq(users.openId, googleOpenId)).limit(1);
+  const [emailAccount] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const account = linkedAccount ?? emailAccount;
+
+  if (linkedAccount && emailAccount && linkedAccount.id !== emailAccount.id) return null;
+
+  if (!account) {
+    await db.insert(users).values({
+      openId: googleOpenId,
+      name: input.name || "Operador",
+      email,
+      loginMethod: "google",
+      role: "user",
+      lastSignedIn: new Date(),
+    });
+    const [createdAccount] = await db.select().from(users).where(eq(users.openId, googleOpenId)).limit(1);
+    if (!createdAccount) return null;
+    await db.insert(userProfiles).values({
+      userId: createdAccount.id,
+      email,
+      fullName: input.name || "Operador",
+      profileComplete: false,
+      isActive: true,
+    });
+    return createdAccount;
+  }
+
+  const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, account.id)).limit(1);
+  if (profile && !profile.isActive) return null;
+
+  const nextName = input.name || account.name || "Operador";
+  await db.update(users).set({ openId: googleOpenId, email, name: nextName, loginMethod: "google", lastSignedIn: new Date() }).where(eq(users.id, account.id));
+  return { ...account, openId: googleOpenId, email, name: nextName, loginMethod: "google" };
 }
 
 export async function loginLocalUser(emailInput: string, password: string) {

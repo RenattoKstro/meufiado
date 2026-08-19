@@ -43,6 +43,13 @@
       "when": 1787074756692,
       "tag": "0005_strong_human_torch",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787156228709,
+      "tag": "0006_familiar_roulette",
+      "breakpoints": true
     }
   ]
 }

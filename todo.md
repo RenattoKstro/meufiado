@@ -71,3 +71,17 @@
 - [x] Testar funcionalmente que o componente Google sai do estado de preparação quando a biblioteca é carregada.
 - [x] Testar funcionalmente a mensagem de erro quando o carregamento da biblioteca Google falha ou expira.
 - [x] Testar funcionalmente o timeout de carregamento da biblioteca Google e a mensagem de erro correspondente.
+- [ ] Autorizar a origem do Meu Fiado no Client ID OAuth configurado no Google Cloud.
+- [ ] Confirmar que o login Google deixa de exibir erro 401 de origem não registrada.
+- [x] Permitir que qualquer operador autenticado pelo Google inicie o próprio cadastro sem prévia autorização administrativa.
+- [x] Criar automaticamente o perfil inicial no primeiro login Google e conduzir o operador ao onboarding.
+- [x] Cobrir o autocadastro Google e preservar os controles administrativos existentes com testes automatizados.
+- [x] Criar de forma verificável o estado inicial do perfil no primeiro acesso Google e garantir o encaminhamento ao onboarding.
+- [x] Cobrir por integração o primeiro acesso Google sem pré-cadastro, incluindo perfil inicial, sessão e onboarding.
+- [x] Adicionar regressões específicas de permissões administrativas após o autocadastro Google.
+- [x] Cobrir por integração o primeiro login Google sem pré-cadastro, incluindo token, sessão, conta e perfil inicial.
+- [x] Validar por regressão a consulta `profile.mine` do perfil recém-criado antes da conclusão do onboarding.
+- [x] Cobrir em um único fluxo a procedure `googleAuth.login` com token válido, sessão, conta e perfil inicial sem pré-cadastro.
+- [x] Cobrir diretamente a procedure `profile.mine` para o perfil Google inicial, com filial nula antes do onboarding.
+- [x] Integrar a procedure Google ao helper real de criação de conta e perfil inicial, sem mockar `loginGoogleOperator`.
+- [x] Confirmar que `profile.mine` retorna o perfil incompleto produzido pelo fluxo Google antes do onboarding.

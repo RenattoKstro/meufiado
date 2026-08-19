@@ -53,7 +53,7 @@ export default function GoogleOperatorSignIn() {
             if (!credential) return toast.error("Não foi possível receber a confirmação do Google.");
             try {
               const result = await login.mutateAsync({ credential });
-              if (!result.success) return toast.error("Use uma conta Google com o mesmo e-mail autorizado pela administração.");
+              if (!result.success) return toast.error("Não foi possível concluir o acesso com esta conta Google. Tente novamente.");
               await refresh();
               setLocation("/");
             } catch {

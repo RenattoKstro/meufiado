@@ -34,6 +34,11 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('if (user && location === "/entrar") navigate("/", { replace: true })');
   });
 
+  it("direciona perfis criados no primeiro acesso Google ao onboarding", async () => {
+    const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    expect(source).toContain('if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />');
+  });
+
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
     expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');

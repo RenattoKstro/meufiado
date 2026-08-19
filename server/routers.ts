@@ -62,7 +62,16 @@ function getGoogleClientId() {
   return clientId;
 }
 
-export const appRouter = router({
+type RouterDependencies = {
+  loginGoogleOperator?: typeof loginGoogleOperator;
+  getMyProfile?: typeof getMyProfile;
+};
+
+export function createAppRouter(dependencies: RouterDependencies = {}) {
+  const resolveGoogleOperator = dependencies.loginGoogleOperator ?? loginGoogleOperator;
+  const resolveMyProfile = dependencies.getMyProfile ?? getMyProfile;
+
+  return router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -90,7 +99,7 @@ export const appRouter = router({
         const ticket = await googleClient.verifyIdToken({ idToken: input.credential, audience: getGoogleClientId() });
         const payload = ticket.getPayload();
         if (!payload?.sub || !payload.email || !payload.email_verified) return { success: false } as const;
-        const user = await loginGoogleOperator({ subject: payload.sub, email: payload.email, name: payload.name });
+        const user = await resolveGoogleOperator({ subject: payload.sub, email: payload.email, name: payload.name });
         if (!user) return { success: false } as const;
         const token = await createUserSession(user.id);
         ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
@@ -102,7 +111,7 @@ export const appRouter = router({
     }),
   }),
   profile: router({
-    mine: protectedProcedure.query(async ({ ctx }) => (await getMyProfile(ctx.user.id)) ?? null),
+    mine: protectedProcedure.query(async ({ ctx }) => (await resolveMyProfile(ctx.user.id)) ?? null),
     branches: protectedProcedure.query(() => listActiveBranches()),
     complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => completeMyProfile(ctx.user.id, input)),
     preferences: protectedProcedure
@@ -140,6 +149,9 @@ export const appRouter = router({
       }),
     updateRole: adminProcedure.input(z.object({ userId: z.number().int().positive(), role: z.enum(["admin", "user"]) })).mutation(({ input }) => updateAccountRole(input.userId, input.role)),
   }),
-});
+  });
+}
+
+export const appRouter = createAppRouter();
 
 export type AppRouter = typeof appRouter;
