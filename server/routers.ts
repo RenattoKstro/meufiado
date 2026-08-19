@@ -94,13 +94,17 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   googleAuth: router({
     config: publicProcedure.query(() => ({ clientId: getGoogleClientId() })),
-    login: publicProcedure.input(z.object({ credential: z.string().min(20).max(8192) })).mutation(async ({ ctx, input }) => {
+    login: publicProcedure.input(z.object({ credential: z.string().min(20).max(8192), mode: z.enum(["login", "register"]) })).mutation(async ({ ctx, input }) => {
       try {
         const ticket = await googleClient.verifyIdToken({ idToken: input.credential, audience: getGoogleClientId() });
         const payload = ticket.getPayload();
         if (!payload?.sub || !payload.email || !payload.email_verified) return { success: false } as const;
-        const user = await resolveGoogleOperator({ subject: payload.sub, email: payload.email, name: payload.name });
-        if (!user) return { success: false } as const;
+        const user = await resolveGoogleOperator(
+          { subject: payload.sub, email: payload.email, name: payload.name },
+          undefined,
+          { createIfMissing: input.mode === "register" },
+        );
+        if (!user) return { success: false, reason: "not_registered" } as const;
         const token = await createUserSession(user.id);
         ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
         ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });

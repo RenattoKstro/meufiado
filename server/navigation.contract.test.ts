@@ -16,9 +16,26 @@ describe("contrato da navegação lateral", () => {
   it("mantém apenas o acesso direto do Google disponível ao operador", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/pages/UserLogin.tsx"), "utf8");
     expect(source).toContain('import GoogleOperatorSignIn from "@/components/GoogleOperatorSignIn"');
-    expect(source).toContain("autenticado diretamente pelo Google");
+    expect(source).toContain('mode="login"');
+    expect(source).toContain('href="/cadastro"');
     expect(source).not.toContain("Entrar com senha");
     expect(source).not.toContain("userAuth");
+  });
+
+  it("oferece opções distintas de entrar e cadastrar na tela inicial", async () => {
+    const source = await readFile(resolve(process.cwd(), "client/src/pages/Welcome.tsx"), "utf8");
+    expect(source).toContain('href="/entrar"');
+    expect(source).toContain('href="/cadastro"');
+    expect(source).toContain("Entrar no painel");
+    expect(source).toContain(">Cadastrar<");
+  });
+
+  it("mostra a conexão Google de cadastro somente depois da escolha de cadastrar", async () => {
+    const login = await readFile(resolve(process.cwd(), "client/src/pages/UserLogin.tsx"), "utf8");
+    const registration = await readFile(resolve(process.cwd(), "client/src/pages/UserRegistration.tsx"), "utf8");
+    expect(login).toContain('mode="login"');
+    expect(registration).toContain('GoogleOperatorSignIn mode="register"');
+    expect(registration).toContain("Primeiro, conecte sua conta Google.");
   });
 
   it("direciona acessos não autenticados à tela do Google direto", () => {
@@ -31,12 +48,13 @@ describe("contrato da navegação lateral", () => {
 
   it("redireciona uma sessão ativa da rota de entrada para a Visão geral", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
-    expect(source).toContain('if (user && location === "/entrar") navigate("/", { replace: true })');
+    expect(source).toContain('["/entrar", "/cadastro"].includes(location)');
   });
 
   it("direciona perfis criados no primeiro acesso Google ao onboarding", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     expect(source).toContain('if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />');
+    expect(source).toContain('Route path="/cadastro" component={UserRegistration}');
   });
 
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {

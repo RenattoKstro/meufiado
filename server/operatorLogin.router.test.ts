@@ -69,12 +69,12 @@ describe("googleAuth.login", () => {
     verifyIdTokenMock.mockResolvedValue({ getPayload: () => ({ sub: "google-sub-31", email: "operador@loja.com", email_verified: true, name: "Operador Google" }) });
     const persistence = createRegistrationDatabase();
     const testRouter = createAppRouter({
-      loginGoogleOperator: input => loginGoogleOperator(input, persistence.database as never),
+      loginGoogleOperator: (input, _database, options) => loginGoogleOperator(input, persistence.database as never, options),
       getMyProfile: userId => getMyProfile(userId, persistence.database as never),
     });
     const { ctx, cookies } = createPublicContext();
 
-    const result = await testRouter.createCaller(ctx).googleAuth.login({ credential: "token-google-com-tamanho-valido-para-teste" });
+    const result = await testRouter.createCaller(ctx).googleAuth.login({ credential: "token-google-com-tamanho-valido-para-teste", mode: "register" });
 
     expect(result).toEqual({ success: true });
     expect(verifyIdTokenMock).toHaveBeenCalledWith({ idToken: "token-google-com-tamanho-valido-para-teste", audience: process.env.GOOGLE_CLIENT_ID });
@@ -93,7 +93,7 @@ describe("googleAuth.login", () => {
     verifyIdTokenMock.mockRejectedValue(new Error("token inválido"));
     const { ctx, cookies } = createPublicContext();
 
-    await expect(appRouter.createCaller(ctx).googleAuth.login({ credential: "token-google-invalido-com-tamanho-valido" })).resolves.toEqual({ success: false });
+    await expect(appRouter.createCaller(ctx).googleAuth.login({ credential: "token-google-invalido-com-tamanho-valido", mode: "login" })).resolves.toEqual({ success: false });
     expect(cookies).toHaveLength(0);
   });
 });

@@ -10,7 +10,11 @@ describe("autocadastro pelo Google", () => {
       insert: () => ({ values: async (values: Record<string, unknown>) => { inserts.push(values); } }),
     };
 
-    const account = await loginGoogleOperator({ subject: "primeiro-acesso", email: "novo@loja.com", name: "Nova Operadora" }, database as never);
+    const account = await loginGoogleOperator(
+      { subject: "primeiro-acesso", email: "novo@loja.com", name: "Nova Operadora" },
+      database as never,
+      { createIfMissing: true },
+    );
 
     expect(account).toMatchObject({ id: 73, openId: "google-primeiro-acesso", email: "novo@loja.com" });
     expect(inserts).toEqual([

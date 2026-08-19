@@ -24,13 +24,19 @@ function loadGoogleIdentityServices() {
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = () => hasGoogleIdentity() ? resolve() : reject(new Error("Google indisponível"));
+    const finish = () => hasGoogleIdentity() ? resolve() : reject(new Error("Google indisponível"));
+    script.onload = finish;
     script.onerror = () => reject(new Error("Google indisponível"));
     document.head.appendChild(script);
+    window.setTimeout(finish, 5_000);
   });
 }
 
-export default function GoogleOperatorSignIn() {
+type GoogleOperatorSignInProps = {
+  mode?: "login" | "register";
+};
+
+export default function GoogleOperatorSignIn({ mode = "login" }: GoogleOperatorSignInProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const config = trpc.googleAuth.config.useQuery();
@@ -52,8 +58,12 @@ export default function GoogleOperatorSignIn() {
           callback: async ({ credential }: { credential?: string }) => {
             if (!credential) return toast.error("Não foi possível receber a confirmação do Google.");
             try {
-              const result = await login.mutateAsync({ credential });
-              if (!result.success) return toast.error("Não foi possível concluir o acesso com esta conta Google. Tente novamente.");
+              const result = await login.mutateAsync({ credential, mode });
+              if (!result.success) {
+                return toast.error(result.reason === "not_registered"
+                  ? "Não encontramos um cadastro para este e-mail. Clique em Cadastrar para criar o seu acesso."
+                  : "Não foi possível concluir o acesso com esta conta Google. Tente novamente.");
+              }
               await refresh();
               setLocation("/");
             } catch {
@@ -70,7 +80,7 @@ export default function GoogleOperatorSignIn() {
     }
     void renderGoogleButton();
     return () => { disposed = true; };
-  }, [config.data?.clientId, login, refresh, setLocation]);
+  }, [config.data?.clientId, login, mode, refresh, setLocation]);
 
   return <div className="min-h-12 w-[340px]">
     <div className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef} aria-label="Entrar com Google" />

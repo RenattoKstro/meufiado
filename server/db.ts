@@ -313,7 +313,11 @@ export async function createPreRegisteredUser(input: ProfileInput) {
   else await db.insert(userProfiles).values({ ...profileValues, userId });
 }
 
-export async function loginGoogleOperator(input: { subject: string; email: string; name?: string | null }, database?: ApplicationDatabase) {
+export async function loginGoogleOperator(
+  input: { subject: string; email: string; name?: string | null },
+  database?: ApplicationDatabase,
+  options: { createIfMissing?: boolean } = {},
+) {
   const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const email = input.email.trim().toLowerCase();
@@ -325,6 +329,7 @@ export async function loginGoogleOperator(input: { subject: string; email: strin
   if (linkedAccount && emailAccount && linkedAccount.id !== emailAccount.id) return null;
 
   if (!account) {
+    if (!options.createIfMissing) return null;
     await db.insert(users).values({
       openId: googleOpenId,
       name: input.name || "Operador",

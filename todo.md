@@ -85,3 +85,15 @@
 - [x] Cobrir diretamente a procedure `profile.mine` para o perfil Google inicial, com filial nula antes do onboarding.
 - [x] Integrar a procedure Google ao helper real de criação de conta e perfil inicial, sem mockar `loginGoogleOperator`.
 - [x] Confirmar que `profile.mine` retorna o perfil incompleto produzido pelo fluxo Google antes do onboarding.
+- [x] Restaurar a tela inicial com escolha explícita entre entrar e cadastrar.
+- [x] Exibir a conexão Google apenas depois de o operador escolher Cadastrar.
+- [x] Direcionar o operador autenticado para o preenchimento das informações obrigatórias de cadastro.
+- [x] Cobrir com testes o fluxo de escolha, conexão Google e onboarding.
+- [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
+- [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
+- [x] Cobrir a sequência escolha inicial, cadastro Google e encaminhamento ao onboarding em um contrato integrado.
+- [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
+- [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
+- [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
+- [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
+- [x] Cobrir a sequência escolha inicial, cadastro Google e encaminhamento ao onboarding em um contrato integrado.
