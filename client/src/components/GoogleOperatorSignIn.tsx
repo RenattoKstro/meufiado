@@ -1,19 +1,22 @@
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 const GOOGLE_SCRIPT_ID = "google-identity-services";
+const hasGoogleIdentity = () => Boolean((window as Window & { google?: { accounts?: { id?: unknown } } }).google?.accounts?.id);
 
 function loadGoogleIdentityServices() {
-  if ((window as Window & { google?: unknown }).google) return Promise.resolve();
+  if (hasGoogleIdentity()) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {
     const existing = document.getElementById(GOOGLE_SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
+      const finish = () => hasGoogleIdentity() ? resolve() : reject(new Error("Google indisponível"));
+      existing.addEventListener("load", finish, { once: true });
       existing.addEventListener("error", () => reject(new Error("Google indisponível")), { once: true });
+      window.setTimeout(finish, 5_000);
       return;
     }
     const script = document.createElement("script");
@@ -21,7 +24,7 @@ function loadGoogleIdentityServices() {
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
+    script.onload = () => hasGoogleIdentity() ? resolve() : reject(new Error("Google indisponível"));
     script.onerror = () => reject(new Error("Google indisponível"));
     document.head.appendChild(script);
   });
@@ -69,7 +72,9 @@ export default function GoogleOperatorSignIn() {
     return () => { disposed = true; };
   }, [config.data?.clientId, login, refresh, setLocation]);
 
-  if (config.isLoading || status === "loading") return <div className="flex h-12 items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Preparando acesso Google…</div>;
-  if (config.isError || status === "error") return <p className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-center text-xs font-semibold text-destructive">Não foi possível carregar o acesso do Google. Tente novamente em instantes.</p>;
-  return <div className="min-h-12" ref={mountRef} aria-label="Entrar com Google" />;
+  return <div className="min-h-12 w-[340px]">
+    <div className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef} aria-label="Entrar com Google" />
+    {(config.isLoading || status === "loading") && <div className="flex h-12 items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Preparando acesso Google…</div>}
+    {(config.isError || status === "error") && <p className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-center text-xs font-semibold text-destructive">Não foi possível carregar o acesso do Google. Tente novamente em instantes.</p>}
+  </div>;
 }

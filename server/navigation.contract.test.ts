@@ -34,6 +34,12 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('if (user && location === "/entrar") navigate("/", { replace: true })');
   });
 
+  it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
+    const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
+    expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');
+    expect(source).toContain("window.setTimeout(finish, 5_000)");
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();

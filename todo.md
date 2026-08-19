@@ -66,3 +66,8 @@
 - [x] Configurar de forma segura as credenciais necessárias do aplicativo OAuth do Google.
 - [x] Validar o novo fluxo Google e remover entradas de operador incompatíveis.
 - [x] Corrigir a rota de entrada Google para não exibir página inexistente durante uma sessão ativa.
+- [x] Corrigir o carregamento travado em “Preparando acesso Google” na entrada de operadores.
+- [x] Cobrir a inicialização do botão Google e suas falhas de carregamento com teste automatizado.
+- [x] Testar funcionalmente que o componente Google sai do estado de preparação quando a biblioteca é carregada.
+- [x] Testar funcionalmente a mensagem de erro quando o carregamento da biblioteca Google falha ou expira.
+- [x] Testar funcionalmente o timeout de carregamento da biblioteca Google e a mensagem de erro correspondente.
