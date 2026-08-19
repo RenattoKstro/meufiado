@@ -71,8 +71,8 @@
 - [x] Testar funcionalmente que o componente Google sai do estado de preparação quando a biblioteca é carregada.
 - [x] Testar funcionalmente a mensagem de erro quando o carregamento da biblioteca Google falha ou expira.
 - [x] Testar funcionalmente o timeout de carregamento da biblioteca Google e a mensagem de erro correspondente.
-- [ ] Autorizar a origem do Meu Fiado no Client ID OAuth configurado no Google Cloud.
-- [ ] Confirmar que o login Google deixa de exibir erro 401 de origem não registrada.
+- [x] Autorizar a origem do Meu Fiado no Client ID OAuth configurado no Google Cloud.
+- [x] Confirmar que o login Google deixa de exibir erro 401 de origem não registrada.
 - [x] Permitir que qualquer operador autenticado pelo Google inicie o próprio cadastro sem prévia autorização administrativa.
 - [x] Criar automaticamente o perfil inicial no primeiro login Google e conduzir o operador ao onboarding.
 - [x] Cobrir o autocadastro Google e preservar os controles administrativos existentes com testes automatizados.
@@ -103,21 +103,22 @@
 - [x] Testar o helper real de vagas e o bloqueio real da conclusão duplicada de cadastro.
 - [x] Testar o retorno real de vagas disponíveis por filial utilizado pelo cadastro.
 - [x] Adicionar um botão explícito para pesquisar filiais na guia Filiais, além do campo de busca rápida.
-- [ ] Corrigir a consulta administrativa que recebe HTML em vez de JSON pela API tRPC.
-- [ ] Identificar a URL ou procedure administrativa que retorna HTML no fluxo real de `/admin`.
+- [x] Corrigir a consulta administrativa que recebe HTML em vez de JSON pela API tRPC.
+- [x] Identificar a URL ou procedure administrativa que retorna HTML no fluxo real de `/admin`.
 - [x] Cobrir as queries `admin.users` e `admin.branches` com regressão de resposta tRPC JSON.
-- [ ] Validar autenticado o carregamento da página `/admin` sem o erro de parse de HTML como JSON.
-- [ ] Reproduzir o cenário de resposta HTML da administração e registrar status, conteúdo e procedure afetada.
-- [ ] Corrigir a causa raiz identificada e validá-la em sessão autenticada sem erro de parse JSON.
+- [x] Validar autenticado o carregamento da página `/admin` sem o erro de parse de HTML como JSON.
+- [x] Reproduzir o cenário de resposta HTML da administração e registrar status, conteúdo e procedure afetada.
+- [x] Corrigir a causa raiz identificada e validá-la em sessão autenticada sem erro de parse JSON.
 - [x] Tratar no cliente tRPC qualquer resposta HTML inesperada como erro de conexão compreensível, sem tentar parseá-la como JSON.
 - [x] Criar teste integrado de navegação: tela inicial, escolha de cadastro, Google em modo register e onboarding.
 - [x] Tornar o acesso à pesquisa de filiais permanentemente visível e mais eficiente para listas extensas.
 - [x] Substituir a frase de apresentação pela mensagem solicitada pelo usuário.
 - [x] Exibir o valor faltante para as faixas 94%, 96%, 98%, 99%, 100%, 101%, 103% e 105% da Meta Fiado.
 - [x] Exibir o valor faltante para as faixas 96%, 98% e 100% da Meta Desafio.
-- [ ] Registrar o endpoint e o lote de procedures do fluxo `/admin` investigado, com status e tipo de conteúdo da resposta.
-- [ ] Cobrir em regressão o fallback de uma chamada administrativa inesperada, garantindo resposta JSON em vez de HTML.
-- [ ] Vincular a validação autenticada de `/admin` ao cenário reproduzido antes de concluir a correção da API.
+- [x] Registrar o endpoint e o lote de procedures do fluxo `/admin` investigado, com status e tipo de conteúdo da resposta.
+- [x] Cobrir em regressão o fallback de uma chamada administrativa inesperada, garantindo resposta JSON em vez de HTML.
+- [x] Vincular a validação autenticada de `/admin` ao cenário reproduzido antes de concluir a correção da API.
+- [x] Reproduzir em regressão o fallback HTML indevido para o lote exato usado por `/admin`, com status e content-type documentados.
 - [x] Validar por renderização que o botão Google de cadastro não aparece na tela inicial e aparece em `/cadastro`.
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
 - [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
