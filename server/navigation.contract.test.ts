@@ -51,10 +51,18 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('["/entrar", "/cadastro"].includes(location)');
   });
 
-  it("direciona perfis criados no primeiro acesso Google ao onboarding", async () => {
+  it("direciona apenas operadores criados no primeiro acesso Google ao onboarding", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
-    expect(source).toContain('if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />');
+    expect(source).toContain('const isAdminWithoutOperatorProfile = user?.role === "admin" && !hasOperatorProfile');
+    expect(source).toContain('if (isAdminWithoutOperatorProfile) return <DashboardLayout adminOnly><Admin /></DashboardLayout>;');
+    expect(source).toContain('if (!hasOperatorProfile) return <Onboarding />;');
     expect(source).toContain('Route path="/cadastro" component={UserRegistration}');
+  });
+
+  it("restringe administradores sem perfil operacional à navegação administrativa", async () => {
+    const source = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    expect(source).toContain('adminOnly = false');
+    expect(source).toContain('const menu = adminOnly ? [administrativeNavigation]');
   });
 
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {

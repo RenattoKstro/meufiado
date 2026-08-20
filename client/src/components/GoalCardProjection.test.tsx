@@ -27,4 +27,15 @@ describe("GoalCard", () => {
     for (const target of [96, 98, 100]) expect(screen.getByText(`Falta para ${target}%`)).toBeInTheDocument();
     expect(screen.queryByText("Falta para 94%")).not.toBeInTheDocument();
   });
+
+  it("exibe uma barra de progresso individual e acessível para cada faixa", () => {
+    render(<GoalCard title="Meta Fiado" description="Teste" progress={98} received={100} accumulated={0} total={100} tiers={[{ target: 94, reward: 52.5 }, { target: 98, reward: 84 }, { target: 105, reward: 84 }]} daysTotal={20} daysElapsed={10} referenceGoal={1000} targetMissing={target => target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /ver faixas e projeções/i }));
+
+    expect(screen.getByRole("progressbar", { name: "Progresso da faixa 94%" })).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByRole("progressbar", { name: "Progresso da faixa 98%" })).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByRole("progressbar", { name: "Progresso da faixa 105%" })).toHaveAttribute("aria-valuetext", expect.stringContaining("93.3%"));
+    expect(screen.getAllByText("Atingida")).toHaveLength(2);
+  });
 });

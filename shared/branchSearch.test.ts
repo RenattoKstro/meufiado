@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterBranchOverviewsBySearch } from "./branchSearch";
+import { filterBranchOverviewsByRegional, filterBranchOverviewsBySearch, getBranchRegionals } from "./branchSearch";
 
 const items = [
   { branch: { name: "Filial São José", code: "024001", regional: "Sul" }, operator: { fullName: "Ana Líder" } },
@@ -17,5 +17,11 @@ describe("busca rápida de filiais", () => {
   it("mantém a lista integral para uma busca vazia e retorna vazio quando não há correspondência", () => {
     expect(filterBranchOverviewsBySearch(items, "  ")).toEqual(items);
     expect(filterBranchOverviewsBySearch(items, "inexistente")).toEqual([]);
+  });
+
+  it("lista e filtra regionais de forma independente da pesquisa textual", () => {
+    expect(getBranchRegionals(items)).toEqual(["Norte", "Sul"]);
+    expect(filterBranchOverviewsByRegional(items, "sul")).toEqual([items[0]]);
+    expect(filterBranchOverviewsByRegional(items, "all")).toEqual(items);
   });
 });

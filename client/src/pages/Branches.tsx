@@ -2,12 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 import { getBranchPerformance, hasBranchFinancialActivity } from "../../../shared/branchOverview";
-import { filterBranchOverviewsBySearch } from "../../../shared/branchSearch";
-import { Building2, ChevronDown, Clock3, Search, Trophy, TrendingUp, UserRound, X } from "lucide-react";
+import { filterBranchOverviewsByRegional, filterBranchOverviewsBySearch, getBranchRegionals } from "../../../shared/branchSearch";
+import { Building2, ChevronDown, Clock3, ListFilter, Search, Trophy, TrendingUp, UserRound, X } from "lucide-react";
 import React, { useState } from "react";
 
 type BranchOverviewItem = {
@@ -26,20 +27,24 @@ export default function Branches() {
   const [hideZeroed, setHideZeroed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [search, setSearch] = useState("");
+  const [regional, setRegional] = useState("all");
   if (overviewQuery.isLoading) return <BranchesLoading />;
   if (overviewQuery.isError) return <BranchesError />;
   const items = overviewQuery.data ?? [];
   const activeItems = items.filter(item => hasBranchFinancialActivity(item.metrics));
   const roleFilteredItems = hideZeroed ? activeItems : items;
-  const visibleItems = filterBranchOverviewsBySearch(roleFilteredItems, search);
+  const regionalOptions = getBranchRegionals(roleFilteredItems);
+  const regionalFilteredItems = filterBranchOverviewsByRegional(roleFilteredItems, regional);
+  const visibleItems = filterBranchOverviewsBySearch(regionalFilteredItems, search);
   const zeroedCount = items.length - activeItems.length;
   const runSearch = () => setSearch(searchTerm);
-  const clearSearch = () => { setSearchTerm(""); setSearch(""); };
+  const clearSearch = () => { setSearchTerm(""); setSearch(""); setRegional("all"); };
+  const hasSearchFilters = Boolean(search.trim()) || regional !== "all";
 
   return <section className="mx-auto max-w-7xl animate-in fade-in duration-500">
     <header className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><div className="flex items-center gap-2 text-primary"><Building2 className="h-4 w-4" /><p className="text-xs font-bold uppercase tracking-[0.14em]">Acompanhamento em rede</p></div><h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Filiais</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Consulte o andamento de cada operação. Abra uma filial para acessar metas, premiações, saldos e indicadores completos.</p></div><div className="flex items-center justify-between gap-4 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><div><p className="text-sm font-extrabold">Ocultar filiais zeradas</p><p className="mt-0.5 text-[11px] text-muted-foreground">{hideZeroed ? `${visibleItems.length} filiais exibidas` : zeroedCount > 0 ? `${zeroedCount} filiais sem valores` : "Todas as filiais têm valores"}</p></div><Switch aria-label="Ocultar filiais zeradas" checked={hideZeroed} onCheckedChange={setHideZeroed} /></div></header>
-    <form role="search" onSubmit={event => { event.preventDefault(); runSearch(); }} className="sticky top-3 z-20 mb-5 rounded-2xl border border-primary/30 bg-card p-3 shadow-lg shadow-primary/5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><div className="mb-2 flex items-center justify-between gap-3"><label htmlFor="branch-search" className="flex items-center gap-2 text-sm font-black"><span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"><Search className="h-3.5 w-3.5" /></span>Pesquisar filial</label><p aria-live="polite" className="text-xs font-bold text-muted-foreground">{search ? `${visibleItems.length} ${visibleItems.length === 1 ? "resultado" : "resultados"}` : "Nome, código, regional ou operador"}</p></div><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="branch-search" type="search" aria-label="Pesquisar filial" value={searchTerm} onChange={event => { const value = event.target.value; setSearchTerm(value); setSearch(value); }} placeholder="Ex.: 01.002, Assis Brasil ou nome do operador" className="h-12 rounded-xl border bg-muted/55 pl-10 pr-10 text-sm shadow-none focus-visible:border-primary focus-visible:ring-2" />{searchTerm && <button type="button" aria-label="Limpar pesquisa" onClick={clearSearch} className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground"><X className="h-4 w-4" /></button>}</div></div><Button type="submit" size="lg" className="h-12 shrink-0 rounded-xl px-6 text-sm font-black shadow-md shadow-primary/20"><Search className="mr-2 h-4 w-4" />Pesquisar</Button></div></form>
-    {visibleItems.length === 0 ? <EmptyBranches filtered={hideZeroed && items.length > 0} searched={Boolean(search.trim())} /> : <div className="grid gap-4 lg:grid-cols-2">{visibleItems.map(item => <BranchCard key={`${item.branch.id}-${item.operator?.id ?? "sem-operador"}`} item={item} expandedKey={expandedKey} setExpandedKey={setExpandedKey} />)}</div>}
+    <form role="search" onSubmit={event => { event.preventDefault(); runSearch(); }} className="sticky top-3 z-20 mb-5 rounded-2xl border border-primary/30 bg-card p-3 shadow-lg shadow-primary/5"><div className="flex flex-col gap-3 xl:flex-row xl:items-end"><div className="min-w-0 flex-1"><div className="mb-2 flex items-center justify-between gap-3"><label htmlFor="branch-search" className="flex items-center gap-2 text-sm font-black"><span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"><Search className="h-3.5 w-3.5" /></span>Pesquisar filial</label><p aria-live="polite" className="text-xs font-bold text-muted-foreground">{hasSearchFilters ? `${visibleItems.length} ${visibleItems.length === 1 ? "resultado" : "resultados"}` : "Nome, código, regional ou operador"}</p></div><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="branch-search" type="search" aria-label="Pesquisar filial" value={searchTerm} onChange={event => { const value = event.target.value; setSearchTerm(value); setSearch(value); }} placeholder="Ex.: 01.002, Assis Brasil ou nome do operador" className="h-12 rounded-xl border bg-muted/55 pl-10 pr-10 text-sm shadow-none focus-visible:border-primary focus-visible:ring-2" />{hasSearchFilters && <button type="button" aria-label="Limpar filtros de filiais" onClick={clearSearch} className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground"><X className="h-4 w-4" /></button>}</div></div><div className="min-w-0 xl:w-60"><label htmlFor="regional-filter" className="mb-2 flex items-center gap-2 text-sm font-black"><span className="grid h-7 w-7 place-items-center rounded-lg bg-violet-500/10 text-violet-600"><ListFilter className="h-3.5 w-3.5" /></span>Filtrar regional</label><Select value={regional} onValueChange={setRegional}><SelectTrigger id="regional-filter" aria-label="Filtrar por regional" className="h-12 w-full rounded-xl bg-muted/55 text-sm font-semibold"><SelectValue placeholder="Todas as regionais" /></SelectTrigger><SelectContent><SelectItem value="all">Todas as regionais</SelectItem>{regionalOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent></Select></div><Button type="submit" size="lg" className="h-12 shrink-0 rounded-xl px-6 text-sm font-black shadow-md shadow-primary/20"><Search className="mr-2 h-4 w-4" />Pesquisar</Button></div></form>
+    {visibleItems.length === 0 ? <EmptyBranches filtered={hideZeroed && items.length > 0} searched={hasSearchFilters} /> : <div className="grid gap-4 lg:grid-cols-2">{visibleItems.map(item => <BranchCard key={`${item.branch.id}-${item.operator?.id ?? "sem-operador"}`} item={item} expandedKey={expandedKey} setExpandedKey={setExpandedKey} />)}</div>}
   </section>;
 }
 

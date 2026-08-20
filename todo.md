@@ -123,3 +123,6 @@
 - [x] Validar diretamente a tela inicial com opções distintas de Entrar e Cadastrar.
 - [x] Validar que a conexão Google de cadastro aparece apenas na etapa posterior à escolha de Cadastrar.
 - [x] Cobrir a sequência escolha inicial, cadastro Google e encaminhamento ao onboarding em um contrato integrado.
+- [x] Adicionar barras de progresso visuais e coloridas para cada faixa das metas Fiado e Desafio.
+- [x] Adicionar filtro de filiais por regional na guia Filiais.
+- [x] Permitir que administradores acessem o sistema sem filial e sem cadastro de operador.

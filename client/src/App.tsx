@@ -29,14 +29,17 @@ function AuthenticatedApp() {
   const [location, navigate] = useLocation();
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const { applyPreferences } = useTheme();
+  const hasOperatorProfile = Boolean(profileQuery.data?.profile?.profileComplete);
+  const isAdminWithoutOperatorProfile = user?.role === "admin" && !hasOperatorProfile;
   useEffect(() => { const profile = profileQuery.data?.profile; if (profile) applyPreferences(profile.colorMode, profile.colorPalette); }, [applyPreferences, profileQuery.data?.profile]);
   useEffect(() => { if (user && ["/entrar", "/cadastro"].includes(location)) navigate("/", { replace: true }); }, [location, navigate, user]);
+  useEffect(() => { if (isAdminWithoutOperatorProfile && location !== "/admin") navigate("/admin", { replace: true }); }, [isAdminWithoutOperatorProfile, location, navigate]);
   if (loading) return <LoadingScreen />;
   if (!user) return <Switch><Route path="/admin/login" component={AdminLogin} /><Route path="/entrar" component={UserLogin} /><Route path="/cadastro" component={UserRegistration} /><Route component={Welcome} /></Switch>;
   if (profileQuery.isLoading) return <LoadingScreen />;
-  if (!profileQuery.data?.profile && user.role === "admin" && location === "/admin") return <DashboardLayout><Admin /></DashboardLayout>;
-  if (!profileQuery.data?.profile || !profileQuery.data.profile.profileComplete) return <Onboarding />;
-  if (!profileQuery.data.profile.isActive) return <SuspendedScreen />;
+  if (isAdminWithoutOperatorProfile) return <DashboardLayout adminOnly><Admin /></DashboardLayout>;
+  if (!hasOperatorProfile) return <Onboarding />;
+  if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
   return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 

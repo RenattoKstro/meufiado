@@ -25,6 +25,17 @@ type GoalCardProps = {
   accent?: "primary" | "violet";
 };
 
+const tierPalette = [
+  { bar: "bg-cyan-500", text: "text-cyan-700", soft: "bg-cyan-500/10" },
+  { bar: "bg-sky-500", text: "text-sky-700", soft: "bg-sky-500/10" },
+  { bar: "bg-blue-500", text: "text-blue-700", soft: "bg-blue-500/10" },
+  { bar: "bg-indigo-500", text: "text-indigo-700", soft: "bg-indigo-500/10" },
+  { bar: "bg-violet-500", text: "text-violet-700", soft: "bg-violet-500/10" },
+  { bar: "bg-fuchsia-500", text: "text-fuchsia-700", soft: "bg-fuchsia-500/10" },
+  { bar: "bg-pink-500", text: "text-pink-700", soft: "bg-pink-500/10" },
+  { bar: "bg-amber-500", text: "text-amber-700", soft: "bg-amber-500/10" },
+];
+
 export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, targetMissing, projectionTargets, accent = "primary" }: GoalCardProps) {
   const [open, setOpen] = useState(false);
   const visualProgress = Math.min(progress, 105);
@@ -55,10 +66,16 @@ export default function GoalCard({ title, description, progress, received, accum
         <div className="mb-4 grid grid-cols-2 gap-3">
           {displayedTargets.map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Falta para {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Saldo a receber · {currency(daily(target))}/dia</p></div>)}
         </div>
-        <div className="space-y-2">
-          {tiers.map(tier => {
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Faixas de premiação</p><p className="text-[10px] font-semibold text-muted-foreground">Progresso por faixa</p></div>
+          {tiers.map((tier, index) => {
             const hit = progress >= tier.target;
-            return <div key={tier.target} className="flex items-center justify-between rounded-xl px-2 py-1.5 text-xs"><div className="flex items-center gap-2">{hit ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : <LockKeyhole className="h-3.5 w-3.5 text-muted-foreground" />}<span className={hit ? "font-extrabold text-foreground" : "font-semibold text-muted-foreground"}>{tier.target}%</span></div><span className={hit ? "font-extrabold text-emerald-600" : "font-semibold text-muted-foreground"}>{currency(tier.reward)}</span></div>;
+            const palette = tierPalette[index % tierPalette.length];
+            const tierProgress = Math.min(Math.max((progress / tier.target) * 100, 0), 100);
+            return <div key={tier.target} className={cn("rounded-2xl border border-border/60 p-3 transition-colors", hit ? palette.soft : "bg-background/70")}>
+              <div className="flex items-center justify-between gap-3 text-xs"><div className="flex items-center gap-2">{hit ? <CircleCheck className={cn("h-4 w-4", palette.text)} /> : <LockKeyhole className="h-3.5 w-3.5 text-muted-foreground" />}<span className={hit ? "font-extrabold text-foreground" : "font-semibold text-muted-foreground"}>{tier.target}%</span><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold", hit ? `${palette.soft} ${palette.text}` : "bg-muted text-muted-foreground")}>{hit ? "Atingida" : "Em andamento"}</span></div><span className={hit ? cn("font-extrabold", palette.text) : "font-semibold text-muted-foreground"}>{currency(tier.reward)}</span></div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`Progresso da faixa ${tier.target}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(tierProgress.toFixed(1))} aria-valuetext={`${tierProgress.toFixed(1)}% rumo à faixa de ${tier.target}%`}><div className={cn("h-full rounded-full transition-[width] duration-500", palette.bar)} style={{ width: `${tierProgress}%` }} /></div>
+            </div>;
           })}
         </div>
       </div>}

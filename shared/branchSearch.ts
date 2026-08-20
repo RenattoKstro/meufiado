@@ -27,3 +27,16 @@ export function filterBranchOverviewsBySearch<T extends SearchableBranchOverview
       return normalizedValue.includes(normalizedQuery) || (compactQuery.length > 0 && compact(normalizedValue).includes(compactQuery));
     }));
 }
+
+export function getBranchRegionals<T extends SearchableBranchOverview>(items: T[]) {
+  return Array.from(new Set(items
+    .map(item => item.branch.regional?.trim())
+    .filter((regional): regional is string => Boolean(regional))
+  )).sort((first, second) => first.localeCompare(second, "pt-BR"));
+}
+
+export function filterBranchOverviewsByRegional<T extends SearchableBranchOverview>(items: T[], regional: string) {
+  const normalizedRegional = normalizeSearchValue(regional);
+  if (!normalizedRegional || normalizedRegional === "all") return items;
+  return items.filter(item => normalizeSearchValue(item.branch.regional ?? "") === normalizedRegional);
+}
