@@ -23,9 +23,13 @@ import { useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
 
 const OverviewPage = (_props: unknown) => <Dashboard />;
-const FiadoPage = (_props: unknown) => <Dashboard view="fiado" />;
-const ChallengePage = (_props: unknown) => <Dashboard view="challenge" />;
 const BranchesPage = (_props: unknown) => <Branches />;
+
+function LegacyMetaRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate("/", { replace: true }); }, [navigate]);
+  return <LoadingScreen />;
+}
 
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
@@ -40,7 +44,7 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/utilidades" component={Utilities} /><Route path="/chat" component={Chat} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/filiais" component={BranchesPage} /><Route path="/utilidades" component={Utilities} /><Route path="/chat" component={Chat} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

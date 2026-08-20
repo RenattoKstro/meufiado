@@ -85,6 +85,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
         <QuickStat icon={ArrowUpRight} label="Meta Diária / Rec. Hoje" value={`${currency(dailyGoal)} / ${currency(receipts.today)}`} note="" />
         <QuickStat icon={CircleDollarSign} label="Restante Fiado" value={currency(fiadoRemaining)} note="" />
         <QuickStat icon={CircleDollarSign} label="Restante Desafio" value={currency(challengeRemaining)} note="" />
+        <QuickStat icon={CircleDollarSign} label="Vencido atual" value={currency(metrics.currentOverdue)} note="" />
         <QuickStat icon={CircleDollarSign} label="À receber" value={currency(receivableAmount)} note="" />
         <QuickStat icon={ArrowUpRight} label="Meta 80%" value={currency(ticket.target)} note="" />
         <QuickStat icon={ArrowUpRight} label="Falta para 80%" value={currency(ticket.remaining)} note={ticket.afterDay15 ? "Prazo encerrado" : "Saldo até o dia 15"} />

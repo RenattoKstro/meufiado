@@ -25,14 +25,12 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Building2, ChevronDown, CircleDollarSign, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
-  { label: "Meta Fiado", path: "/fiado", icon: CircleDollarSign },
-  { label: "Meta Desafio", path: "/desafio", icon: Target },
   { label: "Filiais", path: "/filiais", icon: Building2 },
   { label: "Utilidades", path: "/utilidades", icon: FolderDown },
   { label: "Chat", path: "/chat", icon: MessageCircle },

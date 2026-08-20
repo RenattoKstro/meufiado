@@ -8,9 +8,11 @@ describe("contrato da navegação lateral", () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     expect(source).toContain('import { Link, useLocation } from "wouter"');
     expect(source).toContain("<Link href={item.path}>");
-    ["/fiado", "/desafio", "/filiais", "/ajustes", "/configuracoes"].forEach(path => {
+    ["/filiais", "/ajustes", "/configuracoes"].forEach(path => {
       expect(source).toContain(`path: "${path}"`);
     });
+    expect(source).not.toContain('label: "Meta Fiado"');
+    expect(source).not.toContain('label: "Meta Desafio"');
   });
 
   it("mantém apenas o acesso direto do Google disponível ao operador", async () => {
@@ -61,7 +63,7 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('Route path="/cadastro" component={UserRegistration}');
   });
 
-  it("mantém a navegação completa e acrescenta Administração para administradores", async () => {
+  it("mantém a navegação consolidada e acrescenta Administração para administradores", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     expect(source).toContain('const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;');
     expect(source).not.toContain("adminOnly");

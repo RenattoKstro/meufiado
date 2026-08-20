@@ -175,3 +175,7 @@
 - [x] Cobrir os novos indicadores restantes e a frase atualizada com testes automatizados.
 - [x] Reformular o card de recebimento para exibir Meta Diária / Rec. Hoje em um único indicador.
 - [x] Calcular a Meta Diária pelo valor restante dividido pelos dias úteis restantes e cobrir o cálculo com teste automatizado.
+- [x] Adicionar o card Vencido atual à Visão Geral.
+- [x] Remover da navegação as guias separadas de Meta Fiado e Meta Desafio, mantendo as informações consolidadas na Visão Geral.
+- [x] Ajustar as rotas legadas de Meta Fiado e Meta Desafio para não criar páginas inacessíveis.
+- [x] Cobrir o novo card e a navegação simplificada com testes automatizados.

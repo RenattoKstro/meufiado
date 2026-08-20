@@ -40,6 +40,11 @@ describe("textos e precisão da Visão Geral", () => {
     expect(goalCardSource).toContain("remainingValue?: number");
   });
 
+  it("exibe o vencido atual como indicador separado na Visão Geral", () => {
+    expect(dashboardSource).toContain('label="Vencido atual"');
+    expect(dashboardSource).toContain("value={currency(metrics.currentOverdue)}");
+  });
+
   it("usa a frase de apresentação revisada", () => {
     expect(welcomeSource).toContain("Acompanhando de perto suas metas");
     expect(welcomeSource).not.toContain("Acompanhando de suas metas");
