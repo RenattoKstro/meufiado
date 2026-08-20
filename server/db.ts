@@ -22,6 +22,7 @@ import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/go
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
 import { resolveMetricStorageScope } from "../shared/branchMetricScope";
 import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type OperatorRole } from "../shared/branchSlots";
+import { storagePut } from "./storage";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -288,6 +289,59 @@ export async function updateMyPreferences(
     isActive: true,
     ...input,
   });
+}
+
+type AccountUpdateInput = {
+  fullName: string;
+  phone: string;
+  instagram?: string | null;
+};
+
+async function ensurePersonalProfile(db: ApplicationDatabase, userId: number, details?: Partial<AccountUpdateInput>) {
+  const [existing] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  if (existing) return existing;
+  const [account] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!account) throw new Error("Usuário não encontrado");
+  const values = {
+    userId,
+    email: account.email ?? `conta-${userId}@meufiado.local`,
+    fullName: details?.fullName ?? account.name ?? "Usuário",
+    phone: details?.phone ?? null,
+    instagram: details?.instagram ?? null,
+    profileComplete: false,
+    isActive: true,
+  };
+  await db.insert(userProfiles).values(values);
+  const [created] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  if (!created) throw new Error("Não foi possível criar o perfil");
+  return created;
+}
+
+export async function updateMyAccount(userId: number, input: AccountUpdateInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const profile = await ensurePersonalProfile(db, userId, input);
+  const values = { fullName: input.fullName, phone: input.phone, instagram: input.instagram || null };
+  await Promise.all([
+    db.update(userProfiles).set(values).where(eq(userProfiles.id, profile.id)),
+    db.update(users).set({ name: input.fullName }).where(eq(users.id, userId)),
+  ]);
+  return getMyProfile(userId, db);
+}
+
+export async function uploadMyAvatar(userId: number, dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Envie uma imagem JPG, PNG ou WEBP válida.");
+  const contentType = match[1];
+  const binary = Buffer.from(match[2], "base64");
+  if (binary.length === 0 || binary.length > 2 * 1024 * 1024) throw new Error("A foto deve ter no máximo 2 MB.");
+  const extension = contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1];
+  const uploaded = await storagePut(`profile-avatars/${userId}/foto.${extension}`, binary, contentType);
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const profile = await ensurePersonalProfile(db, userId);
+  await db.update(userProfiles).set({ avatarUrl: uploaded.url }).where(eq(userProfiles.id, profile.id));
+  return { avatarUrl: uploaded.url };
 }
 
 const emptyMetrics = {

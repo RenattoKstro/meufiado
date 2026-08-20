@@ -51,6 +51,7 @@ export const userProfiles = mysqlTable(
     branchId: int("branchId").references(() => branches.id),
     phone: varchar("phone", { length: 32 }),
     instagram: varchar("instagram", { length: 120 }),
+    avatarUrl: varchar("avatarUrl", { length: 2048 }),
     operatorType: operatorType.default("leader").notNull(),
     isActive: boolean("isActive").default(true).notNull(),
     isOnVacation: boolean("isOnVacation").default(false).notNull(),

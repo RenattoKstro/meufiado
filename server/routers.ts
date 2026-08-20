@@ -26,7 +26,9 @@ import {
   updateUtilityDownload,
   updateUtilityReport,
   updateAccountRole,
+  updateMyAccount,
   updateMyPreferences,
+  uploadMyAvatar,
   loginLocalAdmin,
   updateLocalAdminCredentials,
   loginGoogleOperator,
@@ -80,6 +82,12 @@ const utilityReportInput = z.object({
   description: z.string().trim().min(2).max(10_000),
   isVisible: z.boolean(),
 });
+const accountInput = z.object({
+  fullName: z.string().trim().min(2).max(160),
+  phone: z.string().trim().min(8).max(32),
+  instagram: z.string().trim().max(120).optional().nullable(),
+});
+const avatarInput = z.object({ dataUrl: z.string().min(32).max(3_000_000) });
 const googleClient = new OAuth2Client();
 
 function getGoogleClientId() {
@@ -152,6 +160,8 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     mine: protectedProcedure.query(async ({ ctx }) => (await resolveMyProfile(ctx.user.id)) ?? null),
     branches: protectedProcedure.query(() => resolveBranchesWithSlots()),
     complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => resolveProfileCompletion(ctx.user.id, input)),
+    account: protectedProcedure.input(accountInput).mutation(({ ctx, input }) => updateMyAccount(ctx.user.id, input)),
+    uploadAvatar: protectedProcedure.input(avatarInput).mutation(({ ctx, input }) => uploadMyAvatar(ctx.user.id, input.dataUrl)),
     preferences: protectedProcedure
       .input(z.object({ colorMode: z.enum(["light", "dark"]).optional(), colorPalette: palette.optional(), showLostGoal: z.boolean().optional(), isOnVacation: z.boolean().optional() }))
       .mutation(({ ctx, input }) => updateMyPreferences(ctx.user.id, input)),

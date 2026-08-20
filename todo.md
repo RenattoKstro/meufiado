@@ -155,3 +155,8 @@
 - [x] Revisar os textos solicitados nos cartões da Visão Geral e remover as fórmulas explicativas indicadas.
 - [x] Exibir percentuais dos indicadores com duas casas decimais em vez de uma.
 - [x] Cobrir as novas informações de Filiais e a precisão de percentuais com testes automatizados.
+- [x] Corrigir a interação do nome do operador em Filiais para abrir contatos e o atalho de conversa privada.
+- [x] Remover o texto informativo da Meta Perdido solicitado pelo usuário.
+- [x] Permitir editar nome, telefone/WhatsApp e Instagram nos dados da conta.
+- [x] Permitir adicionar, substituir e exibir foto de perfil na conta e no painel.
+- [x] Cobrir os fluxos corrigidos de Filiais, edição de conta e foto de perfil com testes automatizados.

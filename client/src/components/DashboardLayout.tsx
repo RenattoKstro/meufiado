@@ -1,5 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +25,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Building2, ChevronDown, CircleDollarSign, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, CircleDollarSign, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
@@ -43,9 +43,10 @@ const navigation = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
+  const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
@@ -96,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors hover:bg-sidebar-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[collapsible=icon]:justify-center">
-                <Avatar className="h-9 w-9 border-2 border-primary/15"><AvatarFallback className="bg-primary/10 text-xs font-extrabold text-primary">{initials}</AvatarFallback></Avatar>
+                <Avatar className="h-9 w-9 border-2 border-primary/15"><AvatarImage src={profileQuery.data?.profile?.avatarUrl ?? undefined} alt={`Foto de ${user?.name || "perfil"}`} /><AvatarFallback className="bg-primary/10 text-xs font-extrabold text-primary">{initials}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                   <p className="truncate text-xs font-bold text-sidebar-foreground">{user?.name || "Operador"}</p>
                   <p className="truncate text-[10px] text-muted-foreground">{user?.role === "admin" ? "Administrador" : "Operador"}</p>
@@ -107,6 +108,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <DropdownMenuContent align="end" className="w-56 rounded-xl">
               <DropdownMenuLabel className="font-semibold">Conta</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate("/conta")} className="cursor-pointer"><Pencil className="mr-2 h-4 w-4" />Editar conta</DropdownMenuItem>
               <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer"><span>{theme === "light" ? "Usar modo escuro" : "Usar modo claro"}</span>{theme === "light" ? <Moon className="ml-auto h-4 w-4" /> : <Sun className="ml-auto h-4 w-4" />}</DropdownMenuItem>
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive"><LogOut className="mr-2 h-4 w-4" />Sair</DropdownMenuItem>
             </DropdownMenuContent>

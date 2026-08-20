@@ -102,11 +102,13 @@ describe("botão de pesquisa de Filiais", () => {
     });
 
     render(<Branches />);
-    fireEvent.click(screen.getByRole("button", { name: "Ana Souza" }));
+    expect(screen.queryByText("Contato do operador")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Ana Souza/ }));
 
     expect(screen.getByText("Contato do operador")).toBeInTheDocument();
     expect(screen.getByText("(67) 99999-0000")).toBeInTheDocument();
     expect(screen.getByText("@ana.recebe")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chat privado" })).toHaveAttribute("href", "/chat?perfil=77");
+    expect(screen.getByRole("button", { name: /Ana Souza/ })).toHaveAttribute("aria-expanded", "true");
   });
 });
