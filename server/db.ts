@@ -1,9 +1,10 @@
-import { and, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
   branchMetrics,
   branches,
+  chatReadStates,
   chatMessages,
   InsertUser,
   metricSettings,
@@ -355,6 +356,7 @@ export async function deleteManagedUser(profileId: number, actorUserId: number) 
     await db.delete(userCredentials).where(eq(userCredentials.userId, profile.userId));
     await db.delete(adminCredentials).where(eq(adminCredentials.userId, profile.userId));
     await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
+    await db.delete(chatReadStates).where(eq(chatReadStates.userId, profile.userId));
     await db.update(utilityDownloads).set({ createdByUserId: null }).where(eq(utilityDownloads.createdByUserId, profile.userId));
     await db.update(utilityReports).set({ createdByUserId: null }).where(eq(utilityReports.createdByUserId, profile.userId));
   }
@@ -373,7 +375,7 @@ export async function listChatMessages(userId: number, recipientUserId?: number 
       )
     : isNull(chatMessages.recipientUserId);
   return db
-    .select({ message: chatMessages, sender: users.name })
+    .select({ message: chatMessages, sender: users.name, senderId: users.id, senderRole: users.role })
     .from(chatMessages)
     .innerJoin(users, eq(chatMessages.senderUserId, users.id))
     .where(and(gt(chatMessages.expiresAt, now), visibility))
@@ -394,6 +396,31 @@ export async function deleteExpiredChatMessages() {
   if (!db) return { deleted: 0 };
   const result = await db.delete(chatMessages).where(lt(chatMessages.expiresAt, new Date()));
   return { deleted: result[0]?.affectedRows ?? 0 };
+}
+
+export async function markChatMessagesRead(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const [latestMessage] = await db.select({ id: chatMessages.id }).from(chatMessages).orderBy(desc(chatMessages.id)).limit(1);
+  const lastReadMessageId = latestMessage?.id ?? 0;
+  await db.insert(chatReadStates).values({ userId, lastReadMessageId }).onDuplicateKeyUpdate({ set: { lastReadMessageId } });
+}
+
+export async function countUnreadChatMessages(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [readState] = await db.select({ lastReadMessageId: chatReadStates.lastReadMessageId }).from(chatReadStates).where(eq(chatReadStates.userId, userId)).limit(1);
+  const lastReadMessageId = readState?.lastReadMessageId ?? 0;
+  const [result] = await db
+    .select({ total: count() })
+    .from(chatMessages)
+    .where(and(
+      gt(chatMessages.id, lastReadMessageId),
+      gt(chatMessages.expiresAt, new Date()),
+      ne(chatMessages.senderUserId, userId),
+      or(isNull(chatMessages.recipientUserId), eq(chatMessages.recipientUserId, userId)),
+    ));
+  return Number(result?.total ?? 0);
 }
 
 export type UtilityDownloadInput = {

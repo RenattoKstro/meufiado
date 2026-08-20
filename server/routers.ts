@@ -8,6 +8,7 @@ import {
   deleteUtilityReport,
   createUtilityDownload,
   createUtilityReport,
+  countUnreadChatMessages,
   listChatMessages,
   importAnalyticMetrics,
   importBranches,
@@ -29,6 +30,7 @@ import {
   loginLocalAdmin,
   updateLocalAdminCredentials,
   loginGoogleOperator,
+  markChatMessagesRead,
   sendChatMessage,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -200,6 +202,8 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     general: protectedProcedure.query(({ ctx }) => listChatMessages(ctx.user.id)),
     private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(({ ctx, input }) => listChatMessages(ctx.user.id, input.recipientUserId)),
     send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(({ ctx, input }) => sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body })),
+    unreadCount: protectedProcedure.query(({ ctx }) => countUnreadChatMessages(ctx.user.id)),
+    markRead: protectedProcedure.mutation(({ ctx }) => markChatMessagesRead(ctx.user.id)),
   }),
   utilities: router({
     downloads: protectedProcedure.query(({ ctx }) => listUtilityDownloads(ctx.user.role === "admin")),

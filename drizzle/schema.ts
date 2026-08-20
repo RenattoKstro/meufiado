@@ -83,6 +83,16 @@ export const chatMessages = mysqlTable(
   ],
 );
 
+export const chatReadStates = mysqlTable(
+  "chatReadStates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().unique().references(() => users.id),
+    lastReadMessageId: int("lastReadMessageId").default(0).notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+);
+
 export const utilityDownloads = mysqlTable(
   "utilityDownloads",
   {

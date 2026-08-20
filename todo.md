@@ -145,3 +145,9 @@
 - [x] Exibir Relatórios aos usuários como itens expansíveis, com título em destaque e descrição somente após abertura.
 - [x] Cobrir a navegação, permissões e fluxos de Utilidades com testes automatizados.
 - [x] Adicionar testes funcionais de permissões e fluxos administrativos de Utilidades para Downloads e Relatórios.
+- [x] Exibir contador de mensagens novas ao lado da opção Chat para o usuário autenticado.
+- [x] Identificar mensagens enviadas por administradores com emblema próprio no chat.
+- [x] Organizar as mensagens do chat em balões alinhados à esquerda e à direita conforme o remetente.
+- [x] Reduzir o destaque visual do controle de férias e explicar que sua marcação evita inativação por ausência prolongada.
+- [x] Cobrir as novas notificações, apresentação de chat e orientação de férias com testes automatizados.
+- [x] Testar o contador de mensagens novas ao lado de Chat, incluindo exibição, ausência de novas mensagens e atualização após leitura.

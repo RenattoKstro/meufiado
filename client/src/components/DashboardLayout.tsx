@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,7 +24,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
+import { trpc } from "@/lib/trpc";
 import { BarChart3, Building2, ChevronDown, CircleDollarSign, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
+import React from "react";
 import { Link, useLocation } from "wouter";
 
 const navigation = [
@@ -42,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { theme, toggleTheme } = useTheme();
   const [location] = useLocation();
   const isMobile = useIsMobile();
+  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
@@ -75,6 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Link href={item.path}>
                     <item.icon className="h-[18px] w-[18px]" />
                     <span>{item.label}</span>
+                    {item.path === "/chat" && (unreadChatQuery.data ?? 0) > 0 && <Badge aria-label={`${unreadChatQuery.data} mensagens novas`} className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[10px] font-black group-data-[collapsible=icon]:hidden">{(unreadChatQuery.data ?? 0) > 99 ? "99+" : unreadChatQuery.data}</Badge>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

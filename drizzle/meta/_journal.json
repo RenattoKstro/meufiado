@@ -71,6 +71,13 @@
       "when": 1787238548269,
       "tag": "0009_striped_hannibal_king",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1787242766218,
+      "tag": "0010_foamy_skrulls",
+      "breakpoints": true
     }
   ]
 }
