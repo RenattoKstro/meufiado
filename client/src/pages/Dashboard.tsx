@@ -53,6 +53,8 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
   const fiadoRemaining = metrics.creditGoal - metrics.currentOverdue;
   const challengeRemaining = metrics.challengeGoal - metrics.currentOverdue;
+  const workingDaysRemaining = Math.max(metrics.workingDaysTotal - metrics.workingDaysElapsed, 0);
+  const dailyGoal = workingDaysRemaining > 0 ? Math.max(fiadoRemaining, 0) / workingDaysRemaining : 0;
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const ticketValid = type === "leader" && ticket.status === "achieved";
@@ -80,7 +82,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />
         <QuickStat icon={CircleDollarSign} label="Recebido acumulado" value={currency(receipts.accumulated)} note="" />
-        <QuickStat icon={ArrowUpRight} label="Recebido hoje" value={currency(receipts.today)} note="" />
+        <QuickStat icon={ArrowUpRight} label="Meta Diária / Rec. Hoje" value={`${currency(dailyGoal)} / ${currency(receipts.today)}`} note="" />
         <QuickStat icon={CircleDollarSign} label="Restante Fiado" value={currency(fiadoRemaining)} note="" />
         <QuickStat icon={CircleDollarSign} label="Restante Desafio" value={currency(challengeRemaining)} note="" />
         <QuickStat icon={CircleDollarSign} label="À receber" value={currency(receivableAmount)} note="" />

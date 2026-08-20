@@ -16,8 +16,10 @@ describe("textos e precisão da Visão Geral", () => {
     expect(dashboardSource).not.toContain("Abertura do mês − Meta Fiado");
     expect(dashboardSource).not.toContain("À receber × 80%");
     expect(dashboardSource).not.toContain("Vencido atual ÷ carteira total");
-    expect(dashboardSource).toContain('label="Recebido hoje"');
-    expect(dashboardSource).toContain("value={currency(receipts.today)}");
+    expect(dashboardSource).toContain('label="Meta Diária / Rec. Hoje"');
+    expect(dashboardSource).toContain("const dailyGoal = workingDaysRemaining > 0 ? Math.max(fiadoRemaining, 0) / workingDaysRemaining : 0");
+    expect(dashboardSource).toContain("value={`${currency(dailyGoal)} / ${currency(receipts.today)}`}");
+    expect(dashboardSource).not.toContain('label="Recebido hoje"');
     expect(dashboardSource).not.toContain("Abertura do dia − vencido atual");
   });
 
