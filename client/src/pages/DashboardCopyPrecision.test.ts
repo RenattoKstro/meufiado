@@ -15,6 +15,9 @@ describe("textos e precisão da Visão Geral", () => {
     expect(dashboardSource).not.toContain("Abertura do mês − Meta Fiado");
     expect(dashboardSource).not.toContain("À receber × 80%");
     expect(dashboardSource).not.toContain("Vencido atual ÷ carteira total");
+    expect(dashboardSource).toContain('label="Recebido hoje"');
+    expect(dashboardSource).toContain("value={currency(receipts.today)}");
+    expect(dashboardSource).not.toContain("Abertura do dia − vencido atual");
   });
 
   it("exibe os percentuais principais com duas casas decimais", () => {

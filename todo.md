@@ -167,3 +167,5 @@
 - [x] Calcular a Meta 80% no período de 1º a 15, incluindo dias úteis restantes automáticos até o prazo.
 - [x] Criar acesso separado para listar e abrir conversas privadas, sem misturá-las ao Chat geral.
 - [x] Cobrir os cálculos automáticos, o modo manual e a navegação de conversas privadas com testes automatizados.
+- [x] Calcular e exibir Recebido hoje como abertura do dia menos vencido atual, sem apresentar a fórmula no card.
+- [x] Cobrir a apresentação corrigida de Recebido hoje com teste automatizado.

@@ -75,9 +75,10 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{type === "leader" ? <TicketStatus ticket={ticket} /> : <AssistantNotice />}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} />}</section>
-      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
+      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
         <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />
         <QuickStat icon={CircleDollarSign} label="Recebido acumulado" value={currency(receipts.accumulated)} note="" />
+        <QuickStat icon={ArrowUpRight} label="Recebido hoje" value={currency(receipts.today)} note="" />
         <QuickStat icon={CircleDollarSign} label="À receber" value={currency(receivableAmount)} note="" />
         <QuickStat icon={ArrowUpRight} label="Meta 80%" value={currency(ticket.target)} note="" />
         <QuickStat icon={ArrowUpRight} label="Falta para 80%" value={currency(ticket.remaining)} note={ticket.afterDay15 ? "Prazo encerrado" : "Saldo até o dia 15"} />
