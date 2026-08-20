@@ -6,7 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme, type Palette } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Check, Loader2, Moon, Palette as PaletteIcon, Save, Sun } from "lucide-react";
+import { automaticWorkingDays } from "@shared/workingDays";
+import { CalendarClock, Check, Loader2, Moon, Palette as PaletteIcon, Save, Sun } from "lucide-react";
 import React, { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,24 +18,127 @@ const paletteOptions: { id: Palette; label: string; colors: string[] }[] = [
   { id: "sunset", label: "Pôr do sol", colors: ["#db5c2d", "#f2a53b", "#673320"] },
 ];
 
+const initialMetrics = {
+  portfolioTotal: 0,
+  monthOpening: 0,
+  dayOpening: 0,
+  currentOverdue: 0,
+  creditGoal: 0,
+  challengeGoal: 0,
+  lostGoal: 0,
+  lostReceived: 0,
+  workingDaysMode: "automatic" as "automatic" | "manual",
+  workingDaysTotal: 0,
+  workingDaysElapsed: 0,
+  ticketWorkingDaysRemaining: 0,
+  fiadoAtDay15: false,
+};
+
 export function MetricsSettings() {
   const { user } = useAuth();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const profileQuery = trpc.profile.mine.useQuery();
   const save = trpc.metrics.save.useMutation();
   const preferences = trpc.profile.preferences.useMutation();
-  const [form, setForm] = useState({ portfolioTotal: 0, monthOpening: 0, dayOpening: 0, currentOverdue: 0, creditGoal: 0, challengeGoal: 0, lostGoal: 0, lostReceived: 0, workingDaysTotal: 0, workingDaysElapsed: 0, ticketWorkingDaysRemaining: 0, fiadoAtDay15: false });
-  useEffect(() => { if (metricsQuery.data) setForm(metricsQuery.data); }, [metricsQuery.data]);
+  const [form, setForm] = useState(initialMetrics);
+
+  useEffect(() => {
+    if (metricsQuery.data) {
+      setForm({
+        ...metricsQuery.data,
+        workingDaysMode: metricsQuery.data.workingDaysMode === "manual" ? "manual" : "automatic",
+      });
+    }
+  }, [metricsQuery.data]);
+
   const updateNumber = (field: keyof typeof form, value: string) => setForm(current => ({ ...current, [field]: Number(value.replace(",", ".")) || 0 }));
-  async function submit(event: FormEvent) { event.preventDefault(); try { await save.mutateAsync(form); toast.success("Ajustes salvos. O painel foi atualizado."); } catch { toast.error("Não foi possível salvar os ajustes."); } }
-  async function toggleVacation(isOnVacation: boolean) { await preferences.mutateAsync({ isOnVacation }); await profileQuery.refetch(); toast.success(isOnVacation ? "Status de férias ativado." : "Status de férias desativado."); }
+  const selectWorkingDaysMode = (workingDaysMode: "automatic" | "manual") => {
+    if (workingDaysMode === "manual") {
+      setForm(current => ({ ...current, workingDaysMode }));
+      return;
+    }
+    const automatic = automaticWorkingDays();
+    setForm(current => ({ ...current, workingDaysMode, ...automatic }));
+  };
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    try {
+      await save.mutateAsync(form);
+      toast.success("Ajustes salvos. O painel foi atualizado.");
+    } catch {
+      toast.error("Não foi possível salvar os ajustes.");
+    }
+  }
+  async function toggleVacation(isOnVacation: boolean) {
+    await preferences.mutateAsync({ isOnVacation });
+    await profileQuery.refetch();
+    toast.success(isOnVacation ? "Status de férias ativado." : "Status de férias desativado.");
+  }
+
   if (metricsQuery.isLoading || profileQuery.isLoading) return <SettingsLoading />;
   if (user?.role === "admin" && !profileQuery.data?.profile?.branchId) return <AdminSettingsNotice />;
   if (!metricsQuery.data || !profileQuery.data?.profile) return <SettingsLoading />;
-  const fields: { key: keyof typeof form; label: string; help?: string }[] = [
-    { key: "portfolioTotal", label: "Carteira total" }, { key: "monthOpening", label: "Abertura do mês" }, { key: "dayOpening", label: "Abertura do dia" }, { key: "currentOverdue", label: "Vencido atual" }, { key: "creditGoal", label: "Meta Fiado" }, { key: "challengeGoal", label: "Meta Desafio" },
+
+  const fields: { key: keyof typeof form; label: string }[] = [
+    { key: "portfolioTotal", label: "Carteira total" },
+    { key: "monthOpening", label: "Abertura do mês" },
+    { key: "dayOpening", label: "Abertura do dia" },
+    { key: "currentOverdue", label: "Vencido atual" },
+    { key: "creditGoal", label: "Meta Fiado" },
+    { key: "challengeGoal", label: "Meta Desafio" },
   ];
-  return <section className="mx-auto max-w-5xl"><header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Base de cálculo</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Ajustes de metas</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Informe os valores manualmente</p></header><form onSubmit={submit} className="space-y-5"><Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Indicadores de cobrança</CardTitle><CardDescription>Atualize estes campos sempre que precisar revisar sua projeção.</CardDescription></CardHeader><CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{fields.map(field => <div key={field.key} className="space-y-2"><Label htmlFor={field.key}>{field.label}</Label><Input id={field.key} type="number" min="0" step="0.01" value={form[field.key] as number} onChange={event => updateNumber(field.key, event.target.value)} /></div>)}</CardContent></Card><div className="grid gap-5 lg:grid-cols-2"><Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Meta Perdido</CardTitle><CardDescription>Esses valores são usados somente se a meta estiver visível no perfil.</CardDescription></CardHeader><CardContent className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Meta Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostGoal} onChange={event => updateNumber("lostGoal", event.target.value)} /></div><div className="space-y-2"><Label>Recebido Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostReceived} onChange={event => updateNumber("lostReceived", event.target.value)} /></div></CardContent></Card><Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Calendário e Meta de 80%</CardTitle><CardDescription>O sistema calcula 80% do valor a receber e invalida a premiação após o dia 15 se esse valor não tiver sido atingido.</CardDescription></CardHeader><CardContent className="space-y-5"><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Dias úteis do mês</Label><Input type="number" min="0" max="31" value={form.workingDaysTotal} onChange={event => updateNumber("workingDaysTotal", event.target.value)} /></div><div className="space-y-2"><Label>Dias úteis decorridos</Label><Input type="number" min="0" max="31" value={form.workingDaysElapsed} onChange={event => updateNumber("workingDaysElapsed", event.target.value)} /></div></div><div className="space-y-2"><Label>Dias úteis restantes até o dia 15</Label><Input type="number" min="0" max="15" value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">Informe manualmente os dias úteis restantes no calendário da filial. O painel divide o saldo da Meta de 80% por essa quantidade.</p></div><div className="rounded-xl bg-muted/60 px-3 py-3"><p className="text-xs font-extrabold">Validação automática</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Ao salvar até o dia 15, o sistema registra automaticamente o atingimento de 80% do valor a receber. Após o prazo, sem registro, a Meta Ticket fica não atingida.</p></div></CardContent></Card></div><div className="flex items-center justify-between gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] px-4 py-3"><div><p className="text-sm font-extrabold">Estou de férias</p><p className="mt-0.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Marque esta opção durante sua ausência. Assim, a administração identifica o período e seu cadastro não será inativado por falta de acesso.</p></div><Switch className="scale-90" checked={profileQuery.data.profile.isOnVacation} onCheckedChange={toggleVacation} disabled={preferences.isPending} /></div><div className="flex justify-end"><Button type="submit" size="lg" className="h-11 rounded-xl px-6 font-extrabold" disabled={save.isPending}>{save.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar ajustes</Button></div></form></section>;
+  const isAutomatic = form.workingDaysMode === "automatic";
+
+  return <section className="mx-auto max-w-5xl">
+    <header className="mb-8">
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Base de cálculo</p>
+      <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Ajustes de metas</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Informe os valores manualmente</p>
+    </header>
+    <form onSubmit={submit} className="space-y-5">
+      <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg">Indicadores de cobrança</CardTitle>
+          <CardDescription>Atualize estes campos sempre que precisar revisar sua projeção.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {fields.map(field => <div key={field.key} className="space-y-2"><Label htmlFor={field.key}>{field.label}</Label><Input id={field.key} type="number" min="0" step="0.01" value={form[field.key] as number} onChange={event => updateNumber(field.key, event.target.value)} /></div>)}
+        </CardContent>
+      </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Meta Perdido</CardTitle>
+            <CardDescription>Esses valores são usados somente se a meta estiver visível no perfil.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <div className="space-y-2"><Label>Meta Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostGoal} onChange={event => updateNumber("lostGoal", event.target.value)} /></div>
+            <div className="space-y-2"><Label>Recebido Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostReceived} onChange={event => updateNumber("lostReceived", event.target.value)} /></div>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg"><CalendarClock className="h-5 w-5 text-primary" />Calendário e Meta 80%</CardTitle>
+            <CardDescription>A Meta 80% considera o período de 1º a 15 e exclui somente os domingos na contagem automática.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">
+              <button type="button" role="radio" aria-checked={isAutomatic} onClick={() => selectWorkingDaysMode("automatic")} className={`rounded-xl border p-3 text-left transition-colors ${isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Automático</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Calcula o mês atual e remove domingos.</p></button>
+              <button type="button" role="radio" aria-checked={!isAutomatic} onClick={() => selectWorkingDaysMode("manual")} className={`rounded-xl border p-3 text-left transition-colors ${!isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Manual</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Você informa os dias trabalhados e restantes.</p></button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>Dias úteis do mês</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysTotal} onChange={event => updateNumber("workingDaysTotal", event.target.value)} /></div>
+              <div className="space-y-2"><Label>Dias úteis trabalhados</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysElapsed} onChange={event => updateNumber("workingDaysElapsed", event.target.value)} /></div>
+            </div>
+            <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual: do dia 1º até o dia 15, sem domingos." : "Informe manualmente os dias restantes e os dias trabalhados de acordo com o calendário da filial."}</p></div>
+            <div className="rounded-xl bg-muted/60 px-3 py-3"><p className="text-xs font-extrabold">Validação automática</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Até o dia 15, o sistema acompanha 80% do valor a receber. Após o prazo, sem atingimento registrado, a Meta Ticket fica não atingida.</p></div>
+          </CardContent>
+        </Card>
+      </div>
+      <div className="flex items-center justify-between gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] px-4 py-3"><div><p className="text-sm font-extrabold">Estou de férias</p><p className="mt-0.5 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">Marque esta opção durante sua ausência. Assim, a administração identifica o período e seu cadastro não será inativado por falta de acesso.</p></div><Switch className="scale-90" checked={profileQuery.data.profile.isOnVacation} onCheckedChange={toggleVacation} disabled={preferences.isPending} /></div>
+      <div className="flex justify-end"><Button type="submit" size="lg" className="h-11 rounded-xl px-6 font-extrabold" disabled={save.isPending}>{save.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar ajustes</Button></div>
+    </form>
+  </section>;
 }
 
 export function AppearanceSettings() {
@@ -50,5 +154,6 @@ export function AppearanceSettings() {
   async function setLostGoal(value: boolean) { await preferences.mutateAsync({ showLostGoal: value }); await utils.profile.mine.invalidate(); toast.success(value ? "Meta Perdido exibida no painel." : "Meta Perdido ocultada do painel."); }
   return <section className="mx-auto max-w-5xl"><header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Experiência pessoal</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Configurações</h1><p className="mt-2 text-sm text-muted-foreground">Deixe o ambiente de trabalho mais confortável e escolha quais metas acompanhar.</p></header><div className="grid gap-5 lg:grid-cols-[1.08fr_.92fr]"><Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><PaletteIcon className="h-5 w-5 text-primary" />Tema e paleta</CardTitle><CardDescription>Suas escolhas são salvas no seu perfil.</CardDescription></CardHeader><CardContent><div className="grid grid-cols-2 gap-3"><button onClick={() => changeAppearance("light", palette)} className={`rounded-2xl border p-4 text-left transition-all ${theme === "light" ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/60"}`}><Sun className="h-5 w-5 text-primary" /><p className="mt-5 text-sm font-extrabold">Claro</p><p className="mt-1 text-[11px] text-muted-foreground">Mais luminosidade e foco</p></button><button onClick={() => changeAppearance("dark", palette)} className={`rounded-2xl border p-4 text-left transition-all ${theme === "dark" ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/60"}`}><Moon className="h-5 w-5 text-primary" /><p className="mt-5 text-sm font-extrabold">Escuro</p><p className="mt-1 text-[11px] text-muted-foreground">Conforto em baixa luz</p></button></div><div className="mt-6 grid gap-2 sm:grid-cols-2">{paletteOptions.map(option => <button key={option.id} onClick={() => changeAppearance(theme, option.id)} className={`flex items-center gap-3 rounded-xl border p-3 text-left transition-all ${palette === option.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/60"}`}><span className="flex -space-x-1.5">{option.colors.map(color => <span key={color} className="h-5 w-5 rounded-full border-2 border-card" style={{ background: color }} />)}</span><span className="text-xs font-extrabold">{option.label}</span>{palette === option.id && <Check className="ml-auto h-4 w-4 text-primary" />}</button>)}</div></CardContent></Card><Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Metas no painel</CardTitle><CardDescription>Ative somente os indicadores que fazem parte da sua premiação.</CardDescription></CardHeader><CardContent><div className="flex items-center justify-between rounded-2xl bg-muted/50 p-4"><div><p className="text-sm font-extrabold">Meta Perdido</p><p className="mt-1 max-w-[230px] text-[11px] leading-relaxed text-muted-foreground">Exibe as faixas de 100% e 105% com premiação total de R$ 700,00.</p></div><Switch checked={profile?.showLostGoal ?? false} onCheckedChange={setLostGoal} disabled={preferences.isPending} /></div></CardContent></Card></div></section>;
 }
+
 function AdminSettingsNotice() { return <section className="mx-auto max-w-4xl"><Card className="rounded-[1.8rem] border-primary/20 shadow-sm"><CardContent className="p-7 sm:p-9"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Modo administrador</p><h1 className="mt-3 text-3xl font-black tracking-[-0.04em]">Ajustes de metas</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Você pode acessar esta área sem filial vinculada. Para alterar valores de cobrança, abra a filial correspondente em <strong className="font-extrabold text-foreground">Filiais</strong> ou vincule uma conta operacional.</p></CardContent></Card></section>; }
-function SettingsLoading() { return <div className="mx-auto max-w-5xl"><div className="h-8 w-60 animate-pulse rounded-lg bg-muted" /><div className="mt-8 h-96 animate-pulse rounded-[1.6rem] bg-muted" /></div> }
+function SettingsLoading() { return <div className="mx-auto max-w-5xl"><div className="h-8 w-60 animate-pulse rounded-lg bg-muted" /><div className="mt-8 h-96 animate-pulse rounded-[1.6rem] bg-muted" /></div>; }

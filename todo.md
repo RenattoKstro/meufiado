@@ -162,3 +162,8 @@
 - [x] Cobrir os fluxos corrigidos de Filiais, edição de conta e foto de perfil com testes automatizados.
 - [x] Impedir que mensagens privadas sejam exibidas no Chat geral.
 - [x] Cobrir por regressão o isolamento entre mensagens gerais e conversas privadas.
+- [x] Permitir escolher entre cálculo automático e preenchimento manual de dias úteis em Ajustes.
+- [x] Calcular automaticamente os dias úteis trabalhados e restantes do mês, excluindo apenas os domingos.
+- [x] Calcular a Meta 80% no período de 1º a 15, incluindo dias úteis restantes automáticos até o prazo.
+- [x] Criar acesso separado para listar e abrir conversas privadas, sem misturá-las ao Chat geral.
+- [x] Cobrir os cálculos automáticos, o modo manual e a navegação de conversas privadas com testes automatizados.

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, inArray, isNull, lt, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -21,6 +21,7 @@ import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } fro
 import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
 import { resolveMetricStorageScope } from "../shared/branchMetricScope";
+import { applyWorkingDaysMode, type WorkingDaysMode } from "../shared/workingDays";
 import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type OperatorRole } from "../shared/branchSlots";
 import { storagePut } from "./storage";
 
@@ -353,6 +354,7 @@ const emptyMetrics = {
   challengeGoal: 0,
   lostGoal: 0,
   lostReceived: 0,
+  workingDaysMode: "automatic" as WorkingDaysMode,
   workingDaysTotal: 0,
   workingDaysElapsed: 0,
   ticketWorkingDaysRemaining: 0,
@@ -366,28 +368,29 @@ export async function getMyMetrics(userId: number, database?: ApplicationDatabas
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
     const sharedMetrics = await db.select().from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    return sharedMetrics[0] ?? emptyMetrics;
+    return applyWorkingDaysMode(sharedMetrics[0] ?? emptyMetrics);
   }
   const legacyMetrics = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  return legacyMetrics[0] ?? emptyMetrics;
+  return applyWorkingDaysMode(legacyMetrics[0] ?? emptyMetrics);
 }
 
 export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
+  const normalizedInput = applyWorkingDaysMode(input);
   const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
   const dayInBrazil = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "numeric" }).format(new Date()));
-  const received = receiptAmounts(input.monthOpening, input.dayOpening, input.currentOverdue).accumulated;
-  const reachedBeforeDeadline = dayInBrazil <= 15 && received >= ticketGoalAmount(amountReceivable(input.monthOpening, input.creditGoal));
+  const received = receiptAmounts(normalizedInput.monthOpening, normalizedInput.dayOpening, normalizedInput.currentOverdue).accumulated;
+  const reachedBeforeDeadline = dayInBrazil <= 15 && received >= ticketGoalAmount(amountReceivable(normalizedInput.monthOpening, normalizedInput.creditGoal));
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
     const existing = await db.select({ fiadoAtDay15: branchMetrics.fiadoAtDay15 }).from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    const values = { ...input, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+    const values = { ...normalizedInput, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
     await db.insert(branchMetrics).values({ branchId: storageScope.branchId, ...values }).onDuplicateKeyUpdate({ set: values });
     return;
   }
   const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  const values = { ...input, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+  const values = { ...normalizedInput, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
   await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
 }
 
@@ -437,6 +440,37 @@ export async function listChatMessages(userId: number, recipientUserId?: number 
     .innerJoin(users, eq(chatMessages.senderUserId, users.id))
     .where(and(gt(chatMessages.expiresAt, now), visibility))
     .orderBy(chatMessages.createdAt);
+}
+
+export async function listPrivateChatThreads(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const messages = await db
+    .select({ message: chatMessages })
+    .from(chatMessages)
+    .where(and(
+      gt(chatMessages.expiresAt, new Date()),
+      or(eq(chatMessages.senderUserId, userId), eq(chatMessages.recipientUserId, userId)),
+    ))
+    .orderBy(desc(chatMessages.createdAt));
+  const latestByPartner = new Map<number, typeof messages[number]["message"]>();
+  for (const { message } of messages) {
+    if (!message.recipientUserId) continue;
+    const partnerId = message.senderUserId === userId ? message.recipientUserId : message.senderUserId;
+    if (!latestByPartner.has(partnerId)) latestByPartner.set(partnerId, message);
+  }
+  const partnerIds = Array.from(latestByPartner.keys());
+  if (!partnerIds.length) return [];
+  const partners = await db.select({ id: users.id, name: users.name, role: users.role }).from(users).where(inArray(users.id, partnerIds));
+  const partnersById = new Map(partners.map(partner => [partner.id, partner]));
+  return partnerIds
+    .map(partnerId => {
+      const partner = partnersById.get(partnerId);
+      const latestMessage = latestByPartner.get(partnerId);
+      if (!partner || !latestMessage) return null;
+      return { recipientUserId: partner.id, recipientName: partner.name ?? "Usuário", recipientRole: partner.role, lastMessageBody: latestMessage.body, lastMessageAt: latestMessage.createdAt };
+    })
+    .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread));
 }
 
 export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string }) {

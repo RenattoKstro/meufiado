@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const generalQuery = vi.hoisted(() => vi.fn());
 const privateQuery = vi.hoisted(() => vi.fn());
+const privateThreadsQuery = vi.hoisted(() => vi.fn());
 const markRead = vi.hoisted(() => vi.fn());
 const sendMessage = vi.hoisted(() => vi.fn());
 const searchValue = vi.hoisted(() => ({ value: "" }));
+const setLocation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
@@ -16,6 +18,7 @@ vi.mock("@/lib/trpc", () => ({
     chat: {
       general: { useQuery: generalQuery },
       private: { useQuery: privateQuery },
+      privateThreads: { useQuery: privateThreadsQuery },
       send: { useMutation: () => ({ mutate: sendMessage, isPending: false }) },
       markRead: { useMutation: () => ({ mutate: markRead, isPending: false }) },
     },
@@ -23,7 +26,7 @@ vi.mock("@/lib/trpc", () => ({
 }));
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 9, role: "user", name: "Operador" } }) }));
-vi.mock("wouter", () => ({ useSearch: () => searchValue.value }));
+vi.mock("wouter", () => ({ useSearch: () => searchValue.value, useLocation: () => ["/chat", setLocation] }));
 
 import Chat from "./Chat";
 
@@ -32,6 +35,7 @@ describe("apresentação do chat", () => {
     searchValue.value = "";
     generalQuery.mockReset();
     privateQuery.mockReset();
+    privateThreadsQuery.mockReturnValue({ data: [], isLoading: false });
     markRead.mockReset();
     sendMessage.mockReset();
   });
@@ -69,5 +73,18 @@ describe("apresentação do chat", () => {
     fireEvent.change(input, { target: { value: "Mensagem restrita" } });
     fireEvent.submit(input.closest("form")!);
     expect(sendMessage).toHaveBeenCalledWith({ body: "Mensagem restrita", recipientUserId: 41 });
+  });
+
+  it("lista as conversas privadas separadas do Chat geral", () => {
+    generalQuery.mockReturnValue({ data: [], isLoading: false, isError: false });
+    privateThreadsQuery.mockReturnValue({ data: [{ recipientUserId: 41, recipientName: "Larissa", recipientRole: "user", lastMessageBody: "Mensagem reservada", lastMessageAt: new Date("2030-01-01T10:00:00Z") }], isLoading: false });
+
+    render(<Chat />);
+
+    expect(screen.getByText("Chats privados")).toBeInTheDocument();
+    expect(screen.getByText("Larissa")).toBeInTheDocument();
+    expect(screen.getByText("Mensagem reservada")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Larissa"));
+    expect(setLocation).toHaveBeenCalledWith("/chat?perfil=41");
   });
 });

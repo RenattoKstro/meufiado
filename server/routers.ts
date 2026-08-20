@@ -10,6 +10,7 @@ import {
   createUtilityReport,
   countUnreadChatMessages,
   listChatMessages,
+  listPrivateChatThreads,
   importAnalyticMetrics,
   importBranches,
   getMyMetrics,
@@ -64,6 +65,7 @@ const metricsInput = z.object({
   challengeGoal: nonNegativeNumber,
   lostGoal: nonNegativeNumber,
   lostReceived: nonNegativeNumber,
+  workingDaysMode: z.enum(["automatic", "manual"]).default("automatic"),
   workingDaysTotal: z.number().int().min(0).max(31),
   workingDaysElapsed: z.number().int().min(0).max(31),
   ticketWorkingDaysRemaining: z.number().int().min(0).max(31),
@@ -211,6 +213,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   chat: router({
     general: protectedProcedure.query(({ ctx }) => listChatMessages(ctx.user.id)),
     private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(({ ctx, input }) => listChatMessages(ctx.user.id, input.recipientUserId)),
+    privateThreads: protectedProcedure.query(({ ctx }) => listPrivateChatThreads(ctx.user.id)),
     send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(({ ctx, input }) => sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body })),
     unreadCount: protectedProcedure.query(({ ctx }) => countUnreadChatMessages(ctx.user.id)),
     markRead: protectedProcedure.mutation(({ ctx }) => markChatMessagesRead(ctx.user.id)),

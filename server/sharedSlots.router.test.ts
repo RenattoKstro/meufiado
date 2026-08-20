@@ -59,7 +59,7 @@ describe("contratos de vagas e métricas compartilhadas", () => {
     const router = createAppRouter({ getMyMetrics: getMetrics, saveMyMetrics: saveMetrics });
     const leader = router.createCaller(contextFor(1));
     const assistant = router.createCaller(contextFor(2));
-    const updated = { ...sharedMetrics, currentOverdue: 58000, lostReceived: 700 };
+    const updated = { ...sharedMetrics, workingDaysMode: "automatic", currentOverdue: 58000, lostReceived: 700 };
 
     await leader.metrics.save(updated);
 
