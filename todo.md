@@ -179,3 +179,6 @@
 - [x] Remover da navegação as guias separadas de Meta Fiado e Meta Desafio, mantendo as informações consolidadas na Visão Geral.
 - [x] Ajustar as rotas legadas de Meta Fiado e Meta Desafio para não criar páginas inacessíveis.
 - [x] Cobrir o novo card e a navegação simplificada com testes automatizados.
+- [x] Exibir o percentual inteiro de inadimplência ao lado de Meu Fiado no cabeçalho do painel.
+- [x] Aplicar verde abaixo de 7% e vermelho a partir de 7% ao indicador do cabeçalho, preservando o card existente.
+- [x] Cobrir por teste a precisão e as cores do indicador de inadimplência no cabeçalho.

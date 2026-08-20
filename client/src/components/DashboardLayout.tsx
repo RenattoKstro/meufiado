@@ -25,6 +25,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
+import { delinquencyPercentage } from "@shared/goalRules";
 import { BarChart3, Building2, ChevronDown, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
@@ -45,10 +46,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isMobile = useIsMobile();
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
   const initials = user?.name?.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase() || "OP";
+  const portfolioTotal = metricsQuery.data?.portfolioTotal ?? 0;
+  const delinquency = metricsQuery.data ? delinquencyPercentage(metricsQuery.data.currentOverdue, portfolioTotal) : null;
+  const hasDelinquency = delinquency !== null && portfolioTotal > 0;
+  const delinquencyClass = delinquency !== null && delinquency < 7 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
 
   return (
     <SidebarProvider defaultOpen>
@@ -59,7 +65,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <BarChart3 className="h-5 w-5" />
             </div>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <p className="text-sm font-extrabold tracking-tight text-sidebar-foreground">Meu Fiado</p>
+              <p className="text-sm font-extrabold tracking-tight text-sidebar-foreground">
+                Meu Fiado{hasDelinquency && <span className={`ml-1.5 ${delinquencyClass}`}>{Math.round(delinquency)}%</span>}
+              </p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Painel de metas</p>
             </div>
           </div>
