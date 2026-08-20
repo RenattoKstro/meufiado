@@ -51,18 +51,20 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('["/entrar", "/cadastro"].includes(location)');
   });
 
-  it("direciona apenas operadores criados no primeiro acesso Google ao onboarding", async () => {
+  it("direciona apenas operadores sem perfil ao onboarding e mantém páginas disponíveis ao administrador", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
-    expect(source).toContain('const isAdminWithoutOperatorProfile = user?.role === "admin" && !hasOperatorProfile');
-    expect(source).toContain('if (isAdminWithoutOperatorProfile) return <DashboardLayout adminOnly><Admin /></DashboardLayout>;');
-    expect(source).toContain('if (!hasOperatorProfile) return <Onboarding />;');
+    expect(source).toContain('if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;');
+    expect(source).not.toContain("DashboardLayout adminOnly");
+    ["/fiado", "/desafio", "/filiais", "/ajustes", "/admin"].forEach(path => {
+      expect(source).toContain(`path=\"${path}\"`);
+    });
     expect(source).toContain('Route path="/cadastro" component={UserRegistration}');
   });
 
-  it("restringe administradores sem perfil operacional à navegação administrativa", async () => {
+  it("mantém a navegação completa e acrescenta Administração para administradores", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
-    expect(source).toContain('adminOnly = false');
-    expect(source).toContain('const menu = adminOnly ? [administrativeNavigation]');
+    expect(source).toContain('const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;');
+    expect(source).not.toContain("adminOnly");
   });
 
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {

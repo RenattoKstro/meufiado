@@ -27,6 +27,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { COOKIE_NAME } from "@shared/const";
 import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, uniqueRowsByBranchCode } from "../shared/importRules";
 import { OAuth2Client } from "google-auth-library";
+import { TRPCError } from "@trpc/server";
 
 const operatorType = z.enum(["leader", "assistant"]);
 const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
@@ -131,8 +132,18 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       .mutation(({ ctx, input }) => updateMyPreferences(ctx.user.id, input)),
   }),
   metrics: router({
-    mine: protectedProcedure.query(({ ctx }) => resolveMetrics(ctx.user.id)),
-    save: protectedProcedure.input(metricsInput).mutation(({ ctx, input }) => resolveMetricsSave(ctx.user.id, input)),
+    mine: protectedProcedure.query(async ({ ctx }) => {
+      const profile = await resolveMyProfile(ctx.user.id);
+      if (ctx.user.role === "admin" && !profile?.profile?.branchId) return null;
+      return resolveMetrics(ctx.user.id);
+    }),
+    save: protectedProcedure.input(metricsInput).mutation(async ({ ctx, input }) => {
+      const profile = await resolveMyProfile(ctx.user.id);
+      if (ctx.user.role === "admin" && !profile?.profile?.branchId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores sem filial não podem alterar métricas operacionais." });
+      }
+      return resolveMetricsSave(ctx.user.id, input);
+    }),
   }),
   branches: router({
     overview: protectedProcedure.query(() => listBranchOverviews()),

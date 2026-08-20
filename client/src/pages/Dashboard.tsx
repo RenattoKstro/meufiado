@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
+import React from "react";
 import {
   accumulatedReward,
   amountReceivable,
@@ -27,12 +29,15 @@ type View = "overview" | "fiado" | "challenge";
 type StatTone = "default" | "success" | "danger";
 
 export default function Dashboard({ view = "overview" }: { view?: View }) {
+  const { user } = useAuth();
   const profileQuery = trpc.profile.mine.useQuery();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const profile = profileQuery.data?.profile;
   const branch = profileQuery.data?.branch;
   const metrics = metricsQuery.data;
 
+  if (profileQuery.isLoading || metricsQuery.isLoading) return <DashboardLoading />;
+  if (user?.role === "admin" && (!profile || !branch)) return <AdminDashboardNotice view={view} />;
   if (!profile || !branch || !metrics) return <DashboardLoading />;
 
   const type = profile.operatorType;
@@ -81,6 +86,11 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
       </section>
     </>}
   </section>;
+}
+
+function AdminDashboardNotice({ view }: { view: View }) {
+  const title = view === "overview" ? "Visão geral" : view === "fiado" ? "Meta Fiado" : "Meta Desafio";
+  return <section className="mx-auto max-w-4xl animate-in fade-in duration-300"><Card className="overflow-hidden rounded-[1.8rem] border-primary/20 shadow-sm"><CardContent className="p-7 sm:p-9"><Badge className="rounded-full bg-primary/10 px-3 py-1 font-bold text-primary hover:bg-primary/10">Modo administrador</Badge><h1 className="mt-5 text-3xl font-black tracking-[-0.04em]">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Esta página está disponível para consulta administrativa. Como esta conta não está vinculada a uma filial, os indicadores individuais não são exibidos aqui.</p><div className="mt-6 flex flex-wrap gap-3"><Link href="/filiais" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-extrabold text-primary-foreground shadow-sm transition-transform hover:brightness-105 active:scale-[0.98]">Ver resultados por filial</Link><Link href="/admin" className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-extrabold transition-colors hover:bg-muted">Abrir administração</Link></div></CardContent></Card></section>;
 }
 
 function TicketStatus({ ticket }: { ticket: ReturnType<typeof ticketGoalState> }) { const stateCopy = ticket.status === "achieved" ? "Atingida" : ticket.status === "expired" ? "Não atingida" : "Em andamento"; const stateClass = ticket.status === "achieved" ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10" : ticket.status === "expired" ? "bg-destructive/10 text-destructive hover:bg-destructive/10" : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/10"; return <Card className="overflow-hidden rounded-[1.6rem] border-border/70 shadow-sm"><CardContent className="p-0"><div className="flex items-start justify-between gap-4 p-5"><div><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500/10 text-amber-600"><TicketCheck className="h-4 w-4" /></span><p className="text-sm font-extrabold">Meta de 80%</p></div><p className="mt-3 max-w-md text-xs leading-relaxed text-muted-foreground">A meta é receber 80% do valor a receber até o dia 15. Após o prazo, sem atingimento registrado, a premiação não é válida.</p></div><Badge className={`rounded-full ${stateClass}`}>{stateCopy}</Badge></div><div className="border-t border-border/70 bg-muted/35 p-5"><div className="grid gap-4 sm:grid-cols-3"><div><p className="text-xl font-black">{currency(100)}</p><p className="mt-1 text-[11px] text-muted-foreground">Premiação possível</p></div><div><p className="text-sm font-black">{currency(ticket.target)}</p><p className="mt-1 text-[11px] text-muted-foreground">Valor da Meta de 80%</p></div><div className="text-left sm:text-right"><p className="text-sm font-black">{currency(ticket.remaining)}</p><p className="mt-1 text-[11px] text-muted-foreground">Falta para atingir</p></div></div><p className="mt-4 text-xs font-semibold text-muted-foreground">{ticket.afterDay15 ? ticket.status === "achieved" ? "Meta atingida dentro do prazo e premiação preservada." : "O prazo do dia 15 encerrou sem atingir a Meta de 80%; premiação não válida." : ticket.remaining > 0 ? `${currency(ticket.dailyNeeded)} por dia útil nos dias restantes até o dia 15.` : "Meta atingida dentro do prazo."}</p></div></CardContent></Card> }

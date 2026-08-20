@@ -126,3 +126,7 @@
 - [x] Adicionar barras de progresso visuais e coloridas para cada faixa das metas Fiado e Desafio.
 - [x] Adicionar filtro de filiais por regional na guia Filiais.
 - [x] Permitir que administradores acessem o sistema sem filial e sem cadastro de operador.
+- [x] Permitir que administradores visualizem Visão Geral, Meta Fiado, Meta Desafio e Ajustes sem filial vinculada.
+- [x] Adicionar teste funcional autenticado para administrador sem filial nas rotas Visão Geral, Meta Fiado, Meta Desafio e Ajustes.
+- [x] Garantir que consultas de métricas retornem estado seguro para administradores sem filial.
+- [x] Cobrir os estados vazios seguros das páginas operacionais para administradores sem filial.

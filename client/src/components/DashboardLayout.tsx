@@ -35,13 +35,13 @@ const navigation = [
   { label: "Preferências", path: "/configuracoes", icon: Palette },
 ];
 
-export default function DashboardLayout({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
-  const menu = adminOnly ? [administrativeNavigation] : user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
+  const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
   const initials = user?.name?.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase() || "OP";
 
