@@ -54,7 +54,7 @@ export default function GoalCard({ title, description, progress, received, accum
             <div className="mb-2 flex items-center gap-2"><span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span><p className="text-sm font-extrabold tracking-tight">{title}</p></div>
             <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
           </div>
-          <Badge variant="secondary" className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-extrabold text-primary">{progress.toFixed(1)}%</Badge>
+          <Badge variant="secondary" className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-extrabold text-primary">{progress.toFixed(2)}%</Badge>
         </div>
         <div className="mt-6">
           <div className="mb-2 flex items-end justify-between"><div><p className="text-2xl font-black tracking-tight">{currency(accumulated)}</p><p className="text-[11px] font-medium text-muted-foreground">de {currency(total)} possíveis</p></div><p className="text-right text-[11px] font-semibold text-muted-foreground">Recebido acumulado<br /><span className="text-foreground">{currency(received)}</span></p></div>
@@ -74,7 +74,7 @@ export default function GoalCard({ title, description, progress, received, accum
             const tierProgress = Math.min(Math.max((progress / tier.target) * 100, 0), 100);
             return <div key={tier.target} className={cn("rounded-2xl border border-border/60 p-3 transition-colors", hit ? palette.soft : "bg-background/70")}>
               <div className="flex items-center justify-between gap-3 text-xs"><div className="flex items-center gap-2">{hit ? <CircleCheck className={cn("h-4 w-4", palette.text)} /> : <LockKeyhole className="h-3.5 w-3.5 text-muted-foreground" />}<span className={hit ? "font-extrabold text-foreground" : "font-semibold text-muted-foreground"}>{tier.target}%</span><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold", hit ? `${palette.soft} ${palette.text}` : "bg-muted text-muted-foreground")}>{hit ? "Atingida" : "Em andamento"}</span></div><span className={hit ? cn("font-extrabold", palette.text) : "font-semibold text-muted-foreground"}>{currency(tier.reward)}</span></div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`Progresso da faixa ${tier.target}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(tierProgress.toFixed(1))} aria-valuetext={`${tierProgress.toFixed(1)}% rumo à faixa de ${tier.target}%`}><div className={cn("h-full rounded-full transition-[width] duration-500", palette.bar)} style={{ width: `${tierProgress}%` }} /></div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`Progresso da faixa ${tier.target}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(tierProgress.toFixed(2))} aria-valuetext={`${tierProgress.toFixed(2)}% rumo à faixa de ${tier.target}%`}><div className={cn("h-full rounded-full transition-[width] duration-500", palette.bar)} style={{ width: `${tierProgress}%` }} /></div>
             </div>;
           })}
         </div>

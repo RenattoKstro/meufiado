@@ -151,3 +151,7 @@
 - [x] Reduzir o destaque visual do controle de férias e explicar que sua marcação evita inativação por ausência prolongada.
 - [x] Cobrir as novas notificações, apresentação de chat e orientação de férias com testes automatizados.
 - [x] Testar o contador de mensagens novas ao lado de Chat, incluindo exibição, ausência de novas mensagens e atualização após leitura.
+- [x] Mostrar dados de contato e atalho para conversa privada ao abrir o operador na guia Filiais.
+- [x] Revisar os textos solicitados nos cartões da Visão Geral e remover as fórmulas explicativas indicadas.
+- [x] Exibir percentuais dos indicadores com duas casas decimais em vez de uma.
+- [x] Cobrir as novas informações de Filiais e a precisão de percentuais com testes automatizados.

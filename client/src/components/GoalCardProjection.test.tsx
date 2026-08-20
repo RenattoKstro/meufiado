@@ -35,7 +35,7 @@ describe("GoalCard", () => {
 
     expect(screen.getByRole("progressbar", { name: "Progresso da faixa 94%" })).toHaveAttribute("aria-valuenow", "100");
     expect(screen.getByRole("progressbar", { name: "Progresso da faixa 98%" })).toHaveAttribute("aria-valuenow", "100");
-    expect(screen.getByRole("progressbar", { name: "Progresso da faixa 105%" })).toHaveAttribute("aria-valuetext", expect.stringContaining("93.3%"));
+    expect(screen.getByRole("progressbar", { name: "Progresso da faixa 105%" })).toHaveAttribute("aria-valuetext", expect.stringContaining("93.33%"));
     expect(screen.getAllByText("Atingida")).toHaveLength(2);
   });
 });

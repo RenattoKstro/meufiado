@@ -142,7 +142,10 @@ export async function listBranchOverviews() {
     operator: profile
       ? {
           id: profile.id,
+          userId: profile.userId,
           fullName: profile.fullName,
+          phone: profile.phone,
+          instagram: profile.instagram,
           operatorType: profile.operatorType,
           isOnVacation: profile.isOnVacation,
           lastSignedIn: account?.lastSignedIn ?? null,

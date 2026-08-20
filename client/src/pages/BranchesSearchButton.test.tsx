@@ -88,4 +88,25 @@ describe("botão de pesquisa de Filiais", () => {
     expect(screen.getByText("Mundo Novo")).toBeInTheDocument();
     expect(screen.queryByText("Douradina")).not.toBeInTheDocument();
   });
+
+  it("abre os contatos e disponibiliza conversa privada ao selecionar o operador", () => {
+    overviewQuery.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [{
+        branch: { id: 3, name: "Naviraí", code: "10004", regional: "MS" },
+        operator: { id: 11, userId: 77, fullName: "Ana Souza", phone: "(67) 99999-0000", instagram: "ana.recebe", operatorType: "leader", isOnVacation: false, lastSignedIn: new Date() },
+        metrics,
+        updatedAt: new Date(),
+      }],
+    });
+
+    render(<Branches />);
+    fireEvent.click(screen.getByRole("button", { name: "Ana Souza" }));
+
+    expect(screen.getByText("Contato do operador")).toBeInTheDocument();
+    expect(screen.getByText("(67) 99999-0000")).toBeInTheDocument();
+    expect(screen.getByText("@ana.recebe")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Chat privado" })).toHaveAttribute("href", "/chat?perfil=77");
+  });
 });
