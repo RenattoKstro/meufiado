@@ -4,6 +4,10 @@ import {
   createBranch,
   createPreRegisteredUser,
   deleteManagedUser,
+  deleteUtilityDownload,
+  deleteUtilityReport,
+  createUtilityDownload,
+  createUtilityReport,
   listChatMessages,
   importAnalyticMetrics,
   importBranches,
@@ -13,9 +17,13 @@ import {
   listActiveBranchesWithSlots,
   listAllBranches,
   listManagedUsers,
+  listUtilityDownloads,
+  listUtilityReports,
   saveMyMetrics,
   setBranchStatus,
   updateManagedUser,
+  updateUtilityDownload,
+  updateUtilityReport,
   updateAccountRole,
   updateMyPreferences,
   loginLocalAdmin,
@@ -58,6 +66,18 @@ const metricsInput = z.object({
   fiadoAtDay15: z.boolean(),
 });
 const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));
+const utilityDownloadInput = z.object({
+  title: z.string().trim().min(2).max(180),
+  fileType: z.string().trim().min(2).max(32),
+  externalUrl: z.string().trim().url().max(2048),
+  isPinned: z.boolean(),
+  isVisible: z.boolean(),
+});
+const utilityReportInput = z.object({
+  title: z.string().trim().min(2).max(180),
+  description: z.string().trim().min(2).max(10_000),
+  isVisible: z.boolean(),
+});
 const googleClient = new OAuth2Client();
 
 function getGoogleClientId() {
@@ -180,6 +200,18 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     general: protectedProcedure.query(({ ctx }) => listChatMessages(ctx.user.id)),
     private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(({ ctx, input }) => listChatMessages(ctx.user.id, input.recipientUserId)),
     send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(({ ctx, input }) => sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body })),
+  }),
+  utilities: router({
+    downloads: protectedProcedure.query(({ ctx }) => listUtilityDownloads(ctx.user.role === "admin")),
+    reports: protectedProcedure.query(({ ctx }) => listUtilityReports(ctx.user.role === "admin")),
+  }),
+  utilityAdmin: router({
+    createDownload: adminProcedure.input(utilityDownloadInput).mutation(({ ctx, input }) => createUtilityDownload(input, ctx.user.id)),
+    updateDownload: adminProcedure.input(z.object({ id: z.number().int().positive(), data: utilityDownloadInput })).mutation(({ input }) => updateUtilityDownload(input.id, input.data)),
+    deleteDownload: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteUtilityDownload(input.id)),
+    createReport: adminProcedure.input(utilityReportInput).mutation(({ ctx, input }) => createUtilityReport(input, ctx.user.id)),
+    updateReport: adminProcedure.input(z.object({ id: z.number().int().positive(), data: utilityReportInput })).mutation(({ input }) => updateUtilityReport(input.id, input.data)),
+    deleteReport: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteUtilityReport(input.id)),
   }),
   });
 }

@@ -83,6 +83,36 @@ export const chatMessages = mysqlTable(
   ],
 );
 
+export const utilityDownloads = mysqlTable(
+  "utilityDownloads",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    title: varchar("title", { length: 180 }).notNull(),
+    fileType: varchar("fileType", { length: 32 }).notNull(),
+    externalUrl: varchar("externalUrl", { length: 2048 }).notNull(),
+    isPinned: boolean("isPinned").default(false).notNull(),
+    isVisible: boolean("isVisible").default(true).notNull(),
+    createdByUserId: int("createdByUserId").references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("utility_downloads_visibility_idx").on(table.isVisible, table.isPinned, table.updatedAt)],
+);
+
+export const utilityReports = mysqlTable(
+  "utilityReports",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    title: varchar("title", { length: 180 }).notNull(),
+    description: text("description").notNull(),
+    isVisible: boolean("isVisible").default(true).notNull(),
+    createdByUserId: int("createdByUserId").references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("utility_reports_visibility_idx").on(table.isVisible, table.updatedAt)],
+);
+
 export const adminCredentials = mysqlTable("adminCredentials", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id),
@@ -144,3 +174,5 @@ export type UserProfile = typeof userProfiles.$inferSelect;
 export type MetricSettings = typeof metricSettings.$inferSelect;
 export type BranchMetric = typeof branchMetrics.$inferSelect;
 export type UserCredential = typeof userCredentials.$inferSelect;
+export type UtilityDownload = typeof utilityDownloads.$inferSelect;
+export type UtilityReport = typeof utilityReports.$inferSelect;

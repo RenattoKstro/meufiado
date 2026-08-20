@@ -15,6 +15,7 @@ import Onboarding from "@/pages/Onboarding";
 import { AppearanceSettings, MetricsSettings } from "@/pages/Settings";
 import UserLogin from "@/pages/UserLogin";
 import UserRegistration from "@/pages/UserRegistration";
+import Utilities from "@/pages/Utilities";
 import Welcome from "@/pages/Welcome";
 import { ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
@@ -38,7 +39,7 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/chat" component={Chat} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={FiadoPage} /><Route path="/desafio" component={ChallengePage} /><Route path="/filiais" component={BranchesPage} /><Route path="/utilidades" component={Utilities} /><Route path="/chat" component={Chat} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

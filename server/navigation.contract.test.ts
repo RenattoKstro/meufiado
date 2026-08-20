@@ -83,6 +83,29 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain("Não foi possível enviar a mensagem. Tente novamente.");
   });
 
+  it("registra Utilidades na navegação e disponibiliza Downloads e Relatórios", async () => {
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const utilities = await readFile(resolve(process.cwd(), "client/src/pages/Utilities.tsx"), "utf8");
+    expect(navigation).toContain('{ label: "Utilidades", path: "/utilidades"');
+    expect(app).toContain('path="/utilidades" component={Utilities}');
+    expect(utilities).toContain("Downloads disponíveis");
+    expect(utilities).toContain("Relatórios");
+    expect(utilities).toContain("Accordion");
+    expect(utilities).toContain("Fixar no topo");
+    expect(utilities).toContain("Visível aos usuários");
+  });
+
+  it("mantém a gestão de materiais e relatórios restrita às procedures administrativas", async () => {
+    const router = await readFile(resolve(process.cwd(), "server/routers.ts"), "utf8");
+    expect(router).toContain("downloads: protectedProcedure.query");
+    expect(router).toContain("reports: protectedProcedure.query");
+    expect(router).toContain("createDownload: adminProcedure");
+    expect(router).toContain("createReport: adminProcedure");
+    expect(router).toContain("deleteDownload: adminProcedure");
+    expect(router).toContain("deleteReport: adminProcedure");
+  });
+
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
     expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');

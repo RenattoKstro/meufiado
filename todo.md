@@ -138,3 +138,10 @@
 - [x] Permitir iniciar conversa privada com o perfil selecionado.
 - [x] Atualizar mensagens do chat com frequência enquanto a página estiver aberta, sem exigir hospedagem contínua.
 - [ ] Agendar em produção a limpeza horária das mensagens expiradas após a publicação do aplicativo.
+- [x] Corrigir a visibilidade de Meta Fiado, Meta Desafio e Ajustes das metas quando o administrador navega pelo painel.
+- [x] Criar a aba Utilidades com acesso a Downloads e Relatórios para todos os usuários autenticados.
+- [x] Permitir que o administrador cadastre, edite, fixe no topo e remova links externos de Downloads com tipo de arquivo e modo de visualização.
+- [x] Permitir que o administrador crie, edite e remova Relatórios com título e descrição em formato de marcadores.
+- [x] Exibir Relatórios aos usuários como itens expansíveis, com título em destaque e descrição somente após abertura.
+- [x] Cobrir a navegação, permissões e fluxos de Utilidades com testes automatizados.
+- [x] Adicionar testes funcionais de permissões e fluxos administrativos de Utilidades para Downloads e Relatórios.

@@ -7,6 +7,8 @@ import {
   chatMessages,
   InsertUser,
   metricSettings,
+  utilityDownloads,
+  utilityReports,
   userProfiles,
   userCredentials,
   users,
@@ -353,6 +355,8 @@ export async function deleteManagedUser(profileId: number, actorUserId: number) 
     await db.delete(userCredentials).where(eq(userCredentials.userId, profile.userId));
     await db.delete(adminCredentials).where(eq(adminCredentials.userId, profile.userId));
     await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
+    await db.update(utilityDownloads).set({ createdByUserId: null }).where(eq(utilityDownloads.createdByUserId, profile.userId));
+    await db.update(utilityReports).set({ createdByUserId: null }).where(eq(utilityReports.createdByUserId, profile.userId));
   }
   await db.delete(userProfiles).where(eq(userProfiles.id, profileId));
   if (profile.userId) await db.delete(users).where(eq(users.id, profile.userId));
@@ -390,6 +394,71 @@ export async function deleteExpiredChatMessages() {
   if (!db) return { deleted: 0 };
   const result = await db.delete(chatMessages).where(lt(chatMessages.expiresAt, new Date()));
   return { deleted: result[0]?.affectedRows ?? 0 };
+}
+
+export type UtilityDownloadInput = {
+  title: string;
+  fileType: string;
+  externalUrl: string;
+  isPinned: boolean;
+  isVisible: boolean;
+};
+
+export type UtilityReportInput = {
+  title: string;
+  description: string;
+  isVisible: boolean;
+};
+
+export async function listUtilityDownloads(includeHidden = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const ordering = [desc(utilityDownloads.isPinned), desc(utilityDownloads.updatedAt)];
+  if (includeHidden) return db.select().from(utilityDownloads).orderBy(...ordering);
+  return db.select().from(utilityDownloads).where(eq(utilityDownloads.isVisible, true)).orderBy(...ordering);
+}
+
+export async function createUtilityDownload(input: UtilityDownloadInput, createdByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(utilityDownloads).values({ ...input, createdByUserId });
+}
+
+export async function updateUtilityDownload(id: number, input: UtilityDownloadInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(utilityDownloads).set(input).where(eq(utilityDownloads.id, id));
+}
+
+export async function deleteUtilityDownload(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.delete(utilityDownloads).where(eq(utilityDownloads.id, id));
+}
+
+export async function listUtilityReports(includeHidden = false) {
+  const db = await getDb();
+  if (!db) return [];
+  if (includeHidden) return db.select().from(utilityReports).orderBy(desc(utilityReports.updatedAt));
+  return db.select().from(utilityReports).where(eq(utilityReports.isVisible, true)).orderBy(desc(utilityReports.updatedAt));
+}
+
+export async function createUtilityReport(input: UtilityReportInput, createdByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(utilityReports).values({ ...input, createdByUserId });
+}
+
+export async function updateUtilityReport(id: number, input: UtilityReportInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(utilityReports).set(input).where(eq(utilityReports.id, id));
+}
+
+export async function deleteUtilityReport(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.delete(utilityReports).where(eq(utilityReports.id, id));
 }
 
 export async function createPreRegisteredUser(input: ProfileInput) {
