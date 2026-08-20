@@ -1,6 +1,7 @@
 import {
   boolean,
   double,
+  index,
   int,
   mysqlEnum,
   mysqlTable,
@@ -63,6 +64,22 @@ export const userProfiles = mysqlTable(
   table => [
     uniqueIndex("profiles_email_unique").on(table.email),
     uniqueIndex("profiles_branch_operator_unique").on(table.branchId, table.operatorType),
+  ],
+);
+
+export const chatMessages = mysqlTable(
+  "chatMessages",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    senderUserId: int("senderUserId").notNull().references(() => users.id),
+    recipientUserId: int("recipientUserId").references(() => users.id),
+    body: varchar("body", { length: 1200 }).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("chat_messages_expiry_idx").on(table.expiresAt),
+    index("chat_messages_private_idx").on(table.senderUserId, table.recipientUserId, table.createdAt),
   ],
 );
 

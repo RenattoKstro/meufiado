@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
-import { BarChart3, Building2, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, CircleDollarSign, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, ShieldCheck, SlidersHorizontal, Sun, Target } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 const navigation = [
@@ -31,6 +31,7 @@ const navigation = [
   { label: "Meta Fiado", path: "/fiado", icon: CircleDollarSign },
   { label: "Meta Desafio", path: "/desafio", icon: Target },
   { label: "Filiais", path: "/filiais", icon: Building2 },
+  { label: "Chat", path: "/chat", icon: MessageCircle },
   { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },
   { label: "Preferências", path: "/configuracoes", icon: Palette },
 ];

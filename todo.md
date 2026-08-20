@@ -130,3 +130,11 @@
 - [x] Adicionar teste funcional autenticado para administrador sem filial nas rotas Visão Geral, Meta Fiado, Meta Desafio e Ajustes.
 - [x] Garantir que consultas de métricas retornem estado seguro para administradores sem filial.
 - [x] Cobrir os estados vazios seguros das páginas operacionais para administradores sem filial.
+- [x] Permitir ao administrador excluir contas de operador com confirmação e proteção de dados relacionados.
+- [x] Permitir ao administrador com filial editar e visualizar suas próprias metas operacionais.
+- [x] Corrigir a página Preferências no modo administrador para exibir apenas suas configurações pessoais.
+- [x] Exibir contatos disponíveis ao abrir o perfil de um operador.
+- [x] Criar chat geral com mensagens temporárias, expiradas após uma hora.
+- [x] Permitir iniciar conversa privada com o perfil selecionado.
+- [x] Atualizar mensagens do chat com frequência enquanto a página estiver aberta, sem exigir hospedagem contínua.
+- [ ] Agendar em produção a limpeza horária das mensagens expiradas após a publicação do aplicativo.

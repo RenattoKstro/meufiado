@@ -5,8 +5,10 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
+import { deleteExpiredChatMessages } from "../db";
 import { createContext } from "./context";
 import { apiNotFoundHandler } from "./apiFallback";
+import { sdk } from "./sdk";
 import { serveStatic, setupVite } from "./vite";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -43,6 +45,23 @@ async function startServer() {
       createContext,
     })
   );
+  app.post("/api/scheduled/cleanup-chat", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user.isCron || !user.taskUid) {
+        return res.status(403).json({ error: "cron-only" });
+      }
+
+      const deletedCount = await deleteExpiredChatMessages();
+      return res.json({ ok: true, deletedCount });
+    } catch (error) {
+      return res.status(500).json({
+        error: error instanceof Error ? error.message : "Falha ao limpar mensagens vencidas.",
+        context: { path: "/api/scheduled/cleanup-chat" },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
   // Nunca deixe uma chamada de API desconhecida cair no fallback do SPA, que responde HTML.
   app.use("/api", apiNotFoundHandler);
   // development mode uses Vite, production mode uses static files

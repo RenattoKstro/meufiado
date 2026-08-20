@@ -1,9 +1,10 @@
-import { and, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
   branchMetrics,
   branches,
+  chatMessages,
   InsertUser,
   metricSettings,
   userProfiles,
@@ -265,7 +266,22 @@ export async function updateMyPreferences(
 ) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  await db.update(userProfiles).set(input).where(eq(userProfiles.userId, userId));
+  const [profile] = await db.select({ id: userProfiles.id }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  if (profile) {
+    await db.update(userProfiles).set(input).where(eq(userProfiles.id, profile.id));
+    return;
+  }
+
+  const [account] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!account) throw new Error("Usuário não encontrado");
+  await db.insert(userProfiles).values({
+    userId,
+    email: account.email ?? `admin-${userId}@meufiado.local`,
+    fullName: account.name ?? "Administrador",
+    profileComplete: false,
+    isActive: true,
+    ...input,
+  });
 }
 
 const emptyMetrics = {
@@ -324,6 +340,56 @@ export async function listManagedUsers() {
     .innerJoin(branches, eq(userProfiles.branchId, branches.id))
     .leftJoin(users, eq(userProfiles.userId, users.id))
     .orderBy(desc(userProfiles.updatedAt));
+}
+
+export async function deleteManagedUser(profileId: number, actorUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.id, profileId)).limit(1);
+  if (!profile) throw new Error("Usuário não encontrado.");
+  if (profile.userId === actorUserId) throw new Error("Use seu próprio acesso para alterar a sua conta.");
+  if (profile.userId) {
+    await db.delete(chatMessages).where(or(eq(chatMessages.senderUserId, profile.userId), eq(chatMessages.recipientUserId, profile.userId)));
+    await db.delete(userCredentials).where(eq(userCredentials.userId, profile.userId));
+    await db.delete(adminCredentials).where(eq(adminCredentials.userId, profile.userId));
+    await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
+  }
+  await db.delete(userProfiles).where(eq(userProfiles.id, profileId));
+  if (profile.userId) await db.delete(users).where(eq(users.id, profile.userId));
+}
+
+export async function listChatMessages(userId: number, recipientUserId?: number | null) {
+  const db = await getDb();
+  if (!db) return [];
+  const now = new Date();
+  const visibility = recipientUserId
+    ? or(
+        and(eq(chatMessages.senderUserId, userId), eq(chatMessages.recipientUserId, recipientUserId)),
+        and(eq(chatMessages.senderUserId, recipientUserId), eq(chatMessages.recipientUserId, userId)),
+      )
+    : isNull(chatMessages.recipientUserId);
+  return db
+    .select({ message: chatMessages, sender: users.name })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.senderUserId, users.id))
+    .where(and(gt(chatMessages.expiresAt, now), visibility))
+    .orderBy(chatMessages.createdAt);
+}
+
+export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const body = input.body.trim();
+  if (!body) throw new Error("A mensagem não pode estar vazia.");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+  await db.insert(chatMessages).values({ senderUserId: input.senderUserId, recipientUserId: input.recipientUserId ?? null, body, expiresAt });
+}
+
+export async function deleteExpiredChatMessages() {
+  const db = await getDb();
+  if (!db) return { deleted: 0 };
+  const result = await db.delete(chatMessages).where(lt(chatMessages.expiresAt, new Date()));
+  return { deleted: result[0]?.affectedRows ?? 0 };
 }
 
 export async function createPreRegisteredUser(input: ProfileInput) {

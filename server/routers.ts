@@ -3,6 +3,8 @@ import {
   completeMyProfile,
   createBranch,
   createPreRegisteredUser,
+  deleteManagedUser,
+  listChatMessages,
   importAnalyticMetrics,
   importBranches,
   getMyMetrics,
@@ -19,6 +21,7 @@ import {
   loginLocalAdmin,
   updateLocalAdminCredentials,
   loginGoogleOperator,
+  sendChatMessage,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ADMIN_SESSION_COOKIE, createAdminSession, createUserSession, USER_SESSION_COOKIE } from "./localAdminAuth";
@@ -171,6 +174,12 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
         return updateManagedUser(id, changes);
       }),
     updateRole: adminProcedure.input(z.object({ userId: z.number().int().positive(), role: z.enum(["admin", "user"]) })).mutation(({ input }) => updateAccountRole(input.userId, input.role)),
+    deleteUser: adminProcedure.input(z.object({ profileId: z.number().int().positive() })).mutation(({ ctx, input }) => deleteManagedUser(input.profileId, ctx.user.id)),
+  }),
+  chat: router({
+    general: protectedProcedure.query(({ ctx }) => listChatMessages(ctx.user.id)),
+    private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(({ ctx, input }) => listChatMessages(ctx.user.id, input.recipientUserId)),
+    send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(({ ctx, input }) => sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body })),
   }),
   });
 }

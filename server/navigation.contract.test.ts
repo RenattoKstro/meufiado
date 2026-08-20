@@ -67,6 +67,22 @@ describe("contrato da navegação lateral", () => {
     expect(source).not.toContain("adminOnly");
   });
 
+  it("separa Preferências de Ajustes e disponibiliza o chat na navegação", async () => {
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    expect(navigation).toContain('{ label: "Chat", path: "/chat"');
+    expect(navigation).toContain('{ label: "Preferências", path: "/configuracoes"');
+    expect(app).toContain('path="/configuracoes" component={AppearanceSettings}');
+    expect(app).toContain('path="/ajustes" component={MetricsSettings}');
+  });
+
+  it("atualiza o chat em intervalos curtos e mostra erro de comunicação", async () => {
+    const source = await readFile(resolve(process.cwd(), "client/src/pages/Chat.tsx"), "utf8");
+    expect(source).toContain("refetchInterval: 5_000");
+    expect(source).toContain("Não foi possível carregar as mensagens.");
+    expect(source).toContain("Não foi possível enviar a mensagem. Tente novamente.");
+  });
+
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
     expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');
