@@ -4,6 +4,7 @@ import path from "node:path";
 
 const dashboardSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/pages/Dashboard.tsx"), "utf8");
 const goalCardSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/components/GoalCard.tsx"), "utf8");
+const welcomeSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/pages/Welcome.tsx"), "utf8");
 
 describe("textos e precisão da Visão Geral", () => {
   it("preserva os rótulos solicitados e remove fórmulas internas dos cartões", () => {
@@ -24,5 +25,21 @@ describe("textos e precisão da Visão Geral", () => {
     expect(dashboardSource).toContain("progress.toFixed(2)");
     expect(goalCardSource).toContain("progress.toFixed(2)");
     expect(goalCardSource).toContain("tierProgress.toFixed(2)");
+  });
+
+  it("destaca os valores restantes de Fiado e Desafio na Visão Geral e nos cartões principais", () => {
+    expect(dashboardSource).toContain("const fiadoRemaining = metrics.creditGoal - metrics.currentOverdue");
+    expect(dashboardSource).toContain("const challengeRemaining = metrics.challengeGoal - metrics.currentOverdue");
+    expect(dashboardSource).toContain('label="Restante Fiado"');
+    expect(dashboardSource).toContain('label="Restante Desafio"');
+    expect(dashboardSource).toContain('remainingLabel="Restante Fiado"');
+    expect(dashboardSource).toContain('remainingLabel="Restante Desafio"');
+    expect(goalCardSource).toContain("remainingLabel?: string");
+    expect(goalCardSource).toContain("remainingValue?: number");
+  });
+
+  it("usa a frase de apresentação revisada", () => {
+    expect(welcomeSource).toContain("Acompanhando de perto suas metas");
+    expect(welcomeSource).not.toContain("Acompanhando de suas metas");
   });
 });

@@ -51,6 +51,8 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     reachedByDay15: metrics.fiadoAtDay15,
   });
   const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
+  const fiadoRemaining = metrics.creditGoal - metrics.currentOverdue;
+  const challengeRemaining = metrics.challengeGoal - metrics.currentOverdue;
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const ticketValid = type === "leader" && ticket.status === "achieved";
@@ -58,8 +60,8 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const delinquency = delinquencyPercentage(metrics.currentOverdue, metrics.portfolioTotal);
   const pendingSetup = metrics.creditGoal <= 0 || metrics.challengeGoal <= 0 || metrics.currentOverdue <= 0;
 
-  const fiado = <GoalCard title="Meta Fiado" description="Premiação acumulativa por percentual atingindo." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} />;
-  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} accent="violet" />;
+  const fiado = <GoalCard title="Meta Fiado" description="Premiação acumulativa por percentual atingindo." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} remainingLabel="Restante Fiado" remainingValue={fiadoRemaining} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} />;
+  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} remainingLabel="Restante Desafio" remainingValue={challengeRemaining} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} accent="violet" />;
   const delinquencyTone: StatTone = metrics.portfolioTotal > 0 ? delinquency < 7 ? "success" : "danger" : "default";
 
   return <section className="mx-auto max-w-7xl animate-in fade-in duration-500">
@@ -75,10 +77,12 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{type === "leader" ? <TicketStatus ticket={ticket} /> : <AssistantNotice />}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} />}</section>
-      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+      <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />
         <QuickStat icon={CircleDollarSign} label="Recebido acumulado" value={currency(receipts.accumulated)} note="" />
         <QuickStat icon={ArrowUpRight} label="Recebido hoje" value={currency(receipts.today)} note="" />
+        <QuickStat icon={CircleDollarSign} label="Restante Fiado" value={currency(fiadoRemaining)} note="" />
+        <QuickStat icon={CircleDollarSign} label="Restante Desafio" value={currency(challengeRemaining)} note="" />
         <QuickStat icon={CircleDollarSign} label="À receber" value={currency(receivableAmount)} note="" />
         <QuickStat icon={ArrowUpRight} label="Meta 80%" value={currency(ticket.target)} note="" />
         <QuickStat icon={ArrowUpRight} label="Falta para 80%" value={currency(ticket.remaining)} note={ticket.afterDay15 ? "Prazo encerrado" : "Saldo até o dia 15"} />
