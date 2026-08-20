@@ -7,15 +7,15 @@ import { trpc } from "@/lib/trpc";
 import { BadgeCheck, MessageCircle, Send, TimerReset } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { useSearch } from "wouter";
 
 function usePrivateRecipient() {
-  const [location] = useLocation();
+  const search = useSearch();
   return useMemo(() => {
-    const params = new URLSearchParams(location.split("?")[1] ?? "");
+    const params = new URLSearchParams(search);
     const value = Number(params.get("perfil"));
     return Number.isInteger(value) && value > 0 ? value : undefined;
-  }, [location]);
+  }, [search]);
 }
 
 export default function Chat() {

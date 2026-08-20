@@ -160,3 +160,5 @@
 - [x] Permitir editar nome, telefone/WhatsApp e Instagram nos dados da conta.
 - [x] Permitir adicionar, substituir e exibir foto de perfil na conta e no painel.
 - [x] Cobrir os fluxos corrigidos de Filiais, edição de conta e foto de perfil com testes automatizados.
+- [x] Impedir que mensagens privadas sejam exibidas no Chat geral.
+- [x] Cobrir por regressão o isolamento entre mensagens gerais e conversas privadas.
