@@ -111,6 +111,8 @@ const subscriptionPlan = z.enum(["free", "pro"]);
 const subscriptionSettingsInput = z.object({
   monthlyPrice: z.number().min(0).max(100_000).finite(),
   pixKey: z.string().trim().max(255),
+  pixReceiverName: z.string().trim().min(2).max(25),
+  pixReceiverCity: z.string().trim().min(2).max(15),
   branchesPlan: subscriptionPlan,
   historyPlan: subscriptionPlan,
   utilitiesPlan: subscriptionPlan,

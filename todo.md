@@ -187,3 +187,4 @@
 - [x] Criar a guia Históricos com lançamentos diários de recebimentos, edição, exclusão e consolidação mensal por filial.
 - [x] Implementar usuários Free/PRO, definição administrativa de páginas por plano, mensalidade PIX e envio de comprovantes para aprovação.
 - [x] Corrigir o bloqueio para impedir que usuários Free acessem páginas configuradas como PRO.
+- [x] Gerar QR Code PIX a partir da chave cadastrada e do valor mensal definido.

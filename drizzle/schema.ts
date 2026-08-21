@@ -204,6 +204,8 @@ export const subscriptionSettings = mysqlTable("subscriptionSettings", {
   id: int("id").autoincrement().primaryKey(),
   monthlyPrice: double("monthlyPrice").default(0).notNull(),
   pixKey: varchar("pixKey", { length: 255 }).default("").notNull(),
+  pixReceiverName: varchar("pixReceiverName", { length: 25 }).default("MEU FIADO").notNull(),
+  pixReceiverCity: varchar("pixReceiverCity", { length: 15 }).default("BRASILIA").notNull(),
   branchesPlan: mysqlEnum("branchesPlan", ["free", "pro"]).default("pro").notNull(),
   historyPlan: mysqlEnum("historyPlan", ["free", "pro"]).default("pro").notNull(),
   utilitiesPlan: mysqlEnum("utilitiesPlan", ["free", "pro"]).default("pro").notNull(),

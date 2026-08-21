@@ -502,6 +502,8 @@ export type SubscriptionPlan = "free" | "pro";
 export type SubscriptionSettingsInput = {
   monthlyPrice: number;
   pixKey: string;
+  pixReceiverName: string;
+  pixReceiverCity: string;
   branchesPlan: SubscriptionPlan;
   historyPlan: SubscriptionPlan;
   utilitiesPlan: SubscriptionPlan;
@@ -511,6 +513,8 @@ export type SubscriptionSettingsInput = {
 const defaultSubscriptionSettings: SubscriptionSettingsInput = {
   monthlyPrice: 0,
   pixKey: "",
+  pixReceiverName: "MEU FIADO",
+  pixReceiverCity: "BRASILIA",
   branchesPlan: "pro",
   historyPlan: "pro",
   utilitiesPlan: "pro",

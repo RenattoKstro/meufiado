@@ -24,7 +24,7 @@ function contextFor(role: "user" | "admin"): TrpcContext {
   };
 }
 
-const settings = { id: 1, monthlyPrice: 19.9, pixKey: "pix@exemplo.com", branchesPlan: "pro" as const, historyPlan: "pro" as const, utilitiesPlan: "free" as const, chatPlan: "pro" as const, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
+const settings = { id: 1, monthlyPrice: 19.9, pixKey: "pix@exemplo.com", pixReceiverName: "MEU FIADO", pixReceiverCity: "BRASILIA", branchesPlan: "pro" as const, historyPlan: "pro" as const, utilitiesPlan: "free" as const, chatPlan: "pro" as const, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
 
 describe("procedures de assinatura", () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -56,10 +56,10 @@ describe("procedures de assinatura", () => {
     await expect(user.subscription.submitProof({ dataUrl: "data:image/png;base64,aGVsbG8gaXN0byBlIHVtIGNvbXByb3ZhbnRlIHZhbGlkbyE=" })).resolves.toEqual({ proofUrl: "/manus-storage/proof.png" });
     await expect(user.subscriptionAdmin.settings()).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    await admin.subscriptionAdmin.updateSettings({ monthlyPrice: 29.9, pixKey: "chave-pix", branchesPlan: "free", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" });
+    await admin.subscriptionAdmin.updateSettings({ monthlyPrice: 29.9, pixKey: "chave-pix", pixReceiverName: "MEU FIADO", pixReceiverCity: "BRASILIA", branchesPlan: "free", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" });
     await admin.subscriptionAdmin.setUserPlan({ userId: 42, plan: "pro" });
     await admin.subscriptionAdmin.reviewProof({ id: 7, status: "approved" });
-    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, branchesPlan: "free" }), 31);
+    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, pixReceiverName: "MEU FIADO", pixReceiverCity: "BRASILIA", branchesPlan: "free" }), 31);
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
   });

@@ -1,0 +1,2 @@
+ALTER TABLE `subscriptionSettings` ADD `pixReceiverName` varchar(25) DEFAULT 'MEU FIADO' NOT NULL;--> statement-breakpoint
+ALTER TABLE `subscriptionSettings` ADD `pixReceiverCity` varchar(15) DEFAULT 'BRASILIA' NOT NULL;
