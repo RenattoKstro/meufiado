@@ -504,7 +504,7 @@ export type SubscriptionSettingsInput = {
   pixKey: string;
   pixCopyPaste: string;
   pixReceiverName: string;
-  pixReceiverCity: string;
+  pixReceiverBank: string;
   branchesPlan: SubscriptionPlan;
   historyPlan: SubscriptionPlan;
   utilitiesPlan: SubscriptionPlan;
@@ -517,7 +517,7 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   pixCopyPaste: "",
   pixQrCodeUrl: "",
   pixReceiverName: "MEU FIADO",
-  pixReceiverCity: "BRASILIA",
+  pixReceiverBank: "",
   branchesPlan: "pro",
   historyPlan: "pro",
   utilitiesPlan: "pro",

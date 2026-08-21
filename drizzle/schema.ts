@@ -207,7 +207,7 @@ export const subscriptionSettings = mysqlTable("subscriptionSettings", {
   pixCopyPaste: varchar("pixCopyPaste", { length: 2048 }).default("").notNull(),
   pixQrCodeUrl: varchar("pixQrCodeUrl", { length: 2048 }).default("").notNull(),
   pixReceiverName: varchar("pixReceiverName", { length: 25 }).default("MEU FIADO").notNull(),
-  pixReceiverCity: varchar("pixReceiverCity", { length: 15 }).default("BRASILIA").notNull(),
+  pixReceiverBank: varchar("pixReceiverBank", { length: 80 }).default("").notNull(),
   branchesPlan: mysqlEnum("branchesPlan", ["free", "pro"]).default("pro").notNull(),
   historyPlan: mysqlEnum("historyPlan", ["free", "pro"]).default("pro").notNull(),
   utilitiesPlan: mysqlEnum("utilitiesPlan", ["free", "pro"]).default("pro").notNull(),

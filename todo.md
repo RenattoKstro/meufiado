@@ -191,3 +191,5 @@
 - [x] Permitir ao administrador configurar imagem de QR Code, nome do recebedor e PIX Copia e Cola, substituindo a geração automática inválida.
 - [x] Exibir comprovantes dentro da Administração, notificar o administrador sobre novos envios e ajustar a mensagem de liberação após pagamento.
 - [x] Adicionar a Calculadora 90% em Utilidades com Total a receber, Total recebido e resultado calculado.
+- [x] Simplificar a Calculadora 90%, removendo exemplos e aceitando valores colados com ponto decimal.
+- [x] Substituir o campo de cidade pelo nome do banco na configuração e apresentação do pagamento PIX.

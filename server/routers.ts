@@ -115,7 +115,7 @@ const subscriptionSettingsInput = z.object({
   pixKey: z.string().trim().max(255),
   pixCopyPaste: z.string().trim().max(2048),
   pixReceiverName: z.string().trim().min(2).max(25),
-  pixReceiverCity: z.string().trim().max(15),
+  pixReceiverBank: z.string().trim().max(80),
   branchesPlan: subscriptionPlan,
   historyPlan: subscriptionPlan,
   utilitiesPlan: subscriptionPlan,
