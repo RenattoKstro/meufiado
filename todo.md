@@ -197,3 +197,5 @@
 - [x] Adicionar novas paletas de cores ao sistema de temas do aplicativo.
 - [x] Permitir que o administrador personalize textos, frases e slogan do aplicativo.
 - [x] Criar configuração administrativa centralizada para nome, slogan, navegação e títulos de páginas.
+- [x] Adicionar projeção de recebimento na Visão Geral usando históricos diários ou o saldo e os dias restantes como alternativa.
+- [x] Exibir a projeção completa somente para PRO e um aviso de bloqueio informativo para Free.
