@@ -78,6 +78,17 @@ describe("contrato da navegação lateral", () => {
     expect(app).toContain('path="/ajustes" component={MetricsSettings}');
   });
 
+  it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {
+    const settings = await readFile(resolve(process.cwd(), "client/src/pages/Settings.tsx"), "utf8");
+    const metrics = settings.slice(settings.indexOf("export function MetricsSettings()"), settings.indexOf("export function AppearanceSettings()"));
+    const appearance = settings.slice(settings.indexOf("export function AppearanceSettings()"));
+
+    expect(metrics).toContain("Ativar Meta Perdido");
+    expect(metrics).toContain("setLostGoal");
+    expect(appearance).not.toContain("Ativar Meta Perdido");
+    expect(appearance).not.toContain("Metas no painel");
+  });
+
   it("atualiza o chat em intervalos curtos e mostra erro de comunicação", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/pages/Chat.tsx"), "utf8");
     expect(source).toContain("refetchInterval: 5_000");

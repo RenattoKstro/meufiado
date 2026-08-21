@@ -182,3 +182,4 @@
 - [x] Exibir o percentual inteiro de inadimplência ao lado de Meu Fiado no cabeçalho do painel.
 - [x] Aplicar verde abaixo de 7% e vermelho a partir de 7% ao indicador do cabeçalho, preservando o card existente.
 - [x] Cobrir por teste a precisão e as cores do indicador de inadimplência no cabeçalho.
+- [x] Mover a ativação da Meta Perdido de Preferências para Ajustes das metas, preservando seu funcionamento.
