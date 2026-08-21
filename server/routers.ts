@@ -1,9 +1,11 @@
 import { z } from "zod";
 import {
   completeMyProfile,
+  createReceiptHistoryEntry,
   createBranch,
   createPreRegisteredUser,
   deleteManagedUser,
+  deleteReceiptHistoryEntry,
   deleteUtilityDownload,
   deleteUtilityReport,
   createUtilityDownload,
@@ -19,11 +21,13 @@ import {
   listActiveBranchesWithSlots,
   listAllBranches,
   listManagedUsers,
+  listReceiptHistory,
   listUtilityDownloads,
   listUtilityReports,
   saveMyMetrics,
   setBranchStatus,
   updateManagedUser,
+  updateReceiptHistoryEntry,
   updateUtilityDownload,
   updateUtilityReport,
   updateAccountRole,
@@ -90,6 +94,11 @@ const accountInput = z.object({
   instagram: z.string().trim().max(120).optional().nullable(),
 });
 const avatarInput = z.object({ dataUrl: z.string().min(32).max(3_000_000) });
+const historyMonthInput = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) });
+const historyEntryInput = z.object({
+  entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  receivedAmount: nonNegativeNumber,
+});
 const googleClient = new OAuth2Client();
 
 function getGoogleClientId() {
@@ -105,6 +114,10 @@ type RouterDependencies = {
   completeMyProfile?: typeof completeMyProfile;
   getMyMetrics?: typeof getMyMetrics;
   saveMyMetrics?: typeof saveMyMetrics;
+  listReceiptHistory?: typeof listReceiptHistory;
+  createReceiptHistoryEntry?: typeof createReceiptHistoryEntry;
+  updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
+  deleteReceiptHistoryEntry?: typeof deleteReceiptHistoryEntry;
 };
 
 export function createAppRouter(dependencies: RouterDependencies = {}) {
@@ -114,6 +127,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveProfileCompletion = dependencies.completeMyProfile ?? completeMyProfile;
   const resolveMetrics = dependencies.getMyMetrics ?? getMyMetrics;
   const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
+  const resolveHistoryList = dependencies.listReceiptHistory ?? listReceiptHistory;
+  const resolveHistoryCreate = dependencies.createReceiptHistoryEntry ?? createReceiptHistoryEntry;
+  const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
+  const resolveHistoryDelete = dependencies.deleteReceiptHistoryEntry ?? deleteReceiptHistoryEntry;
 
   return router({
   system: systemRouter,
@@ -184,6 +201,12 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   branches: router({
     overview: protectedProcedure.query(() => listBranchOverviews()),
+  }),
+  history: router({
+    list: protectedProcedure.input(historyMonthInput).query(({ ctx, input }) => resolveHistoryList(ctx.user.id, input.month)),
+    create: protectedProcedure.input(historyEntryInput).mutation(({ ctx, input }) => resolveHistoryCreate(ctx.user.id, input)),
+    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), data: historyEntryInput })).mutation(({ ctx, input }) => resolveHistoryUpdate(ctx.user.id, input.id, input.data)),
+    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => resolveHistoryDelete(ctx.user.id, input.id)),
   }),
   admin: router({
     users: adminProcedure.query(() => listManagedUsers()),

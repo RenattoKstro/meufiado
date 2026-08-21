@@ -183,3 +183,5 @@
 - [x] Aplicar verde abaixo de 7% e vermelho a partir de 7% ao indicador do cabeçalho, preservando o card existente.
 - [x] Cobrir por teste a precisão e as cores do indicador de inadimplência no cabeçalho.
 - [x] Mover a ativação da Meta Perdido de Preferências para Ajustes das metas, preservando seu funcionamento.
+- [x] Investigar a identificação exibida pelo login Google: o nome depende da marca publicada e verificada no projeto OAuth do Google, não do código do Meu Fiado.
+- [x] Criar a guia Históricos com lançamentos diários de recebimentos, edição, exclusão e consolidação mensal por filial.

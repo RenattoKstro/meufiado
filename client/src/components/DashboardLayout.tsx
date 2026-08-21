@@ -26,13 +26,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
-import { BarChart3, Building2, ChevronDown, FolderDown, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, FolderDown, History, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
   { label: "Filiais", path: "/filiais", icon: Building2 },
+  { label: "Históricos", path: "/historicos", icon: History },
   { label: "Utilidades", path: "/utilidades", icon: FolderDown },
   { label: "Chat", path: "/chat", icon: MessageCircle },
   { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },

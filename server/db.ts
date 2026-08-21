@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, inArray, isNull, lt, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, gte, inArray, isNull, lt, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -8,6 +8,7 @@ import {
   chatMessages,
   InsertUser,
   metricSettings,
+  receiptHistoryEntries,
   utilityDownloads,
   utilityReports,
   userProfiles,
@@ -394,6 +395,105 @@ export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, 
   await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
 }
 
+export type ReceiptHistoryInput = {
+  entryDate: string;
+  receivedAmount: number;
+};
+
+function assertCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("Informe uma data válida.");
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    throw new Error("Informe uma data válida.");
+  }
+  return value;
+}
+
+function monthBounds(month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Informe um mês válido.");
+  const [year, monthNumber] = month.split("-").map(Number);
+  const next = new Date(Date.UTC(year, monthNumber, 1));
+  return { start: `${month}-01`, end: next.toISOString().slice(0, 10) };
+}
+
+async function getHistoryBranchId(db: ApplicationDatabase, userId: number) {
+  const [profile] = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  if (!profile?.branchId) throw new Error("Vincule uma filial ao seu perfil para registrar históricos.");
+  return profile.branchId;
+}
+
+async function getHistoryEntryForBranch(db: ApplicationDatabase, id: number, branchId: number) {
+  const [entry] = await db
+    .select()
+    .from(receiptHistoryEntries)
+    .where(and(eq(receiptHistoryEntries.id, id), eq(receiptHistoryEntries.branchId, branchId)))
+    .limit(1);
+  if (!entry) throw new Error("Lançamento não encontrado nesta filial.");
+  return entry;
+}
+
+export async function listReceiptHistory(userId: number, month: string, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return { month, entries: [], totalReceived: 0, daysRecorded: 0, averagePerDay: 0 };
+  const branchId = await getHistoryBranchId(db, userId);
+  const { start, end } = monthBounds(month);
+  const entries = await db
+    .select()
+    .from(receiptHistoryEntries)
+    .where(and(
+      eq(receiptHistoryEntries.branchId, branchId),
+      gte(receiptHistoryEntries.entryDate, start),
+      lt(receiptHistoryEntries.entryDate, end),
+    ))
+    .orderBy(desc(receiptHistoryEntries.entryDate));
+  const totalReceived = entries.reduce((total, entry) => total + entry.receivedAmount, 0);
+  return {
+    month,
+    entries,
+    totalReceived,
+    daysRecorded: entries.length,
+    averagePerDay: entries.length ? totalReceived / entries.length : 0,
+  };
+}
+
+export async function createReceiptHistoryEntry(userId: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const branchId = await getHistoryBranchId(db, userId);
+  const entryDate = assertCalendarDate(input.entryDate);
+  const [existing] = await db
+    .select({ id: receiptHistoryEntries.id })
+    .from(receiptHistoryEntries)
+    .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, entryDate)))
+    .limit(1);
+  if (existing) throw new Error("Já existe um lançamento para esta data. Edite o lançamento existente.");
+  await db.insert(receiptHistoryEntries).values({ branchId, entryDate, receivedAmount: input.receivedAmount, createdByUserId: userId });
+}
+
+export async function updateReceiptHistoryEntry(userId: number, id: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const branchId = await getHistoryBranchId(db, userId);
+  await getHistoryEntryForBranch(db, id, branchId);
+  const entryDate = assertCalendarDate(input.entryDate);
+  const [sameDayEntry] = await db
+    .select({ id: receiptHistoryEntries.id })
+    .from(receiptHistoryEntries)
+    .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, entryDate)))
+    .limit(1);
+  if (sameDayEntry && sameDayEntry.id !== id) throw new Error("Já existe um lançamento para esta data. Escolha outra data.");
+  await db.update(receiptHistoryEntries).set({ entryDate, receivedAmount: input.receivedAmount }).where(eq(receiptHistoryEntries.id, id));
+}
+
+export async function deleteReceiptHistoryEntry(userId: number, id: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const branchId = await getHistoryBranchId(db, userId);
+  await getHistoryEntryForBranch(db, id, branchId);
+  await db.delete(receiptHistoryEntries).where(eq(receiptHistoryEntries.id, id));
+}
+
 export async function listManagedUsers() {
   const db = await getDb();
   if (!db) return [];
@@ -417,6 +517,7 @@ export async function deleteManagedUser(profileId: number, actorUserId: number) 
     await db.delete(adminCredentials).where(eq(adminCredentials.userId, profile.userId));
     await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
     await db.delete(chatReadStates).where(eq(chatReadStates.userId, profile.userId));
+    await db.update(receiptHistoryEntries).set({ createdByUserId: null }).where(eq(receiptHistoryEntries.createdByUserId, profile.userId));
     await db.update(utilityDownloads).set({ createdByUserId: null }).where(eq(utilityDownloads.createdByUserId, profile.userId));
     await db.update(utilityReports).set({ createdByUserId: null }).where(eq(utilityReports.createdByUserId, profile.userId));
   }

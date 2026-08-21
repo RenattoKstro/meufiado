@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   double,
   index,
   int,
@@ -180,6 +181,23 @@ export const branchMetrics = mysqlTable("branchMetrics", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const receiptHistoryEntries = mysqlTable(
+  "receiptHistoryEntries",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    branchId: int("branchId").notNull().references(() => branches.id),
+    entryDate: date("entryDate", { mode: "string" }).notNull(),
+    receivedAmount: double("receivedAmount").notNull(),
+    createdByUserId: int("createdByUserId").references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("receipt_history_branch_date_unique").on(table.branchId, table.entryDate),
+    index("receipt_history_branch_date_idx").on(table.branchId, table.entryDate),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Branch = typeof branches.$inferSelect;
@@ -189,3 +207,4 @@ export type BranchMetric = typeof branchMetrics.$inferSelect;
 export type UserCredential = typeof userCredentials.$inferSelect;
 export type UtilityDownload = typeof utilityDownloads.$inferSelect;
 export type UtilityReport = typeof utilityReports.$inferSelect;
+export type ReceiptHistoryEntry = typeof receiptHistoryEntries.$inferSelect;

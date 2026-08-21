@@ -57,7 +57,7 @@ describe("contrato da navegação lateral", () => {
     const source = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     expect(source).toContain('if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;');
     expect(source).not.toContain("DashboardLayout adminOnly");
-    ["/fiado", "/desafio", "/filiais", "/ajustes", "/admin"].forEach(path => {
+    ["/fiado", "/desafio", "/filiais", "/historicos", "/ajustes", "/admin"].forEach(path => {
       expect(source).toContain(`path=\"${path}\"`);
     });
     expect(source).toContain('Route path="/cadastro" component={UserRegistration}');
@@ -107,6 +107,18 @@ describe("contrato da navegação lateral", () => {
     expect(utilities).toContain("Accordion");
     expect(utilities).toContain("Fixar no topo");
     expect(utilities).toContain("Visível aos usuários");
+  });
+
+  it("registra a guia Históricos para lançamentos diários por filial", async () => {
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const history = await readFile(resolve(process.cwd(), "client/src/pages/History.tsx"), "utf8");
+    expect(navigation).toContain('{ label: "Históricos", path: "/historicos"');
+    expect(app).toContain('path="/historicos" component={History}');
+    expect(history).toContain("Salvar recebimento");
+    expect(history).toContain("Líder e auxiliar compartilham o mesmo histórico da filial.");
+    expect(history).toContain("Editar recebimento");
+    expect(history).toContain("Excluir este lançamento diário?");
   });
 
   it("mantém a gestão de materiais e relatórios restrita às procedures administrativas", async () => {
