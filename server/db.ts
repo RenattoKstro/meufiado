@@ -502,6 +502,7 @@ export type SubscriptionPlan = "free" | "pro";
 export type SubscriptionSettingsInput = {
   monthlyPrice: number;
   pixKey: string;
+  pixCopyPaste: string;
   pixReceiverName: string;
   pixReceiverCity: string;
   branchesPlan: SubscriptionPlan;
@@ -510,9 +511,11 @@ export type SubscriptionSettingsInput = {
   chatPlan: SubscriptionPlan;
 };
 
-const defaultSubscriptionSettings: SubscriptionSettingsInput = {
+const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: string } = {
   monthlyPrice: 0,
   pixKey: "",
+  pixCopyPaste: "",
+  pixQrCodeUrl: "",
   pixReceiverName: "MEU FIADO",
   pixReceiverCity: "BRASILIA",
   branchesPlan: "pro",
@@ -538,6 +541,22 @@ export async function updateSubscriptionSettings(input: SubscriptionSettingsInpu
   const values = { ...input, updatedByUserId: actorUserId };
   if (current.id) await db.update(subscriptionSettings).set(values).where(eq(subscriptionSettings.id, current.id));
   else await db.insert(subscriptionSettings).values(values);
+  return getSubscriptionSettings(db);
+}
+
+export async function uploadSubscriptionPixQrCode(actorUserId: number, dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Envie o QR Code em JPG, PNG ou WEBP.");
+  const contentType = match[1];
+  const binary = Buffer.from(match[2], "base64");
+  if (binary.length === 0 || binary.length > 2 * 1024 * 1024) throw new Error("A imagem do QR Code deve ter no máximo 2 MB.");
+  const extension = contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1];
+  const uploaded = await storagePut(`subscription-payment-qr/${actorUserId}/${randomUUID()}.${extension}`, binary, contentType);
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const settings = await getSubscriptionSettings(db);
+  if (settings.id) await db.update(subscriptionSettings).set({ pixQrCodeUrl: uploaded.url, updatedByUserId: actorUserId }).where(eq(subscriptionSettings.id, settings.id));
+  else await db.insert(subscriptionSettings).values({ ...defaultSubscriptionSettings, pixQrCodeUrl: uploaded.url, updatedByUserId: actorUserId });
   return getSubscriptionSettings(db);
 }
 

@@ -46,6 +46,7 @@ import {
   reviewSubscriptionProof,
   setManagedUserPlan,
   submitSubscriptionProof,
+  uploadSubscriptionPixQrCode,
   updateSubscriptionSettings,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -56,6 +57,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, uniqueRowsByBranchCode } from "../shared/importRules";
 import { OAuth2Client } from "google-auth-library";
 import { TRPCError } from "@trpc/server";
+import { notifyOwner } from "./_core/notification";
 
 const operatorType = z.enum(["leader", "assistant"]);
 const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
@@ -111,8 +113,9 @@ const subscriptionPlan = z.enum(["free", "pro"]);
 const subscriptionSettingsInput = z.object({
   monthlyPrice: z.number().min(0).max(100_000).finite(),
   pixKey: z.string().trim().max(255),
+  pixCopyPaste: z.string().trim().max(2048),
   pixReceiverName: z.string().trim().min(2).max(25),
-  pixReceiverCity: z.string().trim().min(2).max(15),
+  pixReceiverCity: z.string().trim().max(15),
   branchesPlan: subscriptionPlan,
   historyPlan: subscriptionPlan,
   utilitiesPlan: subscriptionPlan,
@@ -277,11 +280,19 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   subscription: router({
     mine: protectedProcedure.query(({ ctx }) => getMySubscription(ctx.user.id)),
-    submitProof: protectedProcedure.input(proofInput).mutation(({ ctx, input }) => submitSubscriptionProof(ctx.user.id, input.dataUrl)),
+    submitProof: protectedProcedure.input(proofInput).mutation(async ({ ctx, input }) => {
+      const proof = await submitSubscriptionProof(ctx.user.id, input.dataUrl);
+      await notifyOwner({
+        title: "Novo comprovante de assinatura",
+        content: `${ctx.user.name || "Um operador"} enviou um comprovante. Acesse Administração > Assinaturas para analisar e liberar o acesso PRO.`,
+      });
+      return proof;
+    }),
   }),
   subscriptionAdmin: router({
     settings: adminProcedure.query(() => getSubscriptionSettings()),
     updateSettings: adminProcedure.input(subscriptionSettingsInput).mutation(({ ctx, input }) => updateSubscriptionSettings(input, ctx.user.id)),
+    uploadPixQrCode: adminProcedure.input(z.object({ dataUrl: z.string().min(32).max(3_000_000) })).mutation(({ ctx, input }) => uploadSubscriptionPixQrCode(ctx.user.id, input.dataUrl)),
     setUserPlan: adminProcedure.input(z.object({ userId: z.number().int().positive(), plan: subscriptionPlan })).mutation(({ input }) => setManagedUserPlan(input.userId, input.plan)),
     proofs: adminProcedure.query(() => listSubscriptionProofs()),
     reviewProof: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["approved", "rejected"]), reviewNote: z.string().trim().max(600).optional().nullable() })).mutation(({ ctx, input }) => reviewSubscriptionProof(input.id, input.status, input.reviewNote ?? null, ctx.user.id)),

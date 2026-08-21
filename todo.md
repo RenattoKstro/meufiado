@@ -188,3 +188,6 @@
 - [x] Implementar usuários Free/PRO, definição administrativa de páginas por plano, mensalidade PIX e envio de comprovantes para aprovação.
 - [x] Corrigir o bloqueio para impedir que usuários Free acessem páginas configuradas como PRO.
 - [x] Gerar QR Code PIX a partir da chave cadastrada e do valor mensal definido.
+- [x] Permitir ao administrador configurar imagem de QR Code, nome do recebedor e PIX Copia e Cola, substituindo a geração automática inválida.
+- [x] Exibir comprovantes dentro da Administração, notificar o administrador sobre novos envios e ajustar a mensagem de liberação após pagamento.
+- [x] Adicionar a Calculadora 90% em Utilidades com Total a receber, Total recebido e resultado calculado.

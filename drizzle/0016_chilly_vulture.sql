@@ -1,0 +1,2 @@
+ALTER TABLE `subscriptionSettings` ADD `pixCopyPaste` varchar(2048) DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE `subscriptionSettings` ADD `pixQrCodeUrl` varchar(2048) DEFAULT '' NOT NULL;
