@@ -13,6 +13,7 @@ import {
   countUnreadChatMessages,
   canAccessSubscriptionFeature,
   getMySubscription,
+  getAppTextSettings,
   getSubscriptionSettings,
   listChatMessages,
   listPrivateChatThreads,
@@ -34,6 +35,7 @@ import {
   updateUtilityDownload,
   updateUtilityReport,
   updateAccountRole,
+  updateAppTextSettings,
   updateMyAccount,
   updateMyPreferences,
   uploadMyAvatar,
@@ -60,7 +62,7 @@ import { TRPCError } from "@trpc/server";
 import { notifyOwner } from "./_core/notification";
 
 const operatorType = z.enum(["leader", "assistant"]);
-const palette = z.enum(["ocean", "violet", "forest", "sunset"]);
+const palette = z.enum(["ocean", "violet", "forest", "sunset", "rose", "midnight", "citrus", "slate"]);
 const nonNegativeNumber = z.number().min(0).finite();
 const profileInput = z.object({
   fullName: z.string().trim().min(2).max(160),
@@ -122,6 +124,26 @@ const subscriptionSettingsInput = z.object({
   chatPlan: subscriptionPlan,
 });
 const proofInput = z.object({ dataUrl: z.string().min(32).max(4_500_000) });
+const appTextSettingsInput = z.object({
+  appName: z.string().trim().min(2).max(100),
+  slogan: z.string().trim().min(2).max(240),
+  welcomeTitle: z.string().trim().min(2).max(180),
+  welcomeDescription: z.string().trim().min(2).max(600),
+  overviewTitle: z.string().trim().min(2).max(120),
+  overviewDescription: z.string().trim().min(2).max(240),
+  utilitiesTitle: z.string().trim().min(2).max(120),
+  utilitiesDescription: z.string().trim().min(2).max(240),
+  subscriptionTitle: z.string().trim().min(2).max(120),
+  subscriptionDescription: z.string().trim().min(2).max(240),
+  navOverview: z.string().trim().min(2).max(80),
+  navBranches: z.string().trim().min(2).max(80),
+  navHistory: z.string().trim().min(2).max(80),
+  navUtilities: z.string().trim().min(2).max(80),
+  navChat: z.string().trim().min(2).max(80),
+  navSettings: z.string().trim().min(2).max(80),
+  navPreferences: z.string().trim().min(2).max(80),
+  navAccount: z.string().trim().min(2).max(80),
+});
 const googleClient = new OAuth2Client();
 
 function getGoogleClientId() {
@@ -142,6 +164,8 @@ type RouterDependencies = {
   updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
   deleteReceiptHistoryEntry?: typeof deleteReceiptHistoryEntry;
   canAccessSubscriptionFeature?: typeof canAccessSubscriptionFeature;
+  getAppTextSettings?: typeof getAppTextSettings;
+  updateAppTextSettings?: typeof updateAppTextSettings;
 };
 
 export function createAppRouter(dependencies: RouterDependencies = {}) {
@@ -156,6 +180,8 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
   const resolveHistoryDelete = dependencies.deleteReceiptHistoryEntry ?? deleteReceiptHistoryEntry;
   const resolveFeatureAccess = dependencies.canAccessSubscriptionFeature ?? canAccessSubscriptionFeature;
+  const resolveAppTexts = dependencies.getAppTextSettings ?? getAppTextSettings;
+  const resolveAppTextsUpdate = dependencies.updateAppTextSettings ?? updateAppTextSettings;
 
   async function requireFeatureAccess(userId: number, role: "admin" | "user", feature: "branches" | "history" | "utilities" | "chat") {
     if (await resolveFeatureAccess(userId, role, feature)) return;
@@ -172,6 +198,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       ctx.res.clearCookie(USER_SESSION_COOKIE, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
       return { success: true } as const;
     }),
+  }),
+  appTexts: router({
+    get: publicProcedure.query(() => resolveAppTexts()),
+    update: adminProcedure.input(appTextSettingsInput).mutation(({ input }) => resolveAppTextsUpdate(input)),
   }),
   adminAuth: router({
     login: publicProcedure.input(z.object({ username: z.string().trim().min(1).max(80), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {

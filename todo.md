@@ -193,3 +193,7 @@
 - [x] Adicionar a Calculadora 90% em Utilidades com Total a receber, Total recebido e resultado calculado.
 - [x] Simplificar a Calculadora 90%, removendo exemplos e aceitando valores colados com ponto decimal.
 - [x] Substituir o campo de cidade pelo nome do banco na configuração e apresentação do pagamento PIX.
+- [x] Exibir data de alteração e oferecer modos adicionais de visualização nos Downloads.
+- [x] Adicionar novas paletas de cores ao sistema de temas do aplicativo.
+- [x] Permitir que o administrador personalize textos, frases e slogan do aplicativo.
+- [x] Criar configuração administrativa centralizada para nome, slogan, navegação e títulos de páginas.

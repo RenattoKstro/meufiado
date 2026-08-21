@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { trpc } from "@/lib/trpc";
+import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
 import {
@@ -30,6 +31,7 @@ type StatTone = "default" | "success" | "danger";
 
 export default function Dashboard({ view = "overview" }: { view?: View }) {
   const { user } = useAuth();
+  const texts = useAppTexts();
   const profileQuery = trpc.profile.mine.useQuery();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const profile = profileQuery.data?.profile;
@@ -70,8 +72,9 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     <header className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
       <div>
         <div className="mb-2 flex items-center gap-2"><Badge className="rounded-full bg-primary/10 px-2.5 py-1 font-bold text-primary hover:bg-primary/10">{branch.name}</Badge>{profile.isOnVacation && <Badge className="rounded-full bg-amber-500/10 px-2.5 py-1 font-bold text-amber-600 hover:bg-amber-500/10">Em férias</Badge>}</div>
-        <h1 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">Olá, {profile.fullName.split(" ")[0]}.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{view === "overview" ? "Confira o desempenho e a projeção do seu recebimento" : view === "fiado" ? "Detalhamento da sua Meta Fiado." : "Detalhamento da sua Meta Desafio."}</p>
+        <h1 className="text-3xl font-black tracking-[-0.04em] sm:text-4xl">{view === "overview" ? texts.overviewTitle : view === "fiado" ? "Meta Fiado" : "Meta Desafio"}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{view === "overview" ? texts.overviewDescription : view === "fiado" ? "Detalhamento da sua Meta Fiado." : "Detalhamento da sua Meta Desafio."}</p>
+        {view === "overview" && <p className="mt-2 text-xs font-semibold text-muted-foreground">Olá, {profile.fullName.split(" ")[0]}.</p>}
       </div>
       <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><CalendarDays className="h-4 w-4 text-primary" /><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Dias úteis</p><p className="text-sm font-black">{metrics.workingDaysElapsed} de {metrics.workingDaysTotal || "–"}</p></div></div>
     </header>

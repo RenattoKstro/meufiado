@@ -72,8 +72,8 @@ describe("contrato da navegação lateral", () => {
   it("separa Preferências de Ajustes e disponibiliza o chat na navegação", async () => {
     const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
-    expect(navigation).toContain('{ label: "Chat", path: "/chat"');
-    expect(navigation).toContain('{ label: "Preferências", path: "/configuracoes"');
+    expect(navigation).toContain("label: texts.navChat");
+    expect(navigation).toContain("label: texts.navPreferences");
     expect(app).toContain('path="/configuracoes" component={AppearanceSettings}');
     expect(app).toContain('path="/ajustes" component={MetricsSettings}');
   });
@@ -100,7 +100,7 @@ describe("contrato da navegação lateral", () => {
     const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     const utilities = await readFile(resolve(process.cwd(), "client/src/pages/Utilities.tsx"), "utf8");
-    expect(navigation).toContain('{ label: "Utilidades", path: "/utilidades"');
+    expect(navigation).toContain("label: texts.navUtilities");
     expect(app).toContain('Route path="/utilidades">');
     expect(utilities).toContain("Downloads disponíveis");
     expect(utilities).toContain("Relatórios");
@@ -113,7 +113,7 @@ describe("contrato da navegação lateral", () => {
     const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     const history = await readFile(resolve(process.cwd(), "client/src/pages/History.tsx"), "utf8");
-    expect(navigation).toContain('{ label: "Históricos", path: "/historicos"');
+    expect(navigation).toContain("label: texts.navHistory");
     expect(app).toContain('Route path="/historicos">');
     expect(history).toContain("Salvar recebimento");
     expect(history).toContain("Líder e auxiliar compartilham o mesmo histórico da filial.");

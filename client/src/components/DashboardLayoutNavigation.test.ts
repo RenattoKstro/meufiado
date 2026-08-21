@@ -9,7 +9,7 @@ describe("navegação consolidada de metas", () => {
   it("mantém as metas na Visão Geral e não mostra guias separadas no menu", () => {
     expect(layoutSource).not.toContain('{ label: "Meta Fiado", path: "/fiado"');
     expect(layoutSource).not.toContain('{ label: "Meta Desafio", path: "/desafio"');
-    expect(layoutSource).toContain('{ label: "Visão geral", path: "/"');
+    expect(layoutSource).toContain("label: texts.navOverview");
   });
 
   it("redireciona links legados das metas para a Visão Geral", () => {

@@ -5,6 +5,7 @@ import path from "node:path";
 const dashboardSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/pages/Dashboard.tsx"), "utf8");
 const goalCardSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/components/GoalCard.tsx"), "utf8");
 const welcomeSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/pages/Welcome.tsx"), "utf8");
+const appTextContextSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/contexts/AppTextContext.tsx"), "utf8");
 
 describe("textos e precisão da Visão Geral", () => {
   it("preserva os rótulos solicitados e remove fórmulas internas dos cartões", () => {
@@ -46,7 +47,8 @@ describe("textos e precisão da Visão Geral", () => {
   });
 
   it("usa a frase de apresentação revisada", () => {
-    expect(welcomeSource).toContain("Acompanhando de perto suas metas");
-    expect(welcomeSource).not.toContain("Acompanhando de suas metas");
+    expect(welcomeSource).toContain("texts.slogan");
+    expect(appTextContextSource).toContain("Acompanhando de perto suas metas todos dias.");
+    expect(appTextContextSource).not.toContain("Acompanhando de suas metas");
   });
 });

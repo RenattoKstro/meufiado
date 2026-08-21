@@ -2,6 +2,7 @@ import { and, count, desc, eq, gt, gte, inArray, isNull, lt, ne, or } from "driz
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
+  appTextSettings,
   branchMetrics,
   branches,
   chatReadStates,
@@ -273,7 +274,7 @@ export async function completeMyProfile(userId: number, input: ProfileInput, dat
 
 export async function updateMyPreferences(
   userId: number,
-  input: { colorMode?: "light" | "dark"; colorPalette?: "ocean" | "violet" | "forest" | "sunset"; showLostGoal?: boolean; isOnVacation?: boolean },
+  input: { colorMode?: "light" | "dark"; colorPalette?: "ocean" | "violet" | "forest" | "sunset" | "rose" | "midnight" | "citrus" | "slate"; showLostGoal?: boolean; isOnVacation?: boolean },
 ) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
@@ -971,4 +972,52 @@ export async function updateLocalAdminCredentials(input: { username: string; new
   const values: { username: string; passwordHash?: string } = { username: input.username.trim() };
   if (input.newPassword) values.passwordHash = await hashPassword(input.newPassword);
   await db.update(adminCredentials).set(values).where(eq(adminCredentials.id, credential.id));
+}
+
+export const DEFAULT_APP_TEXT_SETTINGS = {
+  appName: "Meu Fiado",
+  slogan: "Acompanhando de perto suas metas todos dias.",
+  welcomeTitle: "Acompanhe suas metas de recebimento",
+  welcomeDescription: "Tenha uma visão clara das metas, indicadores e resultados da sua filial.",
+  overviewTitle: "Visão Geral",
+  overviewDescription: "Confira o desempenho e a projeção do seu recebimento.",
+  utilitiesTitle: "Utilidades",
+  utilitiesDescription: "Arquivos, relatórios e ferramentas para apoiar sua rotina.",
+  subscriptionTitle: "Plano",
+  subscriptionDescription: "Gerencie seu acesso e envie o comprovante após o pagamento.",
+  navOverview: "Visão Geral",
+  navBranches: "Filiais",
+  navHistory: "Históricos",
+  navUtilities: "Utilidades",
+  navChat: "Chat",
+  navSettings: "Ajustes",
+  navPreferences: "Preferências",
+  navAccount: "Conta",
+} as const;
+
+export type AppTextSettingsInput = { [K in keyof typeof DEFAULT_APP_TEXT_SETTINGS]: string };
+
+export async function getAppTextSettings() {
+  const db = await getDb();
+  if (!db) return { id: 0, ...DEFAULT_APP_TEXT_SETTINGS, updatedAt: new Date(0) };
+
+  const existing = await db.select().from(appTextSettings).limit(1);
+  if (existing[0]) return existing[0];
+
+  await db.insert(appTextSettings).values(DEFAULT_APP_TEXT_SETTINGS);
+  const created = await db.select().from(appTextSettings).limit(1);
+  return created[0] ?? { id: 0, ...DEFAULT_APP_TEXT_SETTINGS, updatedAt: new Date(0) };
+}
+
+export async function updateAppTextSettings(input: AppTextSettingsInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+
+  const existing = await db.select().from(appTextSettings).limit(1);
+  if (existing[0]) {
+    await db.update(appTextSettings).set(input).where(eq(appTextSettings.id, existing[0].id));
+  } else {
+    await db.insert(appTextSettings).values(input);
+  }
+  return getAppTextSettings();
 }

@@ -4,6 +4,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { AppTextProvider } from "@/contexts/AppTextContext";
 import { trpc } from "@/lib/trpc";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
@@ -60,7 +61,7 @@ function SubscriptionFeature({ feature, children }: { feature: "branches" | "his
   return <Subscription />;
 }
 
-function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }
+function App() { return <ErrorBoundary><ThemeProvider><AppTextProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></AppTextProvider></ThemeProvider></ErrorBoundary>; }
 function LoadingScreen() { return <div className="grid min-h-screen place-items-center bg-background"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" /></div>; }
 function SuspendedScreen() { return <main className="grid min-h-screen place-items-center bg-background p-6"><div className="max-w-md rounded-[2rem] border border-border bg-card p-8 text-center shadow-xl shadow-primary/10"><p className="text-xl font-black">Acesso temporariamente inativo</p><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Seu cadastro está desativado. Fale com a administração da sua filial para regularizar o acesso.</p></div></main>; }
 function AdminAccessDenied() { return <section className="mx-auto grid min-h-[60vh] max-w-xl place-items-center"><div className="rounded-[1.6rem] border border-border bg-card p-8 text-center shadow-sm"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-destructive/10 text-destructive"><ShieldAlert className="h-5 w-5" /></span><h1 className="mt-5 text-xl font-black">Acesso administrativo necessário</h1><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Esta área é exclusiva para administradores autorizados.</p></div></section>; }

@@ -26,6 +26,29 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const appTextSettings = mysqlTable("appTextSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  appName: varchar("appName", { length: 100 }).notNull().default("Meu Fiado"),
+  slogan: varchar("slogan", { length: 240 }).notNull().default("Acompanhando de perto suas metas todos dias."),
+  welcomeTitle: varchar("welcomeTitle", { length: 180 }).notNull().default("Acompanhe suas metas de recebimento"),
+  welcomeDescription: varchar("welcomeDescription", { length: 600 }).notNull().default("Tenha uma visão clara das metas, indicadores e resultados da sua filial."),
+  overviewTitle: varchar("overviewTitle", { length: 120 }).notNull().default("Visão Geral"),
+  overviewDescription: varchar("overviewDescription", { length: 240 }).notNull().default("Confira o desempenho e a projeção do seu recebimento."),
+  utilitiesTitle: varchar("utilitiesTitle", { length: 120 }).notNull().default("Utilidades"),
+  utilitiesDescription: varchar("utilitiesDescription", { length: 240 }).notNull().default("Arquivos, relatórios e ferramentas para apoiar sua rotina."),
+  subscriptionTitle: varchar("subscriptionTitle", { length: 120 }).notNull().default("Plano"),
+  subscriptionDescription: varchar("subscriptionDescription", { length: 240 }).notNull().default("Gerencie seu acesso e envie o comprovante após o pagamento."),
+  navOverview: varchar("navOverview", { length: 80 }).notNull().default("Visão Geral"),
+  navBranches: varchar("navBranches", { length: 80 }).notNull().default("Filiais"),
+  navHistory: varchar("navHistory", { length: 80 }).notNull().default("Históricos"),
+  navUtilities: varchar("navUtilities", { length: 80 }).notNull().default("Utilidades"),
+  navChat: varchar("navChat", { length: 80 }).notNull().default("Chat"),
+  navSettings: varchar("navSettings", { length: 80 }).notNull().default("Ajustes"),
+  navPreferences: varchar("navPreferences", { length: 80 }).notNull().default("Preferências"),
+  navAccount: varchar("navAccount", { length: 80 }).notNull().default("Conta"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const branches = mysqlTable(
   "branches",
   {
@@ -42,7 +65,7 @@ export const branches = mysqlTable(
 
 export const operatorType = mysqlEnum("operatorType", ["leader", "assistant"]);
 export const colorMode = mysqlEnum("colorMode", ["light", "dark"]);
-export const colorPalette = mysqlEnum("colorPalette", ["ocean", "violet", "forest", "sunset"]);
+export const colorPalette = mysqlEnum("colorPalette", ["ocean", "violet", "forest", "sunset", "rose", "midnight", "citrus", "slate"]);
 
 export const userProfiles = mysqlTable(
   "userProfiles",

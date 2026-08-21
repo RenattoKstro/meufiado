@@ -23,6 +23,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAppTexts } from "@/contexts/AppTextContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
@@ -30,20 +31,10 @@ import { BarChart3, Building2, ChevronDown, Crown, FolderDown, History, LayoutDa
 import React from "react";
 import { Link, useLocation } from "wouter";
 
-const navigation = [
-  { label: "Visão geral", path: "/", icon: LayoutDashboard },
-  { label: "Filiais", path: "/filiais", icon: Building2, feature: "branches" as const },
-  { label: "Históricos", path: "/historicos", icon: History, feature: "history" as const },
-  { label: "Utilidades", path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
-  { label: "Chat", path: "/chat", icon: MessageCircle, feature: "chat" as const },
-  { label: "Plano", path: "/plano", icon: Crown },
-  { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },
-  { label: "Preferências", path: "/configuracoes", icon: Palette },
-];
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const texts = useAppTexts();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
   const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
@@ -52,6 +43,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const navigation = [
+    { label: texts.navOverview, path: "/", icon: LayoutDashboard },
+    { label: texts.navBranches, path: "/filiais", icon: Building2, feature: "branches" as const },
+    { label: texts.navHistory, path: "/historicos", icon: History, feature: "history" as const },
+    { label: texts.navUtilities, path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
+    { label: texts.navChat, path: "/chat", icon: MessageCircle, feature: "chat" as const },
+    { label: "Plano", path: "/plano", icon: Crown },
+    { label: texts.navSettings, path: "/ajustes", icon: SlidersHorizontal },
+    { label: texts.navPreferences, path: "/configuracoes", icon: Palette },
+  ];
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
   const active = menu.find(item => item.path === location)?.label ?? "Painel";
@@ -76,7 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <p className="text-sm font-extrabold tracking-tight text-sidebar-foreground">
-                Meu Fiado{hasDelinquency && <span className={`ml-1.5 ${delinquencyClass}`}>{Math.round(delinquency)}%</span>}
+                {texts.appName}{hasDelinquency && <span className={`ml-1.5 ${delinquencyClass}`}>{Math.round(delinquency)}%</span>}
               </p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Painel de metas</p>
             </div>

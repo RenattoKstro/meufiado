@@ -1,0 +1,23 @@
+CREATE TABLE `appTextSettings` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`appName` varchar(100) NOT NULL DEFAULT 'Meu Fiado',
+	`slogan` varchar(240) NOT NULL DEFAULT 'Acompanhando de perto suas metas todos dias.',
+	`welcomeTitle` varchar(180) NOT NULL DEFAULT 'Acompanhe suas metas de recebimento',
+	`welcomeDescription` varchar(600) NOT NULL DEFAULT 'Tenha uma visão clara das metas, indicadores e resultados da sua filial.',
+	`overviewTitle` varchar(120) NOT NULL DEFAULT 'Visão Geral',
+	`overviewDescription` varchar(240) NOT NULL DEFAULT 'Confira o desempenho e a projeção do seu recebimento.',
+	`utilitiesTitle` varchar(120) NOT NULL DEFAULT 'Utilidades',
+	`utilitiesDescription` varchar(240) NOT NULL DEFAULT 'Arquivos, relatórios e ferramentas para apoiar sua rotina.',
+	`subscriptionTitle` varchar(120) NOT NULL DEFAULT 'Plano',
+	`subscriptionDescription` varchar(240) NOT NULL DEFAULT 'Gerencie seu acesso e envie o comprovante após o pagamento.',
+	`navOverview` varchar(80) NOT NULL DEFAULT 'Visão Geral',
+	`navBranches` varchar(80) NOT NULL DEFAULT 'Filiais',
+	`navHistory` varchar(80) NOT NULL DEFAULT 'Históricos',
+	`navUtilities` varchar(80) NOT NULL DEFAULT 'Utilidades',
+	`navChat` varchar(80) NOT NULL DEFAULT 'Chat',
+	`navSettings` varchar(80) NOT NULL DEFAULT 'Ajustes',
+	`navPreferences` varchar(80) NOT NULL DEFAULT 'Preferências',
+	`navAccount` varchar(80) NOT NULL DEFAULT 'Conta',
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `appTextSettings_id` PRIMARY KEY(`id`)
+);

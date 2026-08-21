@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
+import { useAppTexts } from "@/contexts/AppTextContext";
 import { CheckCircle2, Clipboard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 import { ChangeEvent, useRef } from "react";
 import { toast } from "sonner";
@@ -11,6 +12,7 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 
 export default function Subscription() {
   const utils = trpc.useUtils();
+  const texts = useAppTexts();
   const subscriptionQuery = trpc.subscription.mine.useQuery();
   const submitProof = trpc.subscription.submitProof.useMutation();
   const pickerRef = useRef<HTMLInputElement>(null);
@@ -56,7 +58,7 @@ export default function Subscription() {
   const waitingReview = latestProof?.status === "pending";
 
   return <section className="mx-auto max-w-4xl">
-    <header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Acesso da conta</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Plano Meu Fiado</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Gerencie sua assinatura e libere os recursos definidos como PRO pela administração.</p></header>
+    <header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Acesso da conta</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">{texts.subscriptionTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{texts.subscriptionDescription}</p></header>
     <div className="grid gap-5 lg:grid-cols-[.92fr_1.08fr]">
       <Card className={`rounded-[1.6rem] border-border/70 shadow-sm ${isPro ? "bg-primary/[0.03]" : ""}`}>
         <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />{isPro ? "Você é PRO" : "Plano Free"}</CardTitle><CardDescription className="mt-1">{isPro ? "Seu acesso premium está ativo." : "Sua conta começa com os recursos liberados para o plano Free."}</CardDescription></div>{isPro ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">ATIVO</span> : <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-extrabold text-muted-foreground">FREE</span>}</div></CardHeader>

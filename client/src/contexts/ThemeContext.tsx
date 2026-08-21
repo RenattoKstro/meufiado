@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
-export type Palette = "ocean" | "violet" | "forest" | "sunset";
+export type Palette = "ocean" | "violet" | "forest" | "sunset" | "rose" | "midnight" | "citrus" | "slate";
 
 interface ThemeContextType {
   theme: Theme;

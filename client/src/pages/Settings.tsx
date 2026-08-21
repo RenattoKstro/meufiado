@@ -16,6 +16,10 @@ const paletteOptions: { id: Palette; label: string; colors: string[] }[] = [
   { id: "violet", label: "Violeta", colors: ["#7757d9", "#b06ce8", "#34206b"] },
   { id: "forest", label: "Floresta", colors: ["#248052", "#77b846", "#164337"] },
   { id: "sunset", label: "Pôr do sol", colors: ["#db5c2d", "#f2a53b", "#673320"] },
+  { id: "rose", label: "Rosé", colors: ["#c74477", "#ec7fa7", "#6e2446"] },
+  { id: "midnight", label: "Meia-noite", colors: ["#3156a6", "#4c86d9", "#1d2d5d"] },
+  { id: "citrus", label: "Cítrico", colors: ["#a76b05", "#d2a311", "#5b4107"] },
+  { id: "slate", label: "Ardósia", colors: ["#3f6472", "#7396a3", "#243a44"] },
 ];
 
 const initialMetrics = {
