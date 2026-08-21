@@ -31,6 +31,7 @@ describe("history router", () => {
     createReceiptHistoryEntry: createHistory,
     updateReceiptHistoryEntry: updateHistory,
     deleteReceiptHistoryEntry: deleteHistory,
+    canAccessSubscriptionFeature: async () => true,
   }).createCaller(historyContext());
 
   beforeEach(() => {

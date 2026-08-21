@@ -11,6 +11,9 @@ import {
   createUtilityDownload,
   createUtilityReport,
   countUnreadChatMessages,
+  canAccessSubscriptionFeature,
+  getMySubscription,
+  getSubscriptionSettings,
   listChatMessages,
   listPrivateChatThreads,
   importAnalyticMetrics,
@@ -39,6 +42,11 @@ import {
   loginGoogleOperator,
   markChatMessagesRead,
   sendChatMessage,
+  listSubscriptionProofs,
+  reviewSubscriptionProof,
+  setManagedUserPlan,
+  submitSubscriptionProof,
+  updateSubscriptionSettings,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ADMIN_SESSION_COOKIE, createAdminSession, createUserSession, USER_SESSION_COOKIE } from "./localAdminAuth";
@@ -99,6 +107,16 @@ const historyEntryInput = z.object({
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   receivedAmount: nonNegativeNumber,
 });
+const subscriptionPlan = z.enum(["free", "pro"]);
+const subscriptionSettingsInput = z.object({
+  monthlyPrice: z.number().min(0).max(100_000).finite(),
+  pixKey: z.string().trim().max(255),
+  branchesPlan: subscriptionPlan,
+  historyPlan: subscriptionPlan,
+  utilitiesPlan: subscriptionPlan,
+  chatPlan: subscriptionPlan,
+});
+const proofInput = z.object({ dataUrl: z.string().min(32).max(4_500_000) });
 const googleClient = new OAuth2Client();
 
 function getGoogleClientId() {
@@ -118,6 +136,7 @@ type RouterDependencies = {
   createReceiptHistoryEntry?: typeof createReceiptHistoryEntry;
   updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
   deleteReceiptHistoryEntry?: typeof deleteReceiptHistoryEntry;
+  canAccessSubscriptionFeature?: typeof canAccessSubscriptionFeature;
 };
 
 export function createAppRouter(dependencies: RouterDependencies = {}) {
@@ -131,6 +150,12 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveHistoryCreate = dependencies.createReceiptHistoryEntry ?? createReceiptHistoryEntry;
   const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
   const resolveHistoryDelete = dependencies.deleteReceiptHistoryEntry ?? deleteReceiptHistoryEntry;
+  const resolveFeatureAccess = dependencies.canAccessSubscriptionFeature ?? canAccessSubscriptionFeature;
+
+  async function requireFeatureAccess(userId: number, role: "admin" | "user", feature: "branches" | "history" | "utilities" | "chat") {
+    if (await resolveFeatureAccess(userId, role, feature)) return;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Esta página está disponível no plano PRO." });
+  }
 
   return router({
   system: systemRouter,
@@ -200,13 +225,16 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     }),
   }),
   branches: router({
-    overview: protectedProcedure.query(() => listBranchOverviews()),
+    overview: protectedProcedure.query(async ({ ctx }) => {
+      await requireFeatureAccess(ctx.user.id, ctx.user.role, "branches");
+      return listBranchOverviews();
+    }),
   }),
   history: router({
-    list: protectedProcedure.input(historyMonthInput).query(({ ctx, input }) => resolveHistoryList(ctx.user.id, input.month)),
-    create: protectedProcedure.input(historyEntryInput).mutation(({ ctx, input }) => resolveHistoryCreate(ctx.user.id, input)),
-    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), data: historyEntryInput })).mutation(({ ctx, input }) => resolveHistoryUpdate(ctx.user.id, input.id, input.data)),
-    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ ctx, input }) => resolveHistoryDelete(ctx.user.id, input.id)),
+    list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),
+    create: protectedProcedure.input(historyEntryInput).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryCreate(ctx.user.id, input); }),
+    update: protectedProcedure.input(z.object({ id: z.number().int().positive(), data: historyEntryInput })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryUpdate(ctx.user.id, input.id, input.data); }),
+    delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryDelete(ctx.user.id, input.id); }),
   }),
   admin: router({
     users: adminProcedure.query(() => listManagedUsers()),
@@ -234,16 +262,27 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     deleteUser: adminProcedure.input(z.object({ profileId: z.number().int().positive() })).mutation(({ ctx, input }) => deleteManagedUser(input.profileId, ctx.user.id)),
   }),
   chat: router({
-    general: protectedProcedure.query(({ ctx }) => listChatMessages(ctx.user.id)),
-    private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(({ ctx, input }) => listChatMessages(ctx.user.id, input.recipientUserId)),
-    privateThreads: protectedProcedure.query(({ ctx }) => listPrivateChatThreads(ctx.user.id)),
-    send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(({ ctx, input }) => sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body })),
-    unreadCount: protectedProcedure.query(({ ctx }) => countUnreadChatMessages(ctx.user.id)),
-    markRead: protectedProcedure.mutation(({ ctx }) => markChatMessagesRead(ctx.user.id)),
+    general: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id); }),
+    private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id, input.recipientUserId); }),
+    privateThreads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listPrivateChatThreads(ctx.user.id); }),
+    send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body }); }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return countUnreadChatMessages(ctx.user.id); }),
+    markRead: protectedProcedure.mutation(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return markChatMessagesRead(ctx.user.id); }),
   }),
   utilities: router({
-    downloads: protectedProcedure.query(({ ctx }) => listUtilityDownloads(ctx.user.role === "admin")),
-    reports: protectedProcedure.query(({ ctx }) => listUtilityReports(ctx.user.role === "admin")),
+    downloads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "utilities"); return listUtilityDownloads(ctx.user.role === "admin"); }),
+    reports: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "utilities"); return listUtilityReports(ctx.user.role === "admin"); }),
+  }),
+  subscription: router({
+    mine: protectedProcedure.query(({ ctx }) => getMySubscription(ctx.user.id)),
+    submitProof: protectedProcedure.input(proofInput).mutation(({ ctx, input }) => submitSubscriptionProof(ctx.user.id, input.dataUrl)),
+  }),
+  subscriptionAdmin: router({
+    settings: adminProcedure.query(() => getSubscriptionSettings()),
+    updateSettings: adminProcedure.input(subscriptionSettingsInput).mutation(({ ctx, input }) => updateSubscriptionSettings(input, ctx.user.id)),
+    setUserPlan: adminProcedure.input(z.object({ userId: z.number().int().positive(), plan: subscriptionPlan })).mutation(({ input }) => setManagedUserPlan(input.userId, input.plan)),
+    proofs: adminProcedure.query(() => listSubscriptionProofs()),
+    reviewProof: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["approved", "rejected"]), reviewNote: z.string().trim().max(600).optional().nullable() })).mutation(({ ctx, input }) => reviewSubscriptionProof(input.id, input.status, input.reviewNote ?? null, ctx.user.id)),
   }),
   utilityAdmin: router({
     createDownload: adminProcedure.input(utilityDownloadInput).mutation(({ ctx, input }) => createUtilityDownload(input, ctx.user.id)),

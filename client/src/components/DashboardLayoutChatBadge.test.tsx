@@ -15,7 +15,7 @@ const metricsQuery = vi.hoisted(() => vi.fn(() => ({ data: { currentOverdue: 8, 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 9, role: "user", name: "Operador" }, logout: vi.fn() }) }));
 vi.mock("@/contexts/ThemeContext", () => ({ useTheme: () => ({ theme: "dark", toggleTheme: vi.fn() }) }));
 vi.mock("@/hooks/useMobile", () => ({ useIsMobile: () => false }));
-vi.mock("@/lib/trpc", () => ({ trpc: { chat: { unreadCount: { useQuery: unreadQuery } }, profile: { mine: { useQuery: () => ({ data: { profile: { avatarUrl: null } } }) } }, metrics: { mine: { useQuery: metricsQuery } } } }));
+vi.mock("@/lib/trpc", () => ({ trpc: { chat: { unreadCount: { useQuery: unreadQuery } }, profile: { mine: { useQuery: () => ({ data: { profile: { avatarUrl: null } } }) } }, metrics: { mine: { useQuery: metricsQuery } }, subscription: { mine: { useQuery: () => ({ data: { isPro: true, settings: { chatPlan: "pro" } } }) } } } }));
 vi.mock("wouter", () => ({ Link: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>, useLocation: () => ["/", vi.fn()] }));
 
 import DashboardLayout from "./DashboardLayout";

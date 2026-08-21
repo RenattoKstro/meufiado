@@ -101,7 +101,7 @@ describe("contrato da navegação lateral", () => {
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     const utilities = await readFile(resolve(process.cwd(), "client/src/pages/Utilities.tsx"), "utf8");
     expect(navigation).toContain('{ label: "Utilidades", path: "/utilidades"');
-    expect(app).toContain('path="/utilidades" component={Utilities}');
+    expect(app).toContain('Route path="/utilidades">');
     expect(utilities).toContain("Downloads disponíveis");
     expect(utilities).toContain("Relatórios");
     expect(utilities).toContain("Accordion");
@@ -114,7 +114,7 @@ describe("contrato da navegação lateral", () => {
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     const history = await readFile(resolve(process.cwd(), "client/src/pages/History.tsx"), "utf8");
     expect(navigation).toContain('{ label: "Históricos", path: "/historicos"');
-    expect(app).toContain('path="/historicos" component={History}');
+    expect(app).toContain('Route path="/historicos">');
     expect(history).toContain("Salvar recebimento");
     expect(history).toContain("Líder e auxiliar compartilham o mesmo histórico da filial.");
     expect(history).toContain("Editar recebimento");

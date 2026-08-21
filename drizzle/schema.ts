@@ -19,6 +19,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  plan: mysqlEnum("plan", ["free", "pro"]).default("free").notNull(),
+  proExpiresAt: timestamp("proExpiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -198,6 +200,35 @@ export const receiptHistoryEntries = mysqlTable(
   ],
 );
 
+export const subscriptionSettings = mysqlTable("subscriptionSettings", {
+  id: int("id").autoincrement().primaryKey(),
+  monthlyPrice: double("monthlyPrice").default(0).notNull(),
+  pixKey: varchar("pixKey", { length: 255 }).default("").notNull(),
+  branchesPlan: mysqlEnum("branchesPlan", ["free", "pro"]).default("pro").notNull(),
+  historyPlan: mysqlEnum("historyPlan", ["free", "pro"]).default("pro").notNull(),
+  utilitiesPlan: mysqlEnum("utilitiesPlan", ["free", "pro"]).default("pro").notNull(),
+  chatPlan: mysqlEnum("chatPlan", ["free", "pro"]).default("pro").notNull(),
+  updatedByUserId: int("updatedByUserId").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const subscriptionProofs = mysqlTable(
+  "subscriptionProofs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().references(() => users.id),
+    proofUrl: varchar("proofUrl", { length: 2048 }).notNull(),
+    status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+    reviewNote: varchar("reviewNote", { length: 600 }),
+    reviewedByUserId: int("reviewedByUserId").references(() => users.id),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("subscription_proofs_user_status_idx").on(table.userId, table.status, table.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Branch = typeof branches.$inferSelect;
@@ -208,3 +239,5 @@ export type UserCredential = typeof userCredentials.$inferSelect;
 export type UtilityDownload = typeof utilityDownloads.$inferSelect;
 export type UtilityReport = typeof utilityReports.$inferSelect;
 export type ReceiptHistoryEntry = typeof receiptHistoryEntries.$inferSelect;
+export type SubscriptionSettings = typeof subscriptionSettings.$inferSelect;
+export type SubscriptionProof = typeof subscriptionProofs.$inferSelect;

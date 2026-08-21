@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
-const dbMocks = vi.hoisted(() => ({ countUnreadChatMessages: vi.fn(), markChatMessagesRead: vi.fn() }));
+const dbMocks = vi.hoisted(() => ({ countUnreadChatMessages: vi.fn(), markChatMessagesRead: vi.fn(), canAccessSubscriptionFeature: vi.fn() }));
 vi.mock("./db", async importActual => ({ ...(await importActual<typeof import("./db")>()), ...dbMocks }));
 
 import { appRouter } from "./routers";
@@ -14,6 +14,7 @@ describe("notificações de chat", () => {
   it("entrega a quantidade de mensagens novas e registra a leitura para o usuário autenticado", async () => {
     dbMocks.countUnreadChatMessages.mockResolvedValue(4);
     dbMocks.markChatMessagesRead.mockResolvedValue(undefined);
+    dbMocks.canAccessSubscriptionFeature.mockResolvedValue(true);
     const caller = appRouter.createCaller(contextFor());
 
     await expect(caller.chat.unreadCount()).resolves.toBe(4);

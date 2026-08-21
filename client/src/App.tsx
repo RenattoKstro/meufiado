@@ -18,6 +18,7 @@ import { AppearanceSettings, MetricsSettings } from "@/pages/Settings";
 import UserLogin from "@/pages/UserLogin";
 import UserRegistration from "@/pages/UserRegistration";
 import Utilities from "@/pages/Utilities";
+import Subscription from "@/pages/Subscription";
 import Welcome from "@/pages/Welcome";
 import { ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
@@ -45,7 +46,18 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/filiais" component={BranchesPage} /><Route path="/historicos" component={History} /><Route path="/utilidades" component={Utilities} /><Route path="/chat" component={Chat} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat">{() => <SubscriptionFeature feature="chat"><Chat /></SubscriptionFeature>}</Route><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+}
+
+function SubscriptionFeature({ feature, children }: { feature: "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
+  const { user } = useAuth();
+  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user) });
+  if (user?.role === "admin") return <>{children}</>;
+  if (subscriptionQuery.isLoading) return <LoadingScreen />;
+  const settings = subscriptionQuery.data?.settings;
+  const requiredPlan = settings?.[`${feature}Plan` as const] ?? "pro";
+  if (subscriptionQuery.data?.isPro || requiredPlan === "free") return <>{children}</>;
+  return <Subscription />;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><TooltipProvider><Toaster /><AuthenticatedApp /></TooltipProvider></ThemeProvider></ErrorBoundary>; }

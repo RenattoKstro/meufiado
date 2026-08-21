@@ -26,16 +26,17 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
-import { BarChart3, Building2, ChevronDown, FolderDown, History, LayoutDashboard, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
 const navigation = [
   { label: "Visão geral", path: "/", icon: LayoutDashboard },
-  { label: "Filiais", path: "/filiais", icon: Building2 },
-  { label: "Históricos", path: "/historicos", icon: History },
-  { label: "Utilidades", path: "/utilidades", icon: FolderDown },
-  { label: "Chat", path: "/chat", icon: MessageCircle },
+  { label: "Filiais", path: "/filiais", icon: Building2, feature: "branches" as const },
+  { label: "Históricos", path: "/historicos", icon: History, feature: "history" as const },
+  { label: "Utilidades", path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
+  { label: "Chat", path: "/chat", icon: MessageCircle, feature: "chat" as const },
+  { label: "Plano", path: "/plano", icon: Crown },
   { label: "Ajustes das metas", path: "/ajustes", icon: SlidersHorizontal },
   { label: "Preferências", path: "/configuracoes", icon: Palette },
 ];
@@ -45,7 +46,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { theme, toggleTheme } = useTheme();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
-  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
+  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const chatIsFree = subscriptionQuery.data?.settings.chatPlan === "free";
+  const canUseChat = user?.role === "admin" || subscriptionQuery.data?.isPro || chatIsFree;
+  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
@@ -56,6 +60,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const delinquency = metricsQuery.data ? delinquencyPercentage(metricsQuery.data.currentOverdue, portfolioTotal) : null;
   const hasDelinquency = delinquency !== null && portfolioTotal > 0;
   const delinquencyClass = delinquency !== null && delinquency < 7 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
+  function isLocked(item: typeof navigation[number]) {
+    if (!item.feature || user?.role === "admin") return false;
+    const configuredPlan = subscriptionQuery.data?.settings[`${item.feature}Plan` as const] ?? "pro";
+    return !subscriptionQuery.data?.isPro && configuredPlan === "pro";
+  }
 
   return (
     <SidebarProvider defaultOpen>
@@ -87,6 +96,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <Link href={item.path}>
                     <item.icon className="h-[18px] w-[18px]" />
                     <span>{item.label}</span>
+                    {isLocked(item as typeof navigation[number]) && <LockKeyhole className="ml-auto h-3.5 w-3.5 text-muted-foreground group-data-[active=true]:text-primary-foreground group-data-[collapsible=icon]:hidden" />}
                     {item.path === "/chat" && (unreadChatQuery.data ?? 0) > 0 && <Badge aria-label={`${unreadChatQuery.data} mensagens novas`} className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[10px] font-black group-data-[collapsible=icon]:hidden">{(unreadChatQuery.data ?? 0) > 99 ? "99+" : unreadChatQuery.data}</Badge>}
                   </Link>
                 </SidebarMenuButton>
@@ -107,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Avatar className="h-9 w-9 border-2 border-primary/15"><AvatarImage src={profileQuery.data?.profile?.avatarUrl ?? undefined} alt={`Foto de ${user?.name || "perfil"}`} /><AvatarFallback className="bg-primary/10 text-xs font-extrabold text-primary">{initials}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                   <p className="truncate text-xs font-bold text-sidebar-foreground">{user?.name || "Operador"}</p>
-                  <p className="truncate text-[10px] text-muted-foreground">{user?.role === "admin" ? "Administrador" : "Operador"}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">{user?.role === "admin" ? "Administrador" : subscriptionQuery.data?.isPro ? "Operador PRO" : "Operador Free"}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
               </button>
@@ -116,6 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <DropdownMenuLabel className="font-semibold">Conta</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate("/conta")} className="cursor-pointer"><Pencil className="mr-2 h-4 w-4" />Editar conta</DropdownMenuItem>
+              {user?.role !== "admin" && <DropdownMenuItem onClick={() => navigate("/plano")} className="cursor-pointer"><Crown className="mr-2 h-4 w-4" />Meu plano</DropdownMenuItem>}
               <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer"><span>{theme === "light" ? "Usar modo escuro" : "Usar modo claro"}</span>{theme === "light" ? <Moon className="ml-auto h-4 w-4" /> : <Sun className="ml-auto h-4 w-4" />}</DropdownMenuItem>
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive"><LogOut className="mr-2 h-4 w-4" />Sair</DropdownMenuItem>
             </DropdownMenuContent>

@@ -9,6 +9,8 @@ import {
   InsertUser,
   metricSettings,
   receiptHistoryEntries,
+  subscriptionProofs,
+  subscriptionSettings,
   utilityDownloads,
   utilityReports,
   userProfiles,
@@ -494,6 +496,110 @@ export async function deleteReceiptHistoryEntry(userId: number, id: number, data
   await db.delete(receiptHistoryEntries).where(eq(receiptHistoryEntries.id, id));
 }
 
+export const subscriptionFeatureKeys = ["branches", "history", "utilities", "chat"] as const;
+export type SubscriptionFeatureKey = typeof subscriptionFeatureKeys[number];
+export type SubscriptionPlan = "free" | "pro";
+export type SubscriptionSettingsInput = {
+  monthlyPrice: number;
+  pixKey: string;
+  branchesPlan: SubscriptionPlan;
+  historyPlan: SubscriptionPlan;
+  utilitiesPlan: SubscriptionPlan;
+  chatPlan: SubscriptionPlan;
+};
+
+const defaultSubscriptionSettings: SubscriptionSettingsInput = {
+  monthlyPrice: 0,
+  pixKey: "",
+  branchesPlan: "pro",
+  historyPlan: "pro",
+  utilitiesPlan: "pro",
+  chatPlan: "pro",
+};
+
+export async function getSubscriptionSettings(database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return { id: 0, ...defaultSubscriptionSettings };
+  const [current] = await db.select().from(subscriptionSettings).orderBy(desc(subscriptionSettings.id)).limit(1);
+  if (current) return current;
+  await db.insert(subscriptionSettings).values(defaultSubscriptionSettings);
+  const [created] = await db.select().from(subscriptionSettings).orderBy(desc(subscriptionSettings.id)).limit(1);
+  return created ?? { id: 0, ...defaultSubscriptionSettings };
+}
+
+export async function updateSubscriptionSettings(input: SubscriptionSettingsInput, actorUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const current = await getSubscriptionSettings(db);
+  const values = { ...input, updatedByUserId: actorUserId };
+  if (current.id) await db.update(subscriptionSettings).set(values).where(eq(subscriptionSettings.id, current.id));
+  else await db.insert(subscriptionSettings).values(values);
+  return getSubscriptionSettings(db);
+}
+
+function hasActiveProPlan(account: { plan: SubscriptionPlan; proExpiresAt: Date | null }) {
+  return account.plan === "pro" && (!account.proExpiresAt || account.proExpiresAt.getTime() > Date.now());
+}
+
+export async function getMySubscription(userId: number) {
+  const db = await getDb();
+  const settings = await getSubscriptionSettings(db ?? undefined);
+  if (!db) return { plan: "free" as const, isPro: false, proExpiresAt: null, settings, latestProof: null };
+  const [account] = await db.select({ plan: users.plan, proExpiresAt: users.proExpiresAt }).from(users).where(eq(users.id, userId)).limit(1);
+  const [latestProof] = await db.select().from(subscriptionProofs).where(eq(subscriptionProofs.userId, userId)).orderBy(desc(subscriptionProofs.createdAt)).limit(1);
+  const plan = (account?.plan ?? "free") as SubscriptionPlan;
+  const isPro = hasActiveProPlan({ plan, proExpiresAt: account?.proExpiresAt ?? null });
+  return { plan, isPro, proExpiresAt: account?.proExpiresAt ?? null, settings, latestProof: latestProof ?? null };
+}
+
+export async function canAccessSubscriptionFeature(userId: number, role: "admin" | "user", feature: SubscriptionFeatureKey) {
+  if (role === "admin") return true;
+  const subscription = await getMySubscription(userId);
+  const settingKey = `${feature}Plan` as const;
+  return subscription.isPro || subscription.settings[settingKey] === "free";
+}
+
+export async function setManagedUserPlan(userId: number, plan: SubscriptionPlan) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const proExpiresAt = plan === "pro" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
+  await db.update(users).set({ plan, proExpiresAt }).where(eq(users.id, userId));
+}
+
+export async function submitSubscriptionProof(userId: number, dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Envie um comprovante em JPG, PNG ou WEBP.");
+  const contentType = match[1];
+  const binary = Buffer.from(match[2], "base64");
+  if (binary.length === 0 || binary.length > 3 * 1024 * 1024) throw new Error("O comprovante deve ter no máximo 3 MB.");
+  const extension = contentType === "image/jpeg" ? "jpg" : contentType.split("/")[1];
+  const uploaded = await storagePut(`subscription-proofs/${userId}/${randomUUID()}.${extension}`, binary, contentType);
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(subscriptionProofs).values({ userId, proofUrl: uploaded.url, status: "pending" });
+  return { proofUrl: uploaded.url };
+}
+
+export async function listSubscriptionProofs() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({ proof: subscriptionProofs, account: users, profile: userProfiles })
+    .from(subscriptionProofs)
+    .innerJoin(users, eq(subscriptionProofs.userId, users.id))
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .orderBy(desc(subscriptionProofs.createdAt));
+}
+
+export async function reviewSubscriptionProof(proofId: number, status: "approved" | "rejected", reviewNote: string | null, reviewerUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [proof] = await db.select().from(subscriptionProofs).where(eq(subscriptionProofs.id, proofId)).limit(1);
+  if (!proof) throw new Error("Comprovante não encontrado.");
+  await db.update(subscriptionProofs).set({ status, reviewNote, reviewedByUserId: reviewerUserId, reviewedAt: new Date() }).where(eq(subscriptionProofs.id, proofId));
+  if (status === "approved") await db.update(users).set({ plan: "pro", proExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }).where(eq(users.id, proof.userId));
+}
+
 export async function listManagedUsers() {
   const db = await getDb();
   if (!db) return [];
@@ -518,6 +624,8 @@ export async function deleteManagedUser(profileId: number, actorUserId: number) 
     await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
     await db.delete(chatReadStates).where(eq(chatReadStates.userId, profile.userId));
     await db.update(receiptHistoryEntries).set({ createdByUserId: null }).where(eq(receiptHistoryEntries.createdByUserId, profile.userId));
+    await db.update(subscriptionProofs).set({ reviewedByUserId: null }).where(eq(subscriptionProofs.reviewedByUserId, profile.userId));
+    await db.delete(subscriptionProofs).where(eq(subscriptionProofs.userId, profile.userId));
     await db.update(utilityDownloads).set({ createdByUserId: null }).where(eq(utilityDownloads.createdByUserId, profile.userId));
     await db.update(utilityReports).set({ createdByUserId: null }).where(eq(utilityReports.createdByUserId, profile.userId));
   }

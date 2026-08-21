@@ -10,6 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   createUtilityReport: vi.fn(),
   updateUtilityReport: vi.fn(),
   deleteUtilityReport: vi.fn(),
+  canAccessSubscriptionFeature: vi.fn(),
 }));
 
 vi.mock("./db", async importActual => ({
@@ -55,6 +56,7 @@ describe("procedures de Utilidades", () => {
   it("lista somente conteúdo visível para operador e todo o acervo para administrador", async () => {
     dbMocks.listUtilityDownloads.mockResolvedValue([]);
     dbMocks.listUtilityReports.mockResolvedValue([]);
+    dbMocks.canAccessSubscriptionFeature.mockResolvedValue(true);
 
     await appRouter.createCaller(contextFor("user")).utilities.downloads();
     await appRouter.createCaller(contextFor("user")).utilities.reports();
