@@ -121,6 +121,19 @@ describe("contrato da navegação lateral", () => {
     expect(history).toContain("Excluir este lançamento diário?");
   });
 
+  it("interpreta o controle de página marcado como acesso exclusivo do plano PRO", async () => {
+    const panel = await readFile(resolve(process.cwd(), "client/src/components/SubscriptionAdminPanel.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+
+    expect(panel).toContain('const isProOnly = form[settingKey] === "pro"');
+    expect(panel).toContain('checked={isProOnly}');
+    expect(panel).toContain('[settingKey]: checked ? "pro" : "free"');
+    expect(panel).toContain('exclusiva para PRO');
+    expect(app).toContain("refetchInterval: 15_000");
+    expect(navigation).toContain("refetchInterval: 15_000");
+  });
+
   it("mantém a gestão de materiais e relatórios restrita às procedures administrativas", async () => {
     const router = await readFile(resolve(process.cwd(), "server/routers.ts"), "utf8");
     expect(router).toContain("downloads: protectedProcedure.query");

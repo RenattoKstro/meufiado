@@ -51,7 +51,7 @@ function AuthenticatedApp() {
 
 function SubscriptionFeature({ feature, children }: { feature: "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
   const { user } = useAuth();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   if (user?.role === "admin") return <>{children}</>;
   if (subscriptionQuery.isLoading) return <LoadingScreen />;
   const settings = subscriptionQuery.data?.settings;

@@ -46,7 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { theme, toggleTheme } = useTheme();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   const chatIsFree = subscriptionQuery.data?.settings.chatPlan === "free";
   const canUseChat = user?.role === "admin" || subscriptionQuery.data?.isPro || chatIsFree;
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
