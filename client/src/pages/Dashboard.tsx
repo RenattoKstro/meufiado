@@ -7,7 +7,7 @@ import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
 import { receiptProjection, type ReceiptProjection } from "../../../shared/receiptProjection";
-import { collectionProjectionRisk, type ProjectionRisk } from "../../../shared/collectionInsights";
+import { collectionProjectionRisk, fiadoGoalGap, type FiadoGoalGap, type ProjectionRisk } from "../../../shared/collectionInsights";
 import {
   accumulatedReward,
   amountReceivable,
@@ -88,6 +88,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     remainingToReceive: metrics.currentOverdue,
   });
   const projectionRisk = collectionProjectionRisk({ monthOpening: metrics.monthOpening, projectedReceived: projection.projectedReceived, creditGoal: metrics.creditGoal });
+  const goalGap = fiadoGoalGap({ projectedOverdue: projectionRisk.projectedOverdue, creditGoal: metrics.creditGoal });
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const ticketValid = type === "leader" && ticket.status === "achieved";
@@ -114,6 +115,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
       <ReceiptProjectionCard projection={projection} canView={canViewProjection} isLoading={Boolean(historyQuery?.isLoading) && canViewProjection} />
+      <FiadoGoalGapCard gap={goalGap} canView={canViewProjection} />
       {canViewProjection && projectionRisk.status !== "unavailable" && <ProjectionRiskCard risk={projectionRisk} />}
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{type === "leader" ? <TicketStatus ticket={ticket} /> : <AssistantNotice />}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
@@ -139,11 +141,21 @@ function AdminDashboardNotice({ view }: { view: View }) {
 }
 
 export function ReceiptProjectionCard({ projection, canView, isLoading }: { projection: ReceiptProjection; canView: boolean; isLoading: boolean }) {
-  if (!canView) return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm"><CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary"><LockKeyhole className="h-5 w-5" /></span><div><p className="text-base font-black">Projeção de recebimento</p><p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">Somente usuários PRO poderá ver a projeção.</p></div></div><Link href="/plano" className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-extrabold text-primary-foreground shadow-sm transition-transform hover:brightness-105 active:scale-[0.98]">Conhecer o plano PRO</Link></CardContent></Card>;
+  if (!canView) return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm"><CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary"><LockKeyhole className="h-5 w-5" /></span><div><p className="text-base font-black">Projeção e GAP da Meta Fiado</p><p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">Somente usuários PRO podem ver a projeção e o GAP da Meta Fiado.</p></div></div><Link href="/plano" className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-extrabold text-primary-foreground shadow-sm transition-transform hover:brightness-105 active:scale-[0.98]">Conhecer o plano PRO</Link></CardContent></Card>;
   if (isLoading) return <Card className="mt-7 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-6"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-5 h-16 animate-pulse rounded-2xl bg-muted" /></CardContent></Card>;
   const sourceDescription = projection.source === "daily-history" ? "Baseada nos recebimentos diários salvos neste mês." : "Sem recebimentos diários salvos: usa o total recebido, os dias trabalhados e o saldo em aberto.";
   const rate = Math.min(projection.projectedCollectionRate, 100);
   return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-4 border-b border-border/70 bg-primary/5 p-6 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary"><TrendingUp className="h-4 w-4" /></span><div><p className="text-base font-black">Projeção de recebimento</p><p className="mt-1 text-xs text-muted-foreground">{sourceDescription}</p></div></div></div><Badge className="w-fit rounded-full bg-primary/10 px-3 py-1 font-bold text-primary hover:bg-primary/10">{projection.source === "daily-history" ? "Com histórico diário" : "Por total recebido"}</Badge></div><div className="grid gap-5 p-6 lg:grid-cols-[1.1fr_.9fr]"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Estimativa de recebido no mês</p><p className="mt-2 text-3xl font-black tracking-[-0.04em] text-primary">{currency(projection.projectedReceived)}</p><div className="mt-5"><div className="flex items-center justify-between gap-3 text-xs font-bold"><span>Projeção de recuperação</span><span className="text-primary">{projection.projectedCollectionRate.toFixed(2)}%</span></div><Progress value={rate} className="mt-2 h-2.5" /></div></div><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><ProjectionMetric label="Média por dia" value={currency(projection.averagePerDay)} /><ProjectionMetric label="Falta receber" value={currency(projection.remainingToReceive)} /><ProjectionMetric label="Necessário por dia" value={currency(projection.dailyNeeded)} /></div></div><div className="border-t border-border/70 bg-muted/35 px-6 py-4"><p className="text-xs leading-relaxed text-muted-foreground">{projection.daysRemaining > 0 ? <>Mantendo a média de <strong className="text-foreground">{currency(projection.averagePerDay)}</strong>, a projeção considera os próximos <strong className="text-foreground">{projection.daysRemaining} {projection.daysRemaining === 1 ? "dia útil" : "dias úteis"}</strong>. Para receber todo o saldo, são necessários <strong className="text-foreground">{currency(projection.dailyNeeded)}</strong> por dia.</> : <>Não há dias úteis restantes no período. A projeção mostra o total já estimado para este mês.</>}</p></div></CardContent></Card>;
+}
+
+export function FiadoGoalGapCard({ gap, canView }: { gap: FiadoGoalGap; canView: boolean }) {
+  if (!canView || gap.status === "unavailable") return null;
+  const withinTarget = gap.status === "inside";
+  const styles = withinTarget
+    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
+    : "border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-100";
+  const amountLabel = withinTarget ? "Margem dentro da meta" : "GAP a recuperar";
+  return <Card className={`mt-5 rounded-[1.5rem] border ${styles}`}><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><TrendingUp className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-black">GAP da Meta Fiado</p><p className="mt-1 text-sm leading-relaxed opacity-85">{gap.message}</p><p className="mt-2 text-xs opacity-75">Vencido projetado: <strong>{currency(gap.projectedOverdue)}</strong> · Meta Fiado: <strong>{currency(gap.creditGoal)}</strong></p></div></div><div className="rounded-xl border border-current/15 bg-background/35 px-4 py-3 text-left sm:text-right"><Badge className={`rounded-full ${withinTarget ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200" : "bg-rose-500/15 text-rose-700 hover:bg-rose-500/15 dark:text-rose-200"}`}>{withinTarget ? "Dentro da meta" : "Fora da meta"}</Badge><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">{amountLabel}</p><p className="mt-1 text-lg font-black">{currency(gap.amount)}</p></div></CardContent></Card>;
 }
 
 function ProjectionRiskCard({ risk }: { risk: ProjectionRisk }) {

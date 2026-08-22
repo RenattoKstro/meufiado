@@ -205,3 +205,4 @@
 - [x] Criar configuração administrativa centralizada para nome, slogan, navegação e títulos de páginas.
 - [x] Adicionar projeção de recebimento na Visão Geral usando históricos diários ou o saldo e os dias restantes como alternativa.
 - [x] Exibir a projeção completa somente para PRO e um aviso de bloqueio informativo para Free.
+- [x] Adicionar indicador PRO de GAP para informar se o recebimento está dentro ou fora do ritmo da Meta Fiado e exibir a diferença em valor.

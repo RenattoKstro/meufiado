@@ -5,6 +5,14 @@ export type ProjectionRisk = {
   message: string;
 };
 
+export type FiadoGoalGap = {
+  status: "inside" | "outside" | "unavailable";
+  amount: number;
+  projectedOverdue: number;
+  creditGoal: number;
+  message: string;
+};
+
 export function collectionProjectionRisk(input: {
   monthOpening: number;
   projectedReceived: number;
@@ -30,6 +38,44 @@ export function collectionProjectionRisk(input: {
     message: gapPercent >= 0.15
       ? "No ritmo atual, a filial pode encerrar o mês acima da Meta Fiado."
       : "A Meta Fiado está próxima, mas exige reforço no ritmo de recebimento.",
+  };
+}
+
+/**
+ * Compara o vencido projetado para o fechamento com a Meta Fiado. O valor do
+ * GAP é sempre absoluto; o status informa se a filial está dentro ou fora do
+ * objetivo no ritmo atual de recebimento.
+ */
+export function fiadoGoalGap(input: { projectedOverdue: number; creditGoal: number }): FiadoGoalGap {
+  const projectedOverdue = Math.max(0, input.projectedOverdue);
+  const creditGoal = Math.max(0, input.creditGoal);
+  if (!creditGoal) {
+    return {
+      status: "unavailable",
+      amount: 0,
+      projectedOverdue,
+      creditGoal,
+      message: "Informe a Meta Fiado para calcular o GAP.",
+    };
+  }
+
+  const difference = projectedOverdue - creditGoal;
+  if (difference <= 0) {
+    return {
+      status: "inside",
+      amount: Math.abs(difference),
+      projectedOverdue,
+      creditGoal,
+      message: "Dentro da Meta Fiado no ritmo projetado.",
+    };
+  }
+
+  return {
+    status: "outside",
+    amount: difference,
+    projectedOverdue,
+    creditGoal,
+    message: "Fora da Meta Fiado no ritmo projetado.",
   };
 }
 
