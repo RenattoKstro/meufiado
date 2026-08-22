@@ -12,7 +12,7 @@ describe("projeção de recebimentos", () => {
       remainingToReceive: 12_000,
     });
 
-    expect(projection).toMatchObject({ source: "daily-history", totalReceived: 3_000, daysBase: 3, averagePerDay: 1_000, projectedReceived: 13_000, dailyNeeded: 1_200 });
+    expect(projection).toMatchObject({ source: "daily-history", totalReceived: 3_000, daysBase: 3, averagePerDay: 1_000, projectedReceived: 12_100, dailyNeeded: 1_200, targetReceived: 15_000, weightedDaysRemaining: 9.1 });
   });
 
   it("usa o total do painel e os dias úteis quando não existem lançamentos diários", () => {
@@ -25,10 +25,10 @@ describe("projeção de recebimentos", () => {
       remainingToReceive: 8_000,
     });
 
-    expect(projection).toMatchObject({ source: "dashboard-total", totalReceived: 4_000, daysBase: 4, averagePerDay: 1_000, projectedReceived: 10_000, dailyNeeded: 1_333.3333333333333 });
+    expect(projection).toMatchObject({ source: "dashboard-total", totalReceived: 4_000, daysBase: 4, averagePerDay: 1_000, projectedReceived: 9_100, dailyNeeded: 1_333.3333333333333, targetReceived: 12_000, weightedDaysRemaining: 5.1 });
   });
 
-  it("nunca projeta recebimentos acima do saldo total disponível", () => {
+  it("limita o forecast a 101% da Meta Fiado", () => {
     const projection = receiptProjection({
       historyTotalReceived: 20_000,
       historyDaysRecorded: 1,
@@ -38,7 +38,7 @@ describe("projeção de recebimentos", () => {
       remainingToReceive: 5_000,
     });
 
-    expect(projection.projectedReceived).toBe(25_000);
-    expect(projection.projectedCollectionRate).toBe(100);
+    expect(projection.projectedReceived).toBe(25_250);
+    expect(projection.projectedCollectionRate).toBe(101);
   });
 });

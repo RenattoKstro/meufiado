@@ -15,6 +15,8 @@ const projection = {
   dailyNeeded: 1_200,
   projectedReceived: 13_000,
   projectedCollectionRate: 52,
+  targetReceived: 15_000,
+  weightedDaysRemaining: 9.1,
 };
 
 describe("card de projeção de recebimento", () => {
@@ -25,16 +27,16 @@ describe("card de projeção de recebimento", () => {
 
     expect(screen.getByText("Somente usuários PRO podem ver a projeção e o GAP da Meta Fiado.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Conhecer o plano PRO" })).toHaveAttribute("href", "/plano");
-    expect(screen.queryByText("Estimativa de recebido no mês")).not.toBeInTheDocument();
+    expect(screen.queryByText("Estimativa de recebido na Meta Fiado")).not.toBeInTheDocument();
   });
 
   it("apresenta projeção, saldo e necessidade diária ao usuário PRO", () => {
     render(<ReceiptProjectionCard projection={projection} canView isLoading={false} />);
 
-    expect(screen.getByText("Estimativa de recebido no mês")).toBeInTheDocument();
+    expect(screen.getByText("Estimativa de recebido na Meta Fiado")).toBeInTheDocument();
     expect(screen.getByText("Com histórico diário")).toBeInTheDocument();
-    expect(screen.getByText("Média por dia")).toBeInTheDocument();
-    expect(screen.getByText("Falta receber")).toBeInTheDocument();
+    expect(screen.getByText("Meta de recebimento")).toBeInTheDocument();
+    expect(screen.getByText("Falta para a meta")).toBeInTheDocument();
     expect(screen.getByText("Necessário por dia")).toBeInTheDocument();
   });
 

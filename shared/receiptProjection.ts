@@ -17,13 +17,17 @@ export type ReceiptProjection = {
   dailyNeeded: number;
   projectedReceived: number;
   projectedCollectionRate: number;
+  targetReceived: number;
+  weightedDaysRemaining: number;
 };
 
 const nonNegative = (value: number) => Number.isFinite(value) ? Math.max(value, 0) : 0;
 
 /**
- * Projeta o total mensal recebido pela média dos registros diários. Sem
- * histórico, usa o total acumulado do painel e os dias úteis transcorridos.
+ * Projeta o total mensal recebido pela média dos registros diários. O saldo
+ * informado deve corresponder ao necessário para atingir a Meta Fiado, e não
+ * a todo o vencido em aberto. A projeção reduz o peso dos três últimos dias
+ * úteis e possui teto de 101% da meta, evitando extrapolações irreais.
  */
 export function receiptProjection(input: ReceiptProjectionInput): ReceiptProjection {
   const useDailyHistory = nonNegative(input.historyDaysRecorded) > 0;
@@ -32,9 +36,12 @@ export function receiptProjection(input: ReceiptProjectionInput): ReceiptProject
   const daysRemaining = Math.floor(nonNegative(input.workingDaysRemaining));
   const remainingToReceive = nonNegative(input.remainingToReceive);
   const averagePerDay = daysBase > 0 ? totalReceived / daysBase : 0;
-  const maximumCollectable = totalReceived + remainingToReceive;
-  const projectedReceived = Math.min(totalReceived + averagePerDay * daysRemaining, maximumCollectable);
-  const projectedCollectionRate = maximumCollectable > 0 ? projectedReceived / maximumCollectable * 100 : 0;
+  const targetReceived = totalReceived + remainingToReceive;
+  const finalDays = Math.min(daysRemaining, 3);
+  const weightedDaysRemaining = Math.max(daysRemaining - finalDays, 0) + finalDays * 0.7;
+  const maxForecastReceived = targetReceived * 1.01;
+  const projectedReceived = Math.min(totalReceived + averagePerDay * weightedDaysRemaining, maxForecastReceived);
+  const projectedCollectionRate = targetReceived > 0 ? projectedReceived / targetReceived * 100 : 0;
 
   return {
     source: useDailyHistory ? "daily-history" : "dashboard-total",
@@ -46,5 +53,7 @@ export function receiptProjection(input: ReceiptProjectionInput): ReceiptProject
     dailyNeeded: daysRemaining > 0 ? remainingToReceive / daysRemaining : remainingToReceive,
     projectedReceived,
     projectedCollectionRate,
+    targetReceived,
+    weightedDaysRemaining,
   };
 }
