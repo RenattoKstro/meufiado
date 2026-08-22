@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 
 const dbMocks = vi.hoisted(() => ({
@@ -45,6 +45,10 @@ const documentInput = {
 };
 
 describe("procedures de Romaneio", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("bloqueia o histórico privado para operador Free", async () => {
     dbMocks.getMySubscription.mockResolvedValue({ isPro: false });
 
@@ -59,6 +63,15 @@ describe("procedures de Romaneio", () => {
     await appRouter.createCaller(contextFor("user")).romaneio.create(documentInput);
 
     expect(dbMocks.createRomaneioDocument).toHaveBeenCalledWith(91, documentInput);
+  });
+
+  it("permite acesso administrativo ao Romaneio sem exigir plano PRO", async () => {
+    dbMocks.listRomaneioDocuments.mockResolvedValue([]);
+
+    await appRouter.createCaller(contextFor("admin")).romaneio.list();
+
+    expect(dbMocks.getMySubscription).not.toHaveBeenCalled();
+    expect(dbMocks.listRomaneioDocuments).toHaveBeenCalledWith(91);
   });
 
   it("permite consultar e assinar um Romaneio por link público válido", async () => {

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -123,16 +124,19 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
 }
 
 export default function RomaneioTool() {
+  const { user } = useAuth();
   const utils = trpc.useUtils();
   const subscription = trpc.subscription.mine.useQuery();
-  const documentsQuery = trpc.romaneio.list.useQuery(undefined, { enabled: subscription.data?.isPro || subscription.data?.plan === "pro" || subscription.data?.plan === undefined });
+  const isAdmin = user?.role === "admin";
+  const hasProAccess = isAdmin || subscription.data?.isPro === true || subscription.data?.plan === "pro";
+  const documentsQuery = trpc.romaneio.list.useQuery(undefined, { enabled: hasProAccess });
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const selectedQuery = trpc.romaneio.get.useQuery({ id: selectedId ?? 0 }, { enabled: selectedId !== null });
   const documents = (documentsQuery.data ?? []) as RomaneioSummary[];
-  const isPro = subscription.data?.isPro ?? false;
+  const isPro = hasProAccess;
   const totals = useMemo(() => ({ total: documents.length, signed: documents.filter(document => document.status === "signed").length, pending: documents.filter(document => document.status !== "signed").length }), [documents]);
   async function handleCreated(document: RomaneioDocument) { await utils.romaneio.list.invalidate(); setSelectedId(document.id); }
-  if (subscription.isLoading) return <Card className="rounded-[1.7rem]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></CardContent></Card>;
+  if (subscription.isLoading && !isAdmin) return <Card className="rounded-[1.7rem]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></CardContent></Card>;
   if (!isPro) return <Card className="overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card"><CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between"><div><Badge className="bg-primary text-primary-foreground"><Crown className="mr-1 h-3 w-3" />PRO</Badge><h2 className="mt-3 text-xl font-black">Romaneio digital com assinaturas</h2><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Crie transferências, gere PDF, compartilhe um link seguro e mantenha as assinaturas dos dois gerentes salvas no mesmo documento.</p></div><Button asChild><a href="/plano">Conhecer plano PRO</a></Button></CardContent></Card>;
   return <section className="space-y-5"><Card className="overflow-hidden rounded-[1.7rem] border-primary/15 bg-gradient-to-br from-primary/10 via-card to-card"><CardContent className="flex flex-col gap-5 p-6 lg:flex-row lg:items-end lg:justify-between"><div><Badge className="bg-primary text-primary-foreground"><Crown className="mr-1 h-3 w-3" />Ferramenta PRO</Badge><h2 className="mt-3 flex items-center gap-2 text-2xl font-black"><ClipboardSignature className="h-6 w-6 text-primary" />Romaneio digital</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Registre a transferência, envie um link único para os dois gerentes assinarem e gere o PDF sempre que precisar.</p></div><RomaneioDialog onCreated={handleCreated} /></CardContent></Card><div className="grid gap-3 sm:grid-cols-3">{[["Documentos", totals.total, "text-primary"], ["Concluídos", totals.signed, "text-emerald-600 dark:text-emerald-400"], ["Pendentes", totals.pending, "text-amber-600 dark:text-amber-300"]].map(([label, value, color]) => <Card key={String(label)} className="rounded-2xl"><CardContent className="p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className={`mt-1 text-2xl font-black ${color}`}>{value}</p></CardContent></Card>)}</div><Card className="rounded-[1.7rem]"><CardHeader><CardTitle>Romaneios salvos</CardTitle><CardDescription>O histórico fica disponível para consulta, compartilhamento e exportação em PDF.</CardDescription></CardHeader><CardContent>{documentsQuery.isLoading ? <div className="py-10 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></div> : documents.length === 0 ? <div className="rounded-2xl border border-dashed py-12 text-center"><ClipboardSignature className="mx-auto h-8 w-8 text-muted-foreground" /><p className="mt-3 font-black">Nenhum Romaneio salvo</p><p className="mt-1 text-sm text-muted-foreground">Crie o primeiro documento para gerar um link de assinatura.</p></div> : <div className="space-y-3">{documents.map(document => <button type="button" key={document.id} onClick={() => setSelectedId(document.id)} className="flex w-full flex-col gap-3 rounded-2xl border border-border/70 p-4 text-left transition hover:border-primary/35 hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black">{documentTitle(document)}</p><p className="mt-1 text-sm text-muted-foreground">{document.originName} → {document.destinationName} · Atualizado {formatDate(document.updatedAt)}</p></div><div className="flex items-center gap-2"><Badge className={statusStyle[document.status]}>{document.status === "signed" && <CheckCircle2 className="mr-1 h-3 w-3" />}{statusLabel[document.status]}</Badge><ExternalLink className="h-4 w-4 text-muted-foreground" /></div></button>)}</div>}</CardContent></Card>{selectedQuery.data && <RomaneioDetails document={selectedQuery.data as RomaneioDocument} onClose={() => { setSelectedId(null); void utils.romaneio.list.invalidate(); }} />}</section>;
 }

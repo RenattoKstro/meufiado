@@ -210,3 +210,5 @@
 - [x] Exibir a previsão de fechamento PRO somente após 20 recebimentos diários salvos e ocultá-la sem histórico suficiente.
 - [x] Criar Romaneio PRO em Utilidades com formulário de transferência, itens, PDF e histórico salvo.
 - [x] Criar link compartilhável de Romaneio para assinatura digital dos dois gerentes.
+- [x] Garantir acesso automático de administradores ao Romaneio PRO, sem bloqueio por plano.
+- [x] Revisar e alinhar o fluxo do Romaneio ao código original anexado pelo usuário.
