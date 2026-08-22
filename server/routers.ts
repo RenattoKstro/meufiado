@@ -19,8 +19,10 @@ import {
   listPrivateChatThreads,
   importAnalyticMetrics,
   importBranches,
+  getAnalyticImportStatus,
   getMyMetrics,
   getMyProfile,
+  getReceiptDailyStatus,
   listBranchOverviews,
   listActiveBranchesWithSlots,
   listAllBranches,
@@ -160,6 +162,7 @@ type RouterDependencies = {
   getMyMetrics?: typeof getMyMetrics;
   saveMyMetrics?: typeof saveMyMetrics;
   listReceiptHistory?: typeof listReceiptHistory;
+  getReceiptDailyStatus?: typeof getReceiptDailyStatus;
   createReceiptHistoryEntry?: typeof createReceiptHistoryEntry;
   updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
   deleteReceiptHistoryEntry?: typeof deleteReceiptHistoryEntry;
@@ -176,6 +179,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveMetrics = dependencies.getMyMetrics ?? getMyMetrics;
   const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
   const resolveHistoryList = dependencies.listReceiptHistory ?? listReceiptHistory;
+  const resolveDailyReceiptStatus = dependencies.getReceiptDailyStatus ?? getReceiptDailyStatus;
   const resolveHistoryCreate = dependencies.createReceiptHistoryEntry ?? createReceiptHistoryEntry;
   const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
   const resolveHistoryDelete = dependencies.deleteReceiptHistoryEntry ?? deleteReceiptHistoryEntry;
@@ -267,6 +271,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   history: router({
     list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),
+    dailyStatus: protectedProcedure.input(z.object({ entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).query(({ ctx, input }) => resolveDailyReceiptStatus(ctx.user.id, input.entryDate)),
     create: protectedProcedure.input(historyEntryInput).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryCreate(ctx.user.id, input); }),
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), data: historyEntryInput })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryUpdate(ctx.user.id, input.id, input.data); }),
     delete: protectedProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryDelete(ctx.user.id, input.id); }),
@@ -285,6 +290,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const rows = uniqueRowsByBranchCode(parsedRows);
       return importAnalyticMetrics(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
     }),
+    importStatus: adminProcedure.query(() => getAnalyticImportStatus()),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
     preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
     updateUser: adminProcedure

@@ -216,6 +216,13 @@ export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
   return { imported, unmatched };
 }
 
+export async function getAnalyticImportStatus() {
+  const db = await getDb();
+  if (!db) return { lastImportedAt: null };
+  const [latest] = await db.select({ updatedAt: branchMetrics.updatedAt }).from(branchMetrics).orderBy(desc(branchMetrics.updatedAt)).limit(1);
+  return { lastImportedAt: latest?.updatedAt ?? null };
+}
+
 export async function setBranchStatus(id: number, isActive: boolean) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
@@ -458,6 +465,19 @@ export async function listReceiptHistory(userId: number, month: string, database
     daysRecorded: entries.length,
     averagePerDay: entries.length ? totalReceived / entries.length : 0,
   };
+}
+
+export async function getReceiptDailyStatus(userId: number, entryDate: string, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return { hasBranch: false, hasEntry: false, entryDate };
+  const branchId = await getHistoryBranchId(db, userId).catch(() => null);
+  if (!branchId) return { hasBranch: false, hasEntry: false, entryDate };
+  const [entry] = await db
+    .select({ id: receiptHistoryEntries.id })
+    .from(receiptHistoryEntries)
+    .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, assertCalendarDate(entryDate))))
+    .limit(1);
+  return { hasBranch: true, hasEntry: Boolean(entry), entryDate };
 }
 
 export async function createReceiptHistoryEntry(userId: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {

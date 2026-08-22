@@ -138,6 +138,12 @@
 - [x] Permitir iniciar conversa privada com o perfil selecionado.
 - [x] Atualizar mensagens do chat com frequência enquanto a página estiver aberta, sem exigir hospedagem contínua.
 - [x] Agendar em produção a limpeza horária das mensagens expiradas após a publicação do aplicativo.
+- [x] Corrigir o bloqueio origin_mismatch do login Google no domínio publicado.
+- [x] Exibir alertas de risco quando a projeção indicar possível não atingimento da Meta Fiado.
+- [x] Criar fechamento mensal por filial com recebimentos, faixas atingidas, premiação e evolução mensal.
+- [x] Criar painel gerencial com filiais críticas, médias regionais e projeção consolidada.
+- [x] Avisar no aplicativo os operadores sem lançamento de recebimento no dia útil atual.
+- [x] Simplificar a atualização recorrente da planilha Analítico com referência explícita ao último envio e às colunas aceitas.
 - [x] Corrigir a visibilidade de Meta Fiado, Meta Desafio e Ajustes das metas quando o administrador navega pelo painel.
 - [x] Criar a aba Utilidades com acesso a Downloads e Relatórios para todos os usuários autenticados.
 - [x] Permitir que o administrador cadastre, edite, fixe no topo e remova links externos de Downloads com tipo de arquivo e modo de visualização.

@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { Activity, Building2, CalendarOff, CheckCircle2, FileSpreadsheet, KeyRound, Loader2, Mail, MessageCircle, Phone, Trash2, UploadCloud, UserPlus, Users } from "lucide-react";
-import { ChangeEvent, FormEvent, useState } from "react";
+import React, { ChangeEvent, FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import * as XLSX from "xlsx";
@@ -17,14 +17,17 @@ import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet } from "../../../s
 import AdminContactActions from "@/components/AdminContactActions";
 import SubscriptionAdminPanel from "@/components/SubscriptionAdminPanel";
 import AppTextSettingsPanel from "@/components/AppTextSettingsPanel";
+import { collectionProjectionRisk } from "../../../shared/collectionInsights";
 
 const INACTIVITY_DAYS = 7;
 type SpreadsheetRow = (string | number | null)[];
 type Branch = { id: number; name: string; code: string | null; regional: string | null; isActive: boolean };
+type BranchOverview = { branch: Branch; metrics: { portfolioTotal: number; monthOpening: number; currentOverdue: number; creditGoal: number; workingDaysTotal: number; workingDaysElapsed: number } };
 
 export default function Admin() {
   const usersQuery = trpc.admin.users.useQuery();
   const branchesQuery = trpc.admin.branches.useQuery();
+  const overviewQuery = trpc.branches.overview.useQuery();
   const updateUser = trpc.admin.updateUser.useMutation();
   const updateRole = trpc.admin.updateRole.useMutation();
   const utils = trpc.useUtils();
@@ -55,6 +58,7 @@ export default function Admin() {
       <div className="flex flex-wrap gap-2"><CredentialsDialog /><SpreadsheetImportDialog kind="branches" onComplete={refresh} /><SpreadsheetImportDialog kind="analytics" onComplete={refresh} /><BranchDialog onComplete={refresh} /><UserDialog branches={branches} onComplete={refresh} /></div>
     </header>
     <div className="grid gap-4 sm:grid-cols-3"><Stat icon={Users} label="Usuários ativos" value={active.length} tone="primary" /><Stat icon={CalendarOff} label="Em férias" value={vacation.length} tone="amber" /><Stat icon={Activity} label={`Inativos há ${INACTIVITY_DAYS}+ dias`} value={inactive.length} tone="violet" /></div>
+    <ManagementOverview rows={(overviewQuery.data ?? []) as BranchOverview[]} isLoading={overviewQuery.isLoading} />
     <AdminContactActions users={users} onChanged={refresh} />
     <Tabs defaultValue="users" className="mt-7">
       <TabsList className="h-auto flex-wrap rounded-xl bg-muted p-1"><TabsTrigger value="users" className="rounded-lg px-4 py-2 text-xs font-bold">Usuários</TabsTrigger><TabsTrigger value="branches" className="rounded-lg px-4 py-2 text-xs font-bold">Filiais</TabsTrigger><TabsTrigger value="subscriptions" className="rounded-lg px-4 py-2 text-xs font-bold">Assinaturas</TabsTrigger><TabsTrigger value="texts" className="rounded-lg px-4 py-2 text-xs font-bold">Textos</TabsTrigger><TabsTrigger value="alerts" className="rounded-lg px-4 py-2 text-xs font-bold">Atenções</TabsTrigger></TabsList>
@@ -67,13 +71,41 @@ export default function Admin() {
   </section>;
 }
 
+export function ManagementOverview({ rows, isLoading }: { rows: BranchOverview[]; isLoading: boolean }) {
+  if (isLoading) return <Card className="mt-5 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-5"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="h-20 animate-pulse rounded-2xl bg-muted" /></div></CardContent></Card>;
+  const operationalRows = rows.filter(row => row.metrics.monthOpening > 0 || row.metrics.currentOverdue > 0 || row.metrics.portfolioTotal > 0);
+  const insights = operationalRows.map(row => {
+    const elapsed = Math.max(1, row.metrics.workingDaysElapsed);
+    const remaining = Math.max(row.metrics.workingDaysTotal - row.metrics.workingDaysElapsed, 0);
+    const received = Math.max(row.metrics.monthOpening - row.metrics.currentOverdue, 0);
+    const projectedReceived = received + (received / elapsed) * remaining;
+    return { row, risk: collectionProjectionRisk({ monthOpening: row.metrics.monthOpening, projectedReceived, creditGoal: row.metrics.creditGoal }), projectedReceived };
+  });
+  const critical = insights.filter(item => item.risk.status === "critical");
+  const projectedTotal = insights.reduce((total, item) => total + item.projectedReceived, 0);
+  const averageDelinquency = operationalRows.length ? operationalRows.reduce((total, row) => total + (row.metrics.portfolioTotal > 0 ? (row.metrics.currentOverdue / row.metrics.portfolioTotal) * 100 : 0), 0) / operationalRows.length : 0;
+  const regional = Array.from(operationalRows.reduce((groups, row) => {
+    const key = row.branch.regional || "Sem regional";
+    const values = groups.get(key) ?? { delinquency: 0, count: 0 };
+    values.delinquency += row.metrics.portfolioTotal > 0 ? (row.metrics.currentOverdue / row.metrics.portfolioTotal) * 100 : 0;
+    values.count += 1;
+    groups.set(key, values);
+    return groups;
+  }, new Map<string, { delinquency: number; count: number }>())).map(([name, value]) => ({ name, average: value.delinquency / value.count, count: value.count })).sort((a, b) => b.average - a.average).slice(0, 4);
+  return <Card className="mt-5 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-primary/5 p-5 sm:flex-row sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-primary">Painel gerencial</p><h2 className="mt-1 text-xl font-black">Risco e projeção da operação</h2><p className="mt-1 text-xs text-muted-foreground">Visão consolidada baseada nas metas e no ritmo atual de cada filial.</p></div><span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-extrabold text-primary">{operationalRows.length} filiais com dados</span></div><div className="grid gap-4 p-5 lg:grid-cols-[.8fr_.8fr_1.4fr]"><ManagementMetric label="Filiais críticas" value={String(critical.length)} note="Projeção acima da Meta Fiado" tone={critical.length ? "rose" : "emerald"} /><ManagementMetric label="Inadimplência média" value={`${averageDelinquency.toFixed(2)}%`} note="Média das filiais com carteira" tone={averageDelinquency >= 7 ? "rose" : "emerald"} /><ManagementMetric label="Projeção consolidada" value={new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(projectedTotal)} note="Estimativa de recebimento até o fim do mês" tone="primary" /></div><div className="grid gap-4 border-t border-border/70 p-5 lg:grid-cols-2"><div><p className="text-xs font-black">Filiais que exigem atenção</p><div className="mt-3 space-y-2">{critical.length ? critical.slice(0, 4).map(item => <div key={item.row.branch.id} className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2"><span className="truncate text-sm font-bold">{item.row.branch.name}</span><span className="shrink-0 text-xs font-black text-rose-700 dark:text-rose-300">Reforço {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.risk.amountToRecover)}</span></div>) : <p className="rounded-xl bg-emerald-500/10 px-3 py-3 text-sm font-bold text-emerald-800 dark:text-emerald-200">Nenhuma filial apresenta risco crítico com os dados atuais.</p>}</div></div><div><p className="text-xs font-black">Média por regional</p><div className="mt-3 space-y-2">{regional.length ? regional.map(item => <div key={item.name} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-2"><span className="truncate text-sm font-bold">{item.name}</span><span className="shrink-0 text-xs font-black text-primary">{item.average.toFixed(2)}% · {item.count} filial{item.count === 1 ? "" : "is"}</span></div>) : <p className="rounded-xl bg-muted px-3 py-3 text-sm text-muted-foreground">Aguardando métricas das filiais.</p>}</div></div></div></CardContent></Card>;
+}
+
+function ManagementMetric({ label, value, note, tone }: { label: string; value: string; note: string; tone: "rose" | "emerald" | "primary" }) { const colors = tone === "rose" ? "border-rose-500/20 bg-rose-500/5" : tone === "emerald" ? "border-emerald-500/20 bg-emerald-500/5" : "border-primary/20 bg-primary/5"; return <div className={`rounded-2xl border p-4 ${colors}`}><p className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-xl font-black tracking-tight">{value}</p><p className="mt-1 text-xs text-muted-foreground">{note}</p></div>; }
+
 function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "analytics"; onComplete: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<SpreadsheetRow[]>([]);
+  const utils = trpc.useUtils();
   const importBranches = trpc.admin.importBranches.useMutation();
   const importAnalytics = trpc.admin.importAnalytics.useMutation();
   const isBranches = kind === "branches";
+  const importStatusQuery = trpc.admin.importStatus.useQuery(undefined, { enabled: !isBranches });
   const title = isBranches ? "Importar filiais" : "Importar metas do Analítico";
   const columns = isBranches ? "A: ID · B: Regional · C: Filial" : "A: Filial · C: Região · G: Meta Fiado · H: Meta Desafio · I: Vencido Atual · R: Perdas do mês · S: % Perdas Venda · T: Meta Rec. Perdas · U: Recuperação Perdas";
   const loading = importBranches.isPending || importAnalytics.isPending;
@@ -108,10 +140,12 @@ function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "ana
         toast.success(`${result.imported} metas aplicadas, ${result.unmatched} sem filial e ${result.skipped} repetidas ignoradas.`);
       }
       await onComplete();
+      await utils.admin.importStatus.invalidate();
       setOpen(false); setRows([]); setFileName("");
     } catch { toast.error("A importação não pôde ser concluída. Revise as colunas e tente novamente."); }
   }
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" className="rounded-xl font-bold"><FileSpreadsheet className="mr-2 h-4 w-4" />{isBranches ? "Importar filiais" : "Importar metas"}</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>O arquivo é lido no navegador e enviado somente após sua confirmação. Colunas esperadas: {columns}.</DialogDescription></DialogHeader><div className="space-y-5"><div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5"><Label htmlFor={`spreadsheet-${kind}`} className="flex cursor-pointer flex-col items-center gap-2 text-center"><span className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground"><UploadCloud className="h-5 w-5" /></span><span className="font-bold">Selecionar planilha Excel</span><span className="text-xs font-normal text-muted-foreground">Arquivos .xlsx, .xls ou .csv</span></Label><Input id={`spreadsheet-${kind}`} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={loadFile} /></div>{fileName && <div className="rounded-xl border border-border/70 bg-muted/40 p-4"><p className="flex items-center gap-2 text-sm font-extrabold"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{fileName}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><ImportCount label="Lidas" value={rows.length} /><ImportCount label="Válidas" value={validRows} tone="text-emerald-600" /><ImportCount label="Incompletas" value={invalidRows} tone={invalidRows ? "text-destructive" : undefined} /><ImportCount label="Duplicadas" value={duplicateRows} tone={duplicateRows ? "text-amber-600" : undefined} /></div><p className="mt-3 text-xs font-bold text-primary">{readyRows} linha{readyRows === 1 ? "" : "s"} será{readyRows === 1 ? "" : "ão"} enviada{readyRows === 1 ? "" : "s"} para processamento.</p></div>}{rows.length > 0 && <div className="overflow-hidden rounded-xl border border-border/70"><div className="border-b border-border/70 bg-muted/40 px-4 py-3 text-xs font-extrabold">Prévia e validação das primeiras linhas</div><div className="max-h-44 overflow-auto"><table className="w-full text-left text-xs"><tbody>{rows.slice(0, 5).map((row, index) => <tr key={index} className="border-b border-border/50 last:border-0"><td className="w-10 px-3 py-2 font-bold text-muted-foreground">{index + 2}</td><td className="px-3 py-2 text-muted-foreground">{row.filter(value => value !== null && value !== "").slice(0, 6).join(" · ") || "Linha vazia"}</td><td className="px-3 py-2 text-right font-bold"><span className={isValidRow(row) ? "text-emerald-600" : "text-destructive"}>{isValidRow(row) ? "Válida" : "Incompleta"}</span></td></tr>)}</tbody></table></div></div>}<Button className="w-full rounded-xl" disabled={!readyRows || loading} onClick={confirmImport}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}Confirmar importação de {readyRows} linha{readyRows === 1 ? "" : "s"}</Button></div></DialogContent></Dialog>;
+  const lastImport = importStatusQuery.data?.lastImportedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(importStatusQuery.data.lastImportedAt)) : "Nenhum envio Analítico registrado";
+  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" className="rounded-xl font-bold"><FileSpreadsheet className="mr-2 h-4 w-4" />{isBranches ? "Importar filiais" : "Importar metas"}</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>O arquivo é lido no navegador e enviado somente após sua confirmação. Colunas esperadas: {columns}.</DialogDescription></DialogHeader><div className="space-y-5">{!isBranches && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-black text-primary">Atualização recorrente do Analítico</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Último envio: <strong className="text-foreground">{lastImport}</strong>. Mantenha o mesmo padrão de colunas, envie a planilha atualizada e confirme a prévia abaixo; os dados da filial serão atualizados sem criar duplicidades.</p></div>}<div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5"><Label htmlFor={`spreadsheet-${kind}`} className="flex cursor-pointer flex-col items-center gap-2 text-center"><span className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground"><UploadCloud className="h-5 w-5" /></span><span className="font-bold">Selecionar planilha Excel</span><span className="text-xs font-normal text-muted-foreground">Arquivos .xlsx, .xls ou .csv</span></Label><Input id={`spreadsheet-${kind}`} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={loadFile} /></div>{fileName && <div className="rounded-xl border border-border/70 bg-muted/40 p-4"><p className="flex items-center gap-2 text-sm font-extrabold"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{fileName}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><ImportCount label="Lidas" value={rows.length} /><ImportCount label="Válidas" value={validRows} tone="text-emerald-600" /><ImportCount label="Incompletas" value={invalidRows} tone={invalidRows ? "text-destructive" : undefined} /><ImportCount label="Duplicadas" value={duplicateRows} tone={duplicateRows ? "text-amber-600" : undefined} /></div><p className="mt-3 text-xs font-bold text-primary">{readyRows} linha{readyRows === 1 ? "" : "s"} será{readyRows === 1 ? "" : "ão"} enviada{readyRows === 1 ? "" : "s"} para processamento.</p></div>}{rows.length > 0 && <div className="overflow-hidden rounded-xl border border-border/70"><div className="border-b border-border/70 bg-muted/40 px-4 py-3 text-xs font-extrabold">Prévia e validação das primeiras linhas</div><div className="max-h-44 overflow-auto"><table className="w-full text-left text-xs"><tbody>{rows.slice(0, 5).map((row, index) => <tr key={index} className="border-b border-border/50 last:border-0"><td className="w-10 px-3 py-2 font-bold text-muted-foreground">{index + 2}</td><td className="px-3 py-2 text-muted-foreground">{row.filter(value => value !== null && value !== "").slice(0, 6).join(" · ") || "Linha vazia"}</td><td className="px-3 py-2 text-right font-bold"><span className={isValidRow(row) ? "text-emerald-600" : "text-destructive"}>{isValidRow(row) ? "Válida" : "Incompleta"}</span></td></tr>)}</tbody></table></div></div>}<Button className="w-full rounded-xl" disabled={!readyRows || loading} onClick={confirmImport}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}Confirmar importação de {readyRows} linha{readyRows === 1 ? "" : "s"}</Button></div></DialogContent></Dialog>;
 }
 
 function ImportCount({ label, value, tone }: { label: string; value: number; tone?: string }) { return <div className="rounded-lg bg-background px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className={`mt-0.5 text-base font-black ${tone || "text-foreground"}`}>{value}</p></div>; }

@@ -7,6 +7,7 @@ import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
 import { receiptProjection, type ReceiptProjection } from "../../../shared/receiptProjection";
+import { collectionProjectionRisk, type ProjectionRisk } from "../../../shared/collectionInsights";
 import {
   accumulatedReward,
   amountReceivable,
@@ -24,7 +25,7 @@ import {
   ticketGoalState,
   totalReward,
 } from "../../../shared/goalRules";
-import { ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, TicketCheck, TrendingUp, Trophy } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, TicketCheck, TrendingUp, Trophy } from "lucide-react";
 import { Link } from "wouter";
 
 type View = "overview" | "fiado" | "challenge";
@@ -37,10 +38,18 @@ function currentBrazilMonth() {
   return `${parts.year}-${parts.month}`;
 }
 
+function currentBrazilDate() {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(new Date())
+    .reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export default function Dashboard({ view = "overview" }: { view?: View }) {
   const { user } = useAuth();
   const texts = useAppTexts();
   const [projectionMonth] = React.useState(currentBrazilMonth);
+  const [today] = React.useState(currentBrazilDate);
   const profileQuery = trpc.profile.mine.useQuery();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const subscriptionQuery = trpc.subscription?.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
@@ -49,6 +58,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const metrics = metricsQuery.data;
   const canViewProjection = user?.role === "admin" || Boolean(subscriptionQuery?.data?.isPro);
   const historyQuery = trpc.history?.list.useQuery({ month: projectionMonth }, { enabled: canViewProjection && Boolean(profile?.branchId) });
+  const dailyStatusQuery = trpc.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
 
   if (profileQuery.isLoading || metricsQuery.isLoading) return <DashboardLoading />;
   if (user?.role === "admin" && (!profile || !branch)) return <AdminDashboardNotice view={view} />;
@@ -77,6 +87,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     workingDaysRemaining,
     remainingToReceive: metrics.currentOverdue,
   });
+  const projectionRisk = collectionProjectionRisk({ monthOpening: metrics.monthOpening, projectedReceived: projection.projectedReceived, creditGoal: metrics.creditGoal });
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const ticketValid = type === "leader" && ticket.status === "achieved";
@@ -99,9 +110,11 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
       <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><CalendarDays className="h-4 w-4 text-primary" /><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Dias úteis</p><p className="text-sm font-black">{metrics.workingDaysElapsed} de {metrics.workingDaysTotal || "–"}</p></div></div>
     </header>
     {pendingSetup && <div className="mb-7 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p className="text-xs leading-relaxed text-muted-foreground">Configure os valores iniciais em <Link href="/ajustes" className="font-extrabold text-primary underline-offset-2 hover:underline">Ajustes</Link> para ativar os cálculos e projeções do painel.</p></div>}
+    {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><Link href="/historicos" className="shrink-0 text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
       <ReceiptProjectionCard projection={projection} canView={canViewProjection} isLoading={Boolean(historyQuery?.isLoading) && canViewProjection} />
+      {canViewProjection && projectionRisk.status !== "unavailable" && <ProjectionRiskCard risk={projectionRisk} />}
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{type === "leader" ? <TicketStatus ticket={ticket} /> : <AssistantNotice />}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />
@@ -131,6 +144,17 @@ export function ReceiptProjectionCard({ projection, canView, isLoading }: { proj
   const sourceDescription = projection.source === "daily-history" ? "Baseada nos recebimentos diários salvos neste mês." : "Sem recebimentos diários salvos: usa o total recebido, os dias trabalhados e o saldo em aberto.";
   const rate = Math.min(projection.projectedCollectionRate, 100);
   return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-4 border-b border-border/70 bg-primary/5 p-6 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary"><TrendingUp className="h-4 w-4" /></span><div><p className="text-base font-black">Projeção de recebimento</p><p className="mt-1 text-xs text-muted-foreground">{sourceDescription}</p></div></div></div><Badge className="w-fit rounded-full bg-primary/10 px-3 py-1 font-bold text-primary hover:bg-primary/10">{projection.source === "daily-history" ? "Com histórico diário" : "Por total recebido"}</Badge></div><div className="grid gap-5 p-6 lg:grid-cols-[1.1fr_.9fr]"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Estimativa de recebido no mês</p><p className="mt-2 text-3xl font-black tracking-[-0.04em] text-primary">{currency(projection.projectedReceived)}</p><div className="mt-5"><div className="flex items-center justify-between gap-3 text-xs font-bold"><span>Projeção de recuperação</span><span className="text-primary">{projection.projectedCollectionRate.toFixed(2)}%</span></div><Progress value={rate} className="mt-2 h-2.5" /></div></div><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><ProjectionMetric label="Média por dia" value={currency(projection.averagePerDay)} /><ProjectionMetric label="Falta receber" value={currency(projection.remainingToReceive)} /><ProjectionMetric label="Necessário por dia" value={currency(projection.dailyNeeded)} /></div></div><div className="border-t border-border/70 bg-muted/35 px-6 py-4"><p className="text-xs leading-relaxed text-muted-foreground">{projection.daysRemaining > 0 ? <>Mantendo a média de <strong className="text-foreground">{currency(projection.averagePerDay)}</strong>, a projeção considera os próximos <strong className="text-foreground">{projection.daysRemaining} {projection.daysRemaining === 1 ? "dia útil" : "dias úteis"}</strong>. Para receber todo o saldo, são necessários <strong className="text-foreground">{currency(projection.dailyNeeded)}</strong> por dia.</> : <>Não há dias úteis restantes no período. A projeção mostra o total já estimado para este mês.</>}</p></div></CardContent></Card>;
+}
+
+function ProjectionRiskCard({ risk }: { risk: ProjectionRisk }) {
+  const styles = risk.status === "healthy"
+    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
+    : risk.status === "critical"
+      ? "border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-100"
+      : "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100";
+  const iconClass = risk.status === "healthy" ? "text-emerald-700 dark:text-emerald-300" : risk.status === "critical" ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300";
+  const title = risk.status === "healthy" ? "Projeção favorável" : risk.status === "critical" ? "Alerta de risco" : "Atenção à Meta Fiado";
+  return <Card className={`mt-5 rounded-[1.5rem] border ${styles}`}><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${iconClass}`} /><div><p className="font-black">{title}</p><p className="mt-1 text-sm leading-relaxed opacity-85">{risk.message}</p></div></div>{risk.amountToRecover > 0 && <div className="rounded-xl border border-current/15 bg-background/35 px-4 py-3 text-left sm:text-right"><p className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">Reforço estimado</p><p className="mt-1 text-sm font-black">{currency(risk.amountToRecover)}</p></div>}</CardContent></Card>;
 }
 
 function ProjectionMetric({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl border border-border/70 bg-card px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-sm font-black">{value}</p></div>; }

@@ -8,6 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, PencilLine, Plus, ReceiptText, Trash2, TrendingUp } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { monthOverMonth } from "../../../shared/collectionInsights";
+import { accumulatedReward, challengePercentage, CHALLENGE_TIERS, fiadoPercentage, FIADO_TIERS } from "../../../shared/goalRules";
 
 type HistoryEntry = {
   id: number;
@@ -42,6 +44,10 @@ function changeMonth(month: string, direction: -1 | 1) {
   const [year, monthNumber] = month.split("-").map(Number);
   const date = new Date(Date.UTC(year, monthNumber - 1 + direction, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function previousMonth(month: string) {
+  return changeMonth(month, -1);
 }
 
 function money(value: number) {
@@ -96,12 +102,18 @@ export default function History() {
   const profileQuery = trpc.profile.mine.useQuery();
   const hasBranch = Boolean(profileQuery.data?.profile?.branchId);
   const historyQuery = trpc.history.list.useQuery({ month }, { enabled: hasBranch });
+  const previousHistoryQuery = trpc.history.list.useQuery({ month: previousMonth(month) }, { enabled: hasBranch });
+  const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: hasBranch });
   const create = trpc.history.create.useMutation();
   const remove = trpc.history.delete.useMutation();
   const history = historyQuery.data;
   const entries = (history?.entries ?? []) as HistoryEntry[];
   const canShowData = hasBranch && !profileQuery.isLoading;
   const selectedMonthLabel = useMemo(() => monthLabel(month), [month]);
+  const monthlyEvolution = monthOverMonth(history?.totalReceived ?? 0, previousHistoryQuery.data?.totalReceived ?? 0);
+  const operatorType = profileQuery.data?.profile?.operatorType;
+  const fiadoReward = operatorType && metricsQuery.data ? accumulatedReward(FIADO_TIERS[operatorType], fiadoPercentage(metricsQuery.data.creditGoal, metricsQuery.data.currentOverdue)) : 0;
+  const challengeReward = operatorType && metricsQuery.data ? accumulatedReward(CHALLENGE_TIERS[operatorType], challengePercentage(metricsQuery.data.challengeGoal, metricsQuery.data.currentOverdue)) : 0;
 
   useEffect(() => {
     if (!entryDate.startsWith(month)) setEntryDate(`${month}-01`);
@@ -142,6 +154,8 @@ export default function History() {
 
   return <section className="mx-auto max-w-6xl space-y-6"><header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">Recebimentos registrados</p><h1 className="mt-1 text-3xl font-black tracking-tight">Históricos</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Registre o total recebido a cada dia. Líder e auxiliar compartilham o mesmo histórico da filial.</p></div><div className="flex items-center gap-2 self-start rounded-2xl border border-border bg-card p-1.5 shadow-sm lg:self-auto"><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Mês anterior" onClick={() => setMonth(value => changeMonth(value, -1))}><ChevronLeft className="h-4 w-4" /></Button><div className="min-w-44 text-center"><p className="text-sm font-extrabold capitalize">{selectedMonthLabel}</p><input aria-label="Selecionar mês" type="month" value={month} onChange={event => setMonth(event.target.value)} className="mt-0.5 w-full cursor-pointer bg-transparent text-center text-[11px] font-semibold text-muted-foreground outline-none" /></div><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Próximo mês" onClick={() => setMonth(value => changeMonth(value, 1))}><ChevronRight className="h-4 w-4" /></Button></div></header>
 
+    <Card className="overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-primary/5 p-5 sm:flex-row sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-primary">Fechamento mensal</p><h2 className="mt-1 text-xl font-black capitalize">Resumo de {selectedMonthLabel}</h2><p className="mt-1 text-xs text-muted-foreground">Consolidado dos lançamentos da filial, com comparação ao mês anterior.</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${monthlyEvolution.direction === "up" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : monthlyEvolution.direction === "down" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"}`}>{monthlyEvolution.percent === null ? "Sem base anterior" : `${monthlyEvolution.direction === "up" ? "+" : ""}${monthlyEvolution.percent.toFixed(2)}% vs. mês anterior`}</span></div><div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4"><ClosingMetric label="Recebido registrado" value={money(history?.totalReceived ?? 0)} note="Soma dos dias lançados" /><ClosingMetric label="Variação mensal" value={money(monthlyEvolution.difference)} note={monthlyEvolution.percent === null ? "Aguardando base anterior" : "Comparado ao mês anterior"} /><ClosingMetric label="Faixas atuais" value={`${metricsQuery.data ? fiadoPercentage(metricsQuery.data.creditGoal, metricsQuery.data.currentOverdue).toFixed(2) : "—"}% Fiado`} note={metricsQuery.data ? `${challengePercentage(metricsQuery.data.challengeGoal, metricsQuery.data.currentOverdue).toFixed(2)}% Desafio` : "Carregando metas"} /><ClosingMetric label="Premiação estimada" value={money(fiadoReward + challengeReward)} note="Conforme metas atuais" /></div></CardContent></Card>
+
     <div className="grid gap-4 sm:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Recebido no mês" value={money(history?.totalReceived ?? 0)} hint="Soma dos dias salvos" /><SummaryCard icon={CalendarDays} label="Dias registrados" value={String(history?.daysRecorded ?? 0)} hint="Lançamentos na filial" /><SummaryCard icon={TrendingUp} label="Média por dia" value={money(history?.averagePerDay ?? 0)} hint="Considera dias registrados" /></div>
 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"><Card className="h-fit rounded-[1.7rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary"><Plus className="h-4 w-4" /></span>Novo lançamento</CardTitle><CardDescription>Registre o valor total recebido em um dia. Cada data possui um único lançamento por filial.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={submit}><div className="space-y-2"><Label htmlFor="history-entry-date">Data do recebimento</Label><Input id="history-entry-date" type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="history-entry-amount">Valor recebido</Label><div className="relative"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-bold text-muted-foreground">R$</span><Input id="history-entry-amount" className="pl-10" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0,00" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div></div><Button type="submit" className="w-full" disabled={create.isPending}>{create.isPending ? "Salvando…" : "Salvar recebimento"}</Button></form></CardContent></Card>
@@ -152,3 +166,5 @@ export default function History() {
 function SummaryCard({ icon: Icon, label, value, hint }: { icon: typeof CircleDollarSign; label: string; value: string; hint: string }) {
   return <Card className="rounded-[1.5rem] border-border/70 shadow-sm"><CardContent className="p-5"><div className="flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-xl font-black tracking-tight">{value}</p><p className="mt-1 text-xs text-muted-foreground">{hint}</p></div></div></CardContent></Card>;
 }
+
+function ClosingMetric({ label, value, note }: { label: string; value: string; note: string }) { return <div className="rounded-2xl border border-border/70 bg-card p-4"><p className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-lg font-black tracking-tight">{value}</p><p className="mt-1 text-xs text-muted-foreground">{note}</p></div>; }
