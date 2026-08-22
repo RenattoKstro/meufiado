@@ -10,6 +10,7 @@ import {
   InsertUser,
   metricSettings,
   receiptHistoryEntries,
+  romaneioActivities,
   romaneioItems,
   romaneioParties,
   romaneioProducts,
@@ -870,8 +871,33 @@ function getRomaneioStatus(originSignedAt: Date | null, destinationSignedAt: Dat
   return "shared" as const;
 }
 
-function romaneioDetail(document: typeof romaneios.$inferSelect, items: Array<typeof romaneioItems.$inferSelect>) {
-  return { ...document, items };
+export const romaneioSignatureStyles = ["classica", "manuscrita", "elegante", "simples"] as const;
+export type RomaneioSignatureStyle = (typeof romaneioSignatureStyles)[number];
+
+function partyForRomaneioSigner(document: typeof romaneios.$inferSelect, signer: "origin" | "destination") {
+  return signer === "origin"
+    ? { name: document.originName, branch: document.originBranch, address: document.originAddress, neighborhood: document.originNeighborhood }
+    : { name: document.destinationName, branch: document.destinationBranch, address: document.destinationAddress, neighborhood: document.destinationNeighborhood };
+}
+
+async function preferredSignatureStyleForParty(db: ApplicationDatabase, party: ReturnType<typeof partyForRomaneioSigner>) {
+  const [catalogParty] = await db.select({ preferredSignatureStyle: romaneioParties.preferredSignatureStyle })
+    .from(romaneioParties)
+    .where(and(
+      eq(romaneioParties.normalizedName, normalizeRomaneioCatalogValue(party.name)),
+      eq(romaneioParties.normalizedBranch, normalizeRomaneioCatalogValue(party.branch)),
+    ))
+    .limit(1);
+  return catalogParty?.preferredSignatureStyle ?? null;
+}
+
+async function romaneioDetail(db: ApplicationDatabase, document: typeof romaneios.$inferSelect, items: Array<typeof romaneioItems.$inferSelect>) {
+  const [activities, originPreferredSignatureStyle, destinationPreferredSignatureStyle] = await Promise.all([
+    db.select().from(romaneioActivities).where(eq(romaneioActivities.romaneioId, document.id)).orderBy(desc(romaneioActivities.occurredAt)),
+    preferredSignatureStyleForParty(db, partyForRomaneioSigner(document, "origin")),
+    preferredSignatureStyleForParty(db, partyForRomaneioSigner(document, "destination")),
+  ]);
+  return { ...document, items, activities, originPreferredSignatureStyle, destinationPreferredSignatureStyle };
 }
 
 async function persistRomaneioCatalogs(db: ApplicationDatabase, input: RomaneioDocumentInput) {
@@ -978,7 +1004,7 @@ export async function getRomaneioDocumentForOwner(createdByUserId: number, id: n
   const [document] = await db.select().from(romaneios).where(and(eq(romaneios.id, id), eq(romaneios.createdByUserId, createdByUserId))).limit(1);
   if (!document) throw new Error("Romaneio não encontrado.");
   const items = await db.select().from(romaneioItems).where(eq(romaneioItems.romaneioId, document.id)).orderBy(asc(romaneioItems.position));
-  return romaneioDetail(document, items);
+  return romaneioDetail(db, document, items);
 }
 
 export async function getSharedRomaneioDocument(shareToken: string) {
@@ -987,10 +1013,10 @@ export async function getSharedRomaneioDocument(shareToken: string) {
   const [document] = await db.select().from(romaneios).where(eq(romaneios.shareToken, shareToken)).limit(1);
   if (!document) return null;
   const items = await db.select().from(romaneioItems).where(eq(romaneioItems.romaneioId, document.id)).orderBy(asc(romaneioItems.position));
-  return romaneioDetail(document, items);
+  return romaneioDetail(db, document, items);
 }
 
-export async function signSharedRomaneioDocument(shareToken: string, signer: "origin" | "destination", dataUrl: string) {
+export async function signSharedRomaneioDocument(shareToken: string, signer: "origin" | "destination", dataUrl: string, signatureStyle: RomaneioSignatureStyle) {
   const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!match) throw new Error("Envie a assinatura em JPG, PNG ou WEBP.");
   const binary = Buffer.from(match[2], "base64");
@@ -1009,10 +1035,23 @@ export async function signSharedRomaneioDocument(shareToken: string, signer: "or
   const signedAt = new Date();
   const originSignedAt = signer === "origin" ? signedAt : document.originSignedAt;
   const destinationSignedAt = signer === "destination" ? signedAt : document.destinationSignedAt;
+  const signerParty = partyForRomaneioSigner(document, signer);
+  const managerName = signer === "origin" ? document.originManagerName : document.destinationManagerName;
+  const branch = compactRomaneioText(signerParty.branch) ?? "";
+  await db.insert(romaneioParties).values({
+    name: signerParty.name,
+    normalizedName: normalizeRomaneioCatalogValue(signerParty.name),
+    branch,
+    normalizedBranch: normalizeRomaneioCatalogValue(branch),
+    address: compactRomaneioText(signerParty.address),
+    neighborhood: compactRomaneioText(signerParty.neighborhood),
+    preferredSignatureStyle: signatureStyle,
+  }).onDuplicateKeyUpdate({ set: { preferredSignatureStyle: signatureStyle, updatedAt: signedAt } });
   await db.update(romaneios).set({
     ...(signer === "origin" ? { originSignatureUrl: uploaded.url, originSignedAt: signedAt } : { destinationSignatureUrl: uploaded.url, destinationSignedAt: signedAt }),
     status: getRomaneioStatus(originSignedAt, destinationSignedAt),
   }).where(eq(romaneios.id, document.id));
+  await db.insert(romaneioActivities).values({ romaneioId: document.id, signer, managerName, signatureStyle, occurredAt: signedAt });
   return getSharedRomaneioDocument(shareToken);
 }
 

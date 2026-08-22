@@ -218,3 +218,6 @@
 - [x] Ajustar o PDF do Romaneio ao modelo visual de referência fornecido.
 - [x] Remover o título e qualquer identificação do Meu Fiado do PDF do Romaneio.
 - [x] Permitir que o assinante escolha o estilo de fonte antes de gerar sua assinatura no Romaneio.
+- [x] Exibir uma prévia ampliada da assinatura escolhida antes da confirmação no Romaneio.
+- [x] Salvar a preferência de estilo de assinatura de cada gerente para os próximos Romaneios.
+- [x] Registrar e exibir no histórico do Romaneio o estilo de assinatura usado por cada gerente.

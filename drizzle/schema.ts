@@ -218,6 +218,7 @@ export const romaneioParties = mysqlTable(
     normalizedBranch: varchar("normalizedBranch", { length: 120 }).notNull().default(""),
     address: varchar("address", { length: 255 }),
     neighborhood: varchar("neighborhood", { length: 120 }),
+    preferredSignatureStyle: varchar("preferredSignatureStyle", { length: 32 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -239,6 +240,21 @@ export const romaneioProducts = mysqlTable(
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => [uniqueIndex("romaneio_products_code_unique").on(table.normalizedCode), index("romaneio_products_recent_idx").on(table.updatedAt)],
+);
+
+export const romaneioActivitySigner = mysqlEnum("romaneioActivitySigner", ["origin", "destination"]);
+
+export const romaneioActivities = mysqlTable(
+  "romaneioActivities",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    romaneioId: int("romaneioId").notNull().references(() => romaneios.id),
+    signer: romaneioActivitySigner.notNull(),
+    managerName: varchar("managerName", { length: 160 }).notNull(),
+    signatureStyle: varchar("signatureStyle", { length: 32 }).notNull(),
+    occurredAt: timestamp("occurredAt").defaultNow().notNull(),
+  },
+  table => [index("romaneio_activities_document_time_idx").on(table.romaneioId, table.occurredAt)],
 );
 
 export const adminCredentials = mysqlTable("adminCredentials", {

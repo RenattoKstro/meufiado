@@ -108,9 +108,18 @@ describe("procedures de Romaneio", () => {
     const caller = appRouter.createCaller(contextFor("user"));
 
     await caller.romaneio.shared({ token });
-    await caller.romaneio.sign({ token, signer: "destination", signatureDataUrl: "data:image/png;base64," + "a".repeat(64) });
+    await caller.romaneio.sign({ token, signer: "destination", signatureDataUrl: "data:image/png;base64," + "a".repeat(64), signatureStyle: "elegante" });
 
     expect(dbMocks.getSharedRomaneioDocument).toHaveBeenCalledWith(token);
-    expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "destination", expect.stringContaining("data:image/png;base64,"));
+    expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "destination", expect.stringContaining("data:image/png;base64,"), "elegante");
+  });
+
+  it("rejeita assinatura sem estilo ou com estilo desconhecido", async () => {
+    const token = "c".repeat(32);
+    const caller = appRouter.createCaller(contextFor("user"));
+
+    await expect(caller.romaneio.sign({ token, signer: "origin", signatureDataUrl: "data:image/png;base64," + "a".repeat(64) } as never)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.romaneio.sign({ token, signer: "origin", signatureDataUrl: "data:image/png;base64," + "a".repeat(64), signatureStyle: "desconhecida" } as never)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(dbMocks.signSharedRomaneioDocument).not.toHaveBeenCalled();
   });
 });
