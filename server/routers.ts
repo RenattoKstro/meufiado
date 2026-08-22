@@ -25,6 +25,8 @@ import {
   getMyProfile,
   getReceiptDailyStatus,
   getRomaneioDocumentForOwner,
+  listRomaneioParties,
+  listRomaneioProducts,
   listBranchOverviews,
   listActiveBranchesWithSlots,
   listAllBranches,
@@ -53,6 +55,7 @@ import {
   reviewSubscriptionProof,
   setManagedUserPlan,
   getSharedRomaneioDocument,
+  saveRomaneioPdf,
   signSharedRomaneioDocument,
   submitSubscriptionProof,
   uploadSubscriptionPixQrCode,
@@ -151,32 +154,21 @@ const appTextSettingsInput = z.object({
   navPreferences: z.string().trim().min(2).max(80),
   navAccount: z.string().trim().min(2).max(80),
 });
+const romaneioPartyInput = z.object({
+  name: z.string().trim().min(2).max(180),
+  branch: z.string().trim().max(120).optional().nullable(),
+  address: z.string().trim().max(255).optional().nullable(),
+  neighborhood: z.string().trim().max(120).optional().nullable(),
+});
 const romaneioInput = z.object({
-  documentNumber: z.string().trim().max(80).optional().nullable(),
+  invoiceNumber: z.string().trim().min(1, "Informe a Nota Fiscal.").max(80),
   transferDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  originName: z.string().trim().min(2).max(180),
-  originBranch: z.string().trim().max(120).optional().nullable(),
-  originAddress: z.string().trim().max(255).optional().nullable(),
-  originNeighborhood: z.string().trim().max(120).optional().nullable(),
-  originCity: z.string().trim().max(120).optional().nullable(),
-  originState: z.string().trim().max(2).optional().nullable(),
-  originManagerName: z.string().trim().min(2).max(160),
-  destinationName: z.string().trim().min(2).max(180),
-  destinationBranch: z.string().trim().max(120).optional().nullable(),
-  destinationAddress: z.string().trim().max(255).optional().nullable(),
-  destinationNeighborhood: z.string().trim().max(120).optional().nullable(),
-  destinationCity: z.string().trim().max(120).optional().nullable(),
-  destinationState: z.string().trim().max(2).optional().nullable(),
-  destinationManagerName: z.string().trim().min(2).max(160),
-  notes: z.string().trim().max(10_000).optional().nullable(),
+  requesting: romaneioPartyInput,
+  providing: romaneioPartyInput,
   items: z.array(z.object({
-    productCode: z.string().trim().max(80).optional().nullable(),
+    productCode: z.string().trim().min(1).max(80),
     productName: z.string().trim().min(2).max(255),
     unit: z.string().trim().max(24).optional().nullable(),
-    requestedQuantity: nonNegativeNumber,
-    approvedQuantity: nonNegativeNumber,
-    deliveredQuantity: nonNegativeNumber,
-    notes: z.string().trim().max(600).optional().nullable(),
   })).min(1).max(100),
 });
 const googleClient = new OAuth2Client();
@@ -364,6 +356,18 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     create: protectedProcedure.input(romaneioInput).mutation(async ({ ctx, input }) => {
       await requireRomaneioProAccess(ctx.user.id, ctx.user.role);
       return createRomaneioDocument(ctx.user.id, input);
+    }),
+    parties: protectedProcedure.query(async ({ ctx }) => {
+      await requireRomaneioProAccess(ctx.user.id, ctx.user.role);
+      return listRomaneioParties();
+    }),
+    products: protectedProcedure.query(async ({ ctx }) => {
+      await requireRomaneioProAccess(ctx.user.id, ctx.user.role);
+      return listRomaneioProducts();
+    }),
+    savePdf: protectedProcedure.input(z.object({ id: z.number().int().positive(), pdfDataUrl: z.string().min(64).max(7_000_000) })).mutation(async ({ ctx, input }) => {
+      await requireRomaneioProAccess(ctx.user.id, ctx.user.role);
+      return saveRomaneioPdf(ctx.user.id, input.id, input.pdfDataUrl);
     }),
     shared: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/) })).query(({ input }) => getSharedRomaneioDocument(input.token)),
     sign: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/), signer: z.enum(["origin", "destination"]), signatureDataUrl: z.string().min(32).max(1_500_000) })).mutation(({ input }) => signSharedRomaneioDocument(input.token, input.signer, input.signatureDataUrl)),

@@ -161,6 +161,7 @@ export const romaneios = mysqlTable(
     status: romaneioStatus.default("draft").notNull(),
     documentNumber: varchar("documentNumber", { length: 80 }),
     transferDate: date("transferDate", { mode: "string" }).notNull(),
+    pdfUrl: varchar("pdfUrl", { length: 2048 }),
     originName: varchar("originName", { length: 180 }).notNull(),
     originBranch: varchar("originBranch", { length: 120 }),
     originAddress: varchar("originAddress", { length: 255 }),
@@ -205,6 +206,39 @@ export const romaneioItems = mysqlTable(
     notes: varchar("notes", { length: 600 }),
   },
   table => [uniqueIndex("romaneio_items_position_unique").on(table.romaneioId, table.position), index("romaneio_items_document_idx").on(table.romaneioId)],
+);
+
+export const romaneioParties = mysqlTable(
+  "romaneioParties",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 180 }).notNull(),
+    normalizedName: varchar("normalizedName", { length: 180 }).notNull(),
+    branch: varchar("branch", { length: 120 }).notNull().default(""),
+    normalizedBranch: varchar("normalizedBranch", { length: 120 }).notNull().default(""),
+    address: varchar("address", { length: 255 }),
+    neighborhood: varchar("neighborhood", { length: 120 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("romaneio_parties_name_branch_unique").on(table.normalizedName, table.normalizedBranch),
+    index("romaneio_parties_recent_idx").on(table.updatedAt),
+  ],
+);
+
+export const romaneioProducts = mysqlTable(
+  "romaneioProducts",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    code: varchar("code", { length: 80 }).notNull(),
+    normalizedCode: varchar("normalizedCode", { length: 80 }).notNull(),
+    description: varchar("description", { length: 255 }).notNull(),
+    unit: varchar("unit", { length: 24 }).notNull().default("UN"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [uniqueIndex("romaneio_products_code_unique").on(table.normalizedCode), index("romaneio_products_recent_idx").on(table.updatedAt)],
 );
 
 export const adminCredentials = mysqlTable("adminCredentials", {

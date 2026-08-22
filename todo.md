@@ -212,3 +212,7 @@
 - [x] Criar link compartilhável de Romaneio para assinatura digital dos dois gerentes.
 - [x] Garantir acesso automático de administradores ao Romaneio PRO, sem bloqueio por plano.
 - [x] Revisar e alinhar o fluxo do Romaneio ao código original anexado pelo usuário.
+- [x] Reestruturar o Romaneio para exibir somente os campos das referências, com Nota Fiscal obrigatória.
+- [x] Reutilizar dados já salvos de filiais, solicitantes, fornecedores, endereços, bairros e produtos no formulário do Romaneio.
+- [x] Implementar assinatura gerada pelo nome do gerente e o fluxo sequencial de solicitar/enviar assinatura por link.
+- [x] Ajustar o PDF do Romaneio ao modelo visual de referência fornecido.

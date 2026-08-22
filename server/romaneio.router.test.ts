@@ -5,6 +5,9 @@ const dbMocks = vi.hoisted(() => ({
   getMySubscription: vi.fn(),
   listRomaneioDocuments: vi.fn(),
   createRomaneioDocument: vi.fn(),
+  listRomaneioParties: vi.fn(),
+  listRomaneioProducts: vi.fn(),
+  saveRomaneioPdf: vi.fn(),
   getSharedRomaneioDocument: vi.fn(),
   signSharedRomaneioDocument: vi.fn(),
 }));
@@ -35,13 +38,11 @@ function contextFor(role: "user" | "admin"): TrpcContext {
 }
 
 const documentInput = {
-  documentNumber: "ROM-001",
+  invoiceNumber: "NF-2026-001",
   transferDate: "2026-08-22",
-  originName: "Filial Centro",
-  originManagerName: "Gerente Origem",
-  destinationName: "Filial Norte",
-  destinationManagerName: "Gerente Destino",
-  items: [{ productName: "Produto de teste", requestedQuantity: 10, approvedQuantity: 10, deliveredQuantity: 10 }],
+  requesting: { name: "Gerente Solicitante", branch: "002", address: "Rua Norte, 10", neighborhood: "Centro" },
+  providing: { name: "Gerente Fornecedor", branch: "001", address: "Rua Sul, 20", neighborhood: "Jardim" },
+  items: [{ productCode: "123", productName: "Produto de teste", unit: "UN" }],
 };
 
 describe("procedures de Romaneio", () => {
@@ -49,11 +50,21 @@ describe("procedures de Romaneio", () => {
     vi.clearAllMocks();
   });
 
-  it("bloqueia o histórico privado para operador Free", async () => {
+  it("bloqueia histórico e catálogos para operador Free", async () => {
     dbMocks.getMySubscription.mockResolvedValue({ isPro: false });
+    const caller = appRouter.createCaller(contextFor("user"));
 
-    await expect(appRouter.createCaller(contextFor("user")).romaneio.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.romaneio.list()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.romaneio.parties()).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(dbMocks.listRomaneioDocuments).not.toHaveBeenCalled();
+    expect(dbMocks.listRomaneioParties).not.toHaveBeenCalled();
+  });
+
+  it("exige Nota Fiscal antes de criar um Romaneio", async () => {
+    dbMocks.getMySubscription.mockResolvedValue({ isPro: true });
+
+    await expect(appRouter.createCaller(contextFor("user")).romaneio.create({ ...documentInput, invoiceNumber: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(dbMocks.createRomaneioDocument).not.toHaveBeenCalled();
   });
 
   it("permite criar Romaneio para PRO e usa o proprietário autenticado", async () => {
@@ -65,6 +76,22 @@ describe("procedures de Romaneio", () => {
     expect(dbMocks.createRomaneioDocument).toHaveBeenCalledWith(91, documentInput);
   });
 
+  it("permite consultar catálogos e salvar PDF para PRO", async () => {
+    dbMocks.getMySubscription.mockResolvedValue({ isPro: true });
+    dbMocks.listRomaneioParties.mockResolvedValue([{ id: 1, name: "Gerente Solicitante" }]);
+    dbMocks.listRomaneioProducts.mockResolvedValue([{ id: 1, code: "123", description: "Produto de teste", unit: "UN" }]);
+    dbMocks.saveRomaneioPdf.mockResolvedValue({ id: 14, pdfUrl: "/manus-storage/romaneio.pdf" });
+    const caller = appRouter.createCaller(contextFor("user"));
+
+    await expect(caller.romaneio.parties()).resolves.toEqual([{ id: 1, name: "Gerente Solicitante" }]);
+    await expect(caller.romaneio.products()).resolves.toHaveLength(1);
+    await caller.romaneio.savePdf({ id: 14, pdfDataUrl: "data:application/pdf;base64," + "a".repeat(128) });
+
+    expect(dbMocks.listRomaneioParties).toHaveBeenCalledOnce();
+    expect(dbMocks.listRomaneioProducts).toHaveBeenCalledOnce();
+    expect(dbMocks.saveRomaneioPdf).toHaveBeenCalledWith(91, 14, expect.stringContaining("data:application/pdf;base64,"));
+  });
+
   it("permite acesso administrativo ao Romaneio sem exigir plano PRO", async () => {
     dbMocks.listRomaneioDocuments.mockResolvedValue([]);
 
@@ -74,16 +101,16 @@ describe("procedures de Romaneio", () => {
     expect(dbMocks.listRomaneioDocuments).toHaveBeenCalledWith(91);
   });
 
-  it("permite consultar e assinar um Romaneio por link público válido", async () => {
+  it("mantém consulta e assinatura pública por link tokenizado", async () => {
     const token = "b".repeat(32);
     dbMocks.getSharedRomaneioDocument.mockResolvedValue({ id: 14, shareToken: token, status: "shared", items: [] });
     dbMocks.signSharedRomaneioDocument.mockResolvedValue({ id: 14, status: "partially_signed" });
     const caller = appRouter.createCaller(contextFor("user"));
 
     await caller.romaneio.shared({ token });
-    await caller.romaneio.sign({ token, signer: "origin", signatureDataUrl: "data:image/png;base64," + "a".repeat(64) });
+    await caller.romaneio.sign({ token, signer: "destination", signatureDataUrl: "data:image/png;base64," + "a".repeat(64) });
 
     expect(dbMocks.getSharedRomaneioDocument).toHaveBeenCalledWith(token);
-    expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "origin", expect.stringContaining("data:image/png;base64,"));
+    expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "destination", expect.stringContaining("data:image/png;base64,"));
   });
 });
