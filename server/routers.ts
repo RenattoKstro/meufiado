@@ -370,7 +370,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       return saveRomaneioPdf(ctx.user.id, input.id, input.pdfDataUrl);
     }),
     shared: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/) })).query(({ input }) => getSharedRomaneioDocument(input.token)),
-    sign: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/), signer: z.enum(["origin", "destination"]), signatureDataUrl: z.string().min(32).max(1_500_000), signatureStyle: z.enum(["classica", "manuscrita", "elegante", "simples"]) })).mutation(({ input }) => signSharedRomaneioDocument(input.token, input.signer, input.signatureDataUrl, input.signatureStyle)),
+    sign: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/), signer: z.enum(["origin", "destination"]), signatureDataUrl: z.string().min(32).max(1_500_000), signatureStyle: z.enum(["classica", "manuscrita", "elegante", "simples", "manual"]) })).mutation(({ input }) => signSharedRomaneioDocument(input.token, input.signer, input.signatureDataUrl, input.signatureStyle)),
   }),
   subscription: router({
     mine: protectedProcedure.query(({ ctx }) => getMySubscription(ctx.user.id)),

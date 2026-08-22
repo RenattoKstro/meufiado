@@ -114,6 +114,15 @@ describe("procedures de Romaneio", () => {
     expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "destination", expect.stringContaining("data:image/png;base64,"), "elegante");
   });
 
+  it("aceita assinatura manual escrita na tela e a encaminha como tal", async () => {
+    const token = "d".repeat(32);
+    dbMocks.signSharedRomaneioDocument.mockResolvedValue({ id: 14, status: "partially_signed" });
+
+    await appRouter.createCaller(contextFor("user")).romaneio.sign({ token, signer: "origin", signatureDataUrl: "data:image/png;base64," + "a".repeat(64), signatureStyle: "manual" });
+
+    expect(dbMocks.signSharedRomaneioDocument).toHaveBeenCalledWith(token, "origin", expect.stringContaining("data:image/png;base64,"), "manual");
+  });
+
   it("rejeita assinatura sem estilo ou com estilo desconhecido", async () => {
     const token = "c".repeat(32);
     const caller = appRouter.createCaller(contextFor("user"));

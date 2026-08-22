@@ -221,3 +221,4 @@
 - [x] Exibir uma prévia ampliada da assinatura escolhida antes da confirmação no Romaneio.
 - [x] Salvar a preferência de estilo de assinatura de cada gerente para os próximos Romaneios.
 - [x] Registrar e exibir no histórico do Romaneio o estilo de assinatura usado por cada gerente.
+- [x] Permitir que o gerente desenhe e confirme uma assinatura manual diretamente na tela do Romaneio.

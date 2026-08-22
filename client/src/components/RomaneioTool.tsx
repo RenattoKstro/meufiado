@@ -8,8 +8,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CheckCircle2, ClipboardSignature, Copy, Crown, ExternalLink, FileDown, Loader2, PackagePlus, PenLine, Plus, Send, Share2, Trash2 } from "lucide-react";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, ClipboardSignature, Copy, Crown, Eraser, ExternalLink, FileDown, Loader2, PackagePlus, PenLine, Plus, Send, Share2, Trash2 } from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type RomaneioParty = { name: string; branch: string; address: string; neighborhood: string };
@@ -54,6 +54,7 @@ export const signatureStyles = [
   { id: "simples", label: "Simples", font: 'italic 76px "Trebuchet MS", sans-serif' },
 ] as const;
 export type SignatureStyle = (typeof signatureStyles)[number]["id"];
+export type SignatureMode = "font" | "manual";
 
 const currentDate = () => new Date().toISOString().slice(0, 10);
 const emptyParty = (): RomaneioParty => ({ name: "", branch: "", address: "", neighborhood: "" });
@@ -93,12 +94,61 @@ export function signatureStyleFromValue(value?: string | null): SignatureStyle {
 }
 
 export function signatureStyleLabel(value?: string | null) {
+  if (value === "manual") return "Manual";
   return signatureStyles.find(style => style.id === value)?.label ?? "Clássica";
 }
 
 export function SignaturePreview({ name, style }: { name: string; style: SignatureStyle }) {
   const selectedStyle = signatureStyles.find(entry => entry.id === style) ?? signatureStyles[0];
   return <div className="mt-3 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-background p-4"><p className="text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">Prévia antes da confirmação</p><div className="mt-2 flex min-h-28 items-center justify-center border-b border-dashed border-slate-400/60 px-3 text-center"><span className="max-w-full break-words leading-tight text-4xl text-foreground sm:text-5xl" style={{ fontFamily: selectedStyle.font.replace(/^italic\s+\d+px\s+/, ""), fontStyle: "italic" }}>{name.trim() || "Assinatura"}</span></div><p className="mt-2 text-center text-xs text-muted-foreground">Estilo {selectedStyle.label}. Ao confirmar, esta assinatura será salva no Romaneio.</p></div>;
+}
+
+export function ManualSignaturePad({ value, onChange }: { value: string | null; onChange: (dataUrl: string | null) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const pointFor = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const bounds = canvas.getBoundingClientRect();
+    return { x: (event.clientX - bounds.left) * (canvas.width / bounds.width), y: (event.clientY - bounds.top) * (canvas.height / bounds.height) };
+  };
+  const begin = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const point = pointFor(event);
+    const context = canvas?.getContext("2d");
+    if (!canvas || !point || !context) return;
+    drawing.current = true;
+    canvas.setPointerCapture(event.pointerId);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = "#111111";
+    context.lineWidth = 12;
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+  };
+  const draw = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const canvas = canvasRef.current;
+    const point = pointFor(event);
+    const context = canvas?.getContext("2d");
+    if (!canvas || !point || !context) return;
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+  const finish = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !drawing.current) return;
+    drawing.current = false;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    onChange(canvas.toDataURL("image/png"));
+  };
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height);
+    onChange(null);
+  };
+  return <div className="mt-3 overflow-hidden rounded-xl border border-primary/20 bg-background p-3"><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Assine no espaço abaixo</p><p className="mt-1 text-xs text-muted-foreground">Use o dedo, mouse ou caneta para escrever sua assinatura.</p></div><Button type="button" size="sm" variant="outline" onClick={clear}><Eraser className="mr-1.5 h-3.5 w-3.5" />Limpar</Button></div><canvas ref={canvasRef} width={1200} height={360} className="h-36 w-full touch-none rounded-lg border border-dashed border-slate-400/70 bg-white shadow-inner" aria-label="Área para escrever a assinatura manualmente" onPointerDown={begin} onPointerMove={draw} onPointerUp={finish} onPointerCancel={finish} />{value ? <p className="mt-2 flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Assinatura manual pronta para confirmar.</p> : <p className="mt-2 text-xs text-muted-foreground">A confirmação será habilitada depois que você escrever sua assinatura.</p>}</div>;
 }
 
 async function asImageData(url?: string | null) {
@@ -242,21 +292,25 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
   const utils = trpc.useUtils();
   const [role, setRole] = useState<Signer | null>(null);
   const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>("classica");
+  const [signatureMode, setSignatureMode] = useState<SignatureMode>("font");
+  const [manualSignature, setManualSignature] = useState<string | null>(null);
   const sign = trpc.romaneio.sign.useMutation();
   const savePdf = trpc.romaneio.savePdf.useMutation();
   const shareUrl = `${window.location.origin}/romaneio/${document.shareToken}`;
   const ownSigned = role === "origin" ? Boolean(document.originSignedAt) : role === "destination" ? Boolean(document.destinationSignedAt) : false;
   const counterpart = role === "origin" ? "solicita" : "fornece";
   const roleName = role === "origin" ? document.originManagerName : document.destinationManagerName;
-  const selectRole = (nextRole: Signer) => { setRole(nextRole); setSignatureStyle(signatureStyleFromValue(nextRole === "origin" ? document.originPreferredSignatureStyle : document.destinationPreferredSignatureStyle)); };
+  const selectRole = (nextRole: Signer) => { setRole(nextRole); setSignatureMode("font"); setManualSignature(null); setSignatureStyle(signatureStyleFromValue(nextRole === "origin" ? document.originPreferredSignatureStyle : document.destinationPreferredSignatureStyle)); };
   const copy = async () => { try { await navigator.clipboard.writeText(shareUrl); toast.success("Link seguro copiado."); } catch { toast.error("Não foi possível copiar o link."); } };
   const signWithName = async () => {
     if (!role) return toast.error("Escolha se você está enviando ou solicitando.");
     try {
-      await sign.mutateAsync({ token: document.shareToken, signer: role, signatureDataUrl: generateNameSignature(roleName, signatureStyle), signatureStyle });
+      const signatureDataUrl = signatureMode === "manual" ? manualSignature : generateNameSignature(roleName, signatureStyle);
+      if (!signatureDataUrl) return toast.error("Escreva sua assinatura manual antes de confirmar.");
+      await sign.mutateAsync({ token: document.shareToken, signer: role, signatureDataUrl, signatureStyle: signatureMode === "manual" ? "manual" : signatureStyle });
       await utils.romaneio.get.invalidate({ id: document.id });
       await utils.romaneio.list.invalidate();
-      toast.success("Sua assinatura foi gerada e registrada.");
+      toast.success("Sua assinatura foi registrada.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível registrar a assinatura."); }
   };
   const downloadAndSave = async () => {
@@ -272,9 +326,9 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
     <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-[1.25rem]">
       <DialogHeader><div className="flex flex-wrap items-start justify-between gap-3 pr-5"><div><DialogTitle>{documentTitle(document)}</DialogTitle><DialogDescription>{document.destinationName} solicita de {document.originName} · {formatDocumentDate(document.transferDate)}</DialogDescription></div><Badge className={statusStyle[document.status]}>{statusLabel[document.status]}</Badge></div></DialogHeader>
       <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-        <p className="font-black">1. Informe seu papel no Romaneio</p><p className="mt-1 text-sm text-muted-foreground">A assinatura é gerada visualmente a partir do nome preenchido no documento.</p>
+        <p className="font-black">1. Informe seu papel no Romaneio</p><p className="mt-1 text-sm text-muted-foreground">Escolha uma assinatura por fonte ou escreva sua assinatura manualmente na tela.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2"><Button type="button" variant={role === "origin" ? "default" : "outline"} onClick={() => selectRole("origin")}>Estou enviando <span className="ml-1 text-xs opacity-80">({document.originManagerName})</span></Button><Button type="button" variant={role === "destination" ? "default" : "outline"} onClick={() => selectRole("destination")}>Estou solicitando <span className="ml-1 text-xs opacity-80">({document.destinationManagerName})</span></Button></div>
-        {role && <div className="mt-3 rounded-md bg-background/80 p-3 text-sm"><p><span className="font-bold">Sua assinatura:</span> {roleName}</p><p className="mt-1 text-muted-foreground">Após assinar, gere o Romaneio e envie este mesmo link ao gerente que {counterpart} para a segunda assinatura.</p>{ownSigned ? <p className="mt-2 flex items-center gap-1 font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Sua assinatura já está registrada.</p> : <><SignatureStylePicker value={signatureStyle} onChange={setSignatureStyle} /><SignaturePreview name={roleName} style={signatureStyle} /><Button className="mt-3" onClick={() => void signWithName()} disabled={sign.isPending}>{sign.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Gerando…</> : <><PenLine className="mr-2 h-4 w-4" />Confirmar e gerar minha assinatura</>}</Button></>}</div>}
+        {role && <div className="mt-3 rounded-md bg-background/80 p-3 text-sm"><p><span className="font-bold">Sua assinatura:</span> {roleName}</p><p className="mt-1 text-muted-foreground">Após assinar, gere o Romaneio e envie este mesmo link ao gerente que {counterpart} para a segunda assinatura.</p>{ownSigned ? <p className="mt-2 flex items-center gap-1 font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Sua assinatura já está registrada.</p> : <><div className="mt-3 grid gap-2 sm:grid-cols-2"><Button type="button" size="sm" variant={signatureMode === "font" ? "default" : "outline"} onClick={() => setSignatureMode("font")}>Assinatura por fonte</Button><Button type="button" size="sm" variant={signatureMode === "manual" ? "default" : "outline"} onClick={() => setSignatureMode("manual")}>Assinar manualmente</Button></div>{signatureMode === "font" ? <><SignatureStylePicker value={signatureStyle} onChange={setSignatureStyle} /><SignaturePreview name={roleName} style={signatureStyle} /></> : <ManualSignaturePad value={manualSignature} onChange={setManualSignature} />}<Button className="mt-3" onClick={() => void signWithName()} disabled={sign.isPending || (signatureMode === "manual" && !manualSignature)}>{sign.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Registrando…</> : <><PenLine className="mr-2 h-4 w-4" />{signatureMode === "manual" ? "Confirmar assinatura manual" : "Confirmar e gerar minha assinatura"}</>}</Button></>}</div>}
       </div>
       {ownSigned && <div className="grid gap-2 sm:grid-cols-3"><Button onClick={() => void downloadAndSave()} disabled={savePdf.isPending}><FileDown className="mr-2 h-4 w-4" />Gerar e baixar</Button><Button variant="outline" onClick={() => void copy()}><Copy className="mr-2 h-4 w-4" />Copiar link</Button><Button variant="outline" onClick={() => window.open(shareUrl, "_blank", "noopener,noreferrer")}><Send className="mr-2 h-4 w-4" />Enviar para assinar</Button></div>}
       {document.pdfUrl && <Button variant="link" className="h-auto p-0 text-sm" asChild><a href={document.pdfUrl} target="_blank" rel="noreferrer"><ExternalLink className="mr-1 h-3.5 w-3.5" />Abrir PDF salvo no histórico</a></Button>}

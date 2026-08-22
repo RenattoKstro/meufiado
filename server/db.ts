@@ -871,7 +871,7 @@ function getRomaneioStatus(originSignedAt: Date | null, destinationSignedAt: Dat
   return "shared" as const;
 }
 
-export const romaneioSignatureStyles = ["classica", "manuscrita", "elegante", "simples"] as const;
+export const romaneioSignatureStyles = ["classica", "manuscrita", "elegante", "simples", "manual"] as const;
 export type RomaneioSignatureStyle = (typeof romaneioSignatureStyles)[number];
 
 function partyForRomaneioSigner(document: typeof romaneios.$inferSelect, signer: "origin" | "destination") {
@@ -1038,6 +1038,7 @@ export async function signSharedRomaneioDocument(shareToken: string, signer: "or
   const signerParty = partyForRomaneioSigner(document, signer);
   const managerName = signer === "origin" ? document.originManagerName : document.destinationManagerName;
   const branch = compactRomaneioText(signerParty.branch) ?? "";
+  const preferredSignatureStyle = signatureStyle === "manual" ? undefined : signatureStyle;
   await db.insert(romaneioParties).values({
     name: signerParty.name,
     normalizedName: normalizeRomaneioCatalogValue(signerParty.name),
@@ -1045,8 +1046,8 @@ export async function signSharedRomaneioDocument(shareToken: string, signer: "or
     normalizedBranch: normalizeRomaneioCatalogValue(branch),
     address: compactRomaneioText(signerParty.address),
     neighborhood: compactRomaneioText(signerParty.neighborhood),
-    preferredSignatureStyle: signatureStyle,
-  }).onDuplicateKeyUpdate({ set: { preferredSignatureStyle: signatureStyle, updatedAt: signedAt } });
+    preferredSignatureStyle,
+  }).onDuplicateKeyUpdate({ set: { ...(preferredSignatureStyle ? { preferredSignatureStyle } : {}), updatedAt: signedAt } });
   await db.update(romaneios).set({
     ...(signer === "origin" ? { originSignatureUrl: uploaded.url, originSignedAt: signedAt } : { destinationSignatureUrl: uploaded.url, destinationSignedAt: signedAt }),
     status: getRomaneioStatus(originSignedAt, destinationSignedAt),
