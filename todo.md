@@ -137,7 +137,7 @@
 - [x] Criar chat geral com mensagens temporárias, expiradas após uma hora.
 - [x] Permitir iniciar conversa privada com o perfil selecionado.
 - [x] Atualizar mensagens do chat com frequência enquanto a página estiver aberta, sem exigir hospedagem contínua.
-- [ ] Agendar em produção a limpeza horária das mensagens expiradas após a publicação do aplicativo.
+- [x] Agendar em produção a limpeza horária das mensagens expiradas após a publicação do aplicativo.
 - [x] Corrigir a visibilidade de Meta Fiado, Meta Desafio e Ajustes das metas quando o administrador navega pelo painel.
 - [x] Criar a aba Utilidades com acesso a Downloads e Relatórios para todos os usuários autenticados.
 - [x] Permitir que o administrador cadastre, edite, fixe no topo e remova links externos de Downloads com tipo de arquivo e modo de visualização.
