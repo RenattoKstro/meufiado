@@ -6,7 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
-import { receiptProjection, type ReceiptProjection } from "../../../shared/receiptProjection";
+import { isReceiptForecastEligible, receiptProjection, type ReceiptProjection } from "../../../shared/receiptProjection";
 import { collectionProjectionRisk, fiadoGoalGap, type FiadoGoalGap, type ProjectionRisk } from "../../../shared/collectionInsights";
 import {
   accumulatedReward,
@@ -87,6 +87,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     workingDaysRemaining,
     remainingToReceive: Math.max(metrics.currentOverdue - metrics.creditGoal, 0),
   });
+  const canShowForecast = canViewProjection && isReceiptForecastEligible(historyQuery?.data?.daysRecorded ?? 0);
   const projectionRisk = collectionProjectionRisk({ monthOpening: metrics.monthOpening, projectedReceived: projection.projectedReceived, creditGoal: metrics.creditGoal });
   const goalGap = fiadoGoalGap({ projectedOverdue: projectionRisk.projectedOverdue, creditGoal: metrics.creditGoal });
   const fiadoTiers = FIADO_TIERS[type];
@@ -114,9 +115,9 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><Link href="/historicos" className="shrink-0 text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
-      <ReceiptProjectionCard projection={projection} canView={canViewProjection} isLoading={Boolean(historyQuery?.isLoading) && canViewProjection} />
-      <FiadoGoalGapCard gap={goalGap} canView={canViewProjection} />
-      {canViewProjection && projectionRisk.status !== "unavailable" && <ProjectionRiskCard risk={projectionRisk} />}
+      {canShowForecast && <><ReceiptProjectionCard projection={projection} canView isLoading={Boolean(historyQuery?.isLoading)} />
+      <FiadoGoalGapCard gap={goalGap} canView />
+      {projectionRisk.status !== "unavailable" && <ProjectionRiskCard risk={projectionRisk} />}</>}
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{type === "leader" ? <TicketStatus ticket={ticket} /> : <AssistantNotice />}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />

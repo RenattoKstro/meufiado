@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { receiptProjection } from "./receiptProjection";
+import { isReceiptForecastEligible, receiptProjection } from "./receiptProjection";
 
 describe("projeção de recebimentos", () => {
+  it("libera o forecast somente após 20 diárias salvas", () => {
+    expect(isReceiptForecastEligible(19)).toBe(false);
+    expect(isReceiptForecastEligible(20)).toBe(true);
+    expect(isReceiptForecastEligible(21.8)).toBe(true);
+  });
+
   it("prioriza a média dos recebimentos diários registrados", () => {
     const projection = receiptProjection({
       historyTotalReceived: 3_000,

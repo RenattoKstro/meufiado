@@ -23,6 +23,12 @@ export type ReceiptProjection = {
 
 const nonNegative = (value: number) => Number.isFinite(value) ? Math.max(value, 0) : 0;
 
+export const MINIMUM_DAILY_RECEIPTS_FOR_FORECAST = 20;
+
+export function isReceiptForecastEligible(daysRecorded: number) {
+  return Math.floor(nonNegative(daysRecorded)) >= MINIMUM_DAILY_RECEIPTS_FOR_FORECAST;
+}
+
 /**
  * Projeta o total mensal recebido pela média dos registros diários. O saldo
  * informado deve corresponder ao necessário para atingir a Meta Fiado, e não

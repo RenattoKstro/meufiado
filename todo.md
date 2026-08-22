@@ -207,3 +207,4 @@
 - [x] Exibir a projeção completa somente para PRO e um aviso de bloqueio informativo para Free.
 - [x] Adicionar indicador PRO de GAP para informar se o recebimento está dentro ou fora do ritmo da Meta Fiado e exibir a diferença em valor.
 - [x] Recalibrar o forecast PRO pela Meta Fiado, limitando projeções irreais e considerando a desaceleração dos últimos dias úteis.
+- [x] Exibir a previsão de fechamento PRO somente após 20 recebimentos diários salvos e ocultá-la sem histórico suficiente.
