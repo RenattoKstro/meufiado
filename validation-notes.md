@@ -7,3 +7,8 @@ O estado sem filiais foi confirmado visualmente: para uma conta administrativa, 
 O fluxo de dashboard completo depende da inclusão de uma filial e de valores de metas no ambiente autenticado; a estrutura, os testes de regras e a compilação foram validados nesta versão inicial.
 
 Após a implementação do acesso administrativo local, o painel administrativo foi verificado em desktop e em tela móvel com uma sessão administrativa já autenticada. A navegação lateral se reduz adequadamente no celular, os botões de credenciais, filial e cadastro permanecem acessíveis e os cartões de status passam para uma coluna sem perda de legibilidade.
+
+## Validação visual — Romaneio
+
+- **Utilidades:** a aba `Romaneio` aparece junto de Downloads, Relatórios e Calculadora 90%, preservando a hierarquia visual do painel.
+- **Link público inválido:** a rota compartilhável apresenta um estado vazio seguro, sem expor informações do documento quando o token não existe.

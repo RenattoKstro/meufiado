@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gt, gte, inArray, isNull, lt, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -10,6 +10,8 @@ import {
   InsertUser,
   metricSettings,
   receiptHistoryEntries,
+  romaneioItems,
+  romaneios,
   subscriptionProofs,
   subscriptionSettings,
   utilityDownloads,
@@ -830,6 +832,138 @@ export async function deleteUtilityReport(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   await db.delete(utilityReports).where(eq(utilityReports.id, id));
+}
+
+export type RomaneioDocumentInput = {
+  documentNumber?: string | null;
+  transferDate: string;
+  originName: string;
+  originBranch?: string | null;
+  originAddress?: string | null;
+  originNeighborhood?: string | null;
+  originCity?: string | null;
+  originState?: string | null;
+  originManagerName: string;
+  destinationName: string;
+  destinationBranch?: string | null;
+  destinationAddress?: string | null;
+  destinationNeighborhood?: string | null;
+  destinationCity?: string | null;
+  destinationState?: string | null;
+  destinationManagerName: string;
+  notes?: string | null;
+  items: Array<{
+    productCode?: string | null;
+    productName: string;
+    unit?: string | null;
+    requestedQuantity: number;
+    approvedQuantity: number;
+    deliveredQuantity: number;
+    notes?: string | null;
+  }>;
+};
+
+function compactRomaneioText(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function getRomaneioStatus(originSignedAt: Date | null, destinationSignedAt: Date | null) {
+  if (originSignedAt && destinationSignedAt) return "signed" as const;
+  if (originSignedAt || destinationSignedAt) return "partially_signed" as const;
+  return "shared" as const;
+}
+
+function romaneioDetail(document: typeof romaneios.$inferSelect, items: Array<typeof romaneioItems.$inferSelect>) {
+  return { ...document, items };
+}
+
+export async function createRomaneioDocument(createdByUserId: number, input: RomaneioDocumentInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const shareToken = randomUUID().replace(/-/g, "");
+  const result = await db.insert(romaneios).values({
+    createdByUserId,
+    shareToken,
+    status: "shared",
+    documentNumber: compactRomaneioText(input.documentNumber),
+    transferDate: input.transferDate,
+    originName: input.originName.trim(),
+    originBranch: compactRomaneioText(input.originBranch),
+    originAddress: compactRomaneioText(input.originAddress),
+    originNeighborhood: compactRomaneioText(input.originNeighborhood),
+    originCity: compactRomaneioText(input.originCity),
+    originState: compactRomaneioText(input.originState)?.toUpperCase() ?? null,
+    originManagerName: input.originManagerName.trim(),
+    destinationName: input.destinationName.trim(),
+    destinationBranch: compactRomaneioText(input.destinationBranch),
+    destinationAddress: compactRomaneioText(input.destinationAddress),
+    destinationNeighborhood: compactRomaneioText(input.destinationNeighborhood),
+    destinationCity: compactRomaneioText(input.destinationCity),
+    destinationState: compactRomaneioText(input.destinationState)?.toUpperCase() ?? null,
+    destinationManagerName: input.destinationManagerName.trim(),
+    notes: compactRomaneioText(input.notes),
+  });
+  const romaneioId = Number(result[0].insertId);
+  await db.insert(romaneioItems).values(input.items.map((item, index) => ({
+    romaneioId,
+    position: index + 1,
+    productCode: compactRomaneioText(item.productCode),
+    productName: item.productName.trim(),
+    unit: compactRomaneioText(item.unit)?.toUpperCase() ?? "UN",
+    requestedQuantity: item.requestedQuantity,
+    approvedQuantity: item.approvedQuantity,
+    deliveredQuantity: item.deliveredQuantity,
+    notes: compactRomaneioText(item.notes),
+  })));
+  return getRomaneioDocumentForOwner(createdByUserId, romaneioId);
+}
+
+export async function listRomaneioDocuments(createdByUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(romaneios).where(eq(romaneios.createdByUserId, createdByUserId)).orderBy(desc(romaneios.updatedAt));
+}
+
+export async function getRomaneioDocumentForOwner(createdByUserId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [document] = await db.select().from(romaneios).where(and(eq(romaneios.id, id), eq(romaneios.createdByUserId, createdByUserId))).limit(1);
+  if (!document) throw new Error("Romaneio não encontrado.");
+  const items = await db.select().from(romaneioItems).where(eq(romaneioItems.romaneioId, document.id)).orderBy(asc(romaneioItems.position));
+  return romaneioDetail(document, items);
+}
+
+export async function getSharedRomaneioDocument(shareToken: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const [document] = await db.select().from(romaneios).where(eq(romaneios.shareToken, shareToken)).limit(1);
+  if (!document) return null;
+  const items = await db.select().from(romaneioItems).where(eq(romaneioItems.romaneioId, document.id)).orderBy(asc(romaneioItems.position));
+  return romaneioDetail(document, items);
+}
+
+export async function signSharedRomaneioDocument(shareToken: string, signer: "origin" | "destination", dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Envie a assinatura em JPG, PNG ou WEBP.");
+  const binary = Buffer.from(match[2], "base64");
+  if (binary.length === 0 || binary.length > 1024 * 1024) throw new Error("A assinatura deve ter no máximo 1 MB.");
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [document] = await db.select().from(romaneios).where(eq(romaneios.shareToken, shareToken)).limit(1);
+  if (!document) throw new Error("Romaneio não encontrado.");
+  const alreadySigned = signer === "origin" ? document.originSignedAt : document.destinationSignedAt;
+  if (alreadySigned) throw new Error("Esta assinatura já foi registrada.");
+  const extension = match[1] === "image/jpeg" ? "jpg" : match[1].split("/")[1];
+  const uploaded = await storagePut(`romaneios/${document.id}/signatures/${signer}-${randomUUID()}.${extension}`, binary, match[1]);
+  const signedAt = new Date();
+  const originSignedAt = signer === "origin" ? signedAt : document.originSignedAt;
+  const destinationSignedAt = signer === "destination" ? signedAt : document.destinationSignedAt;
+  await db.update(romaneios).set({
+    ...(signer === "origin" ? { originSignatureUrl: uploaded.url, originSignedAt: signedAt } : { destinationSignatureUrl: uploaded.url, destinationSignedAt: signedAt }),
+    status: getRomaneioStatus(originSignedAt, destinationSignedAt),
+  }).where(eq(romaneios.id, document.id));
+  return getSharedRomaneioDocument(shareToken);
 }
 
 export async function createPreRegisteredUser(input: ProfileInput) {

@@ -150,6 +150,63 @@ export const utilityReports = mysqlTable(
   table => [index("utility_reports_visibility_idx").on(table.isVisible, table.updatedAt)],
 );
 
+export const romaneioStatus = mysqlEnum("romaneioStatus", ["draft", "shared", "partially_signed", "signed"]);
+
+export const romaneios = mysqlTable(
+  "romaneios",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    createdByUserId: int("createdByUserId").notNull().references(() => users.id),
+    shareToken: varchar("shareToken", { length: 96 }).notNull(),
+    status: romaneioStatus.default("draft").notNull(),
+    documentNumber: varchar("documentNumber", { length: 80 }),
+    transferDate: date("transferDate", { mode: "string" }).notNull(),
+    originName: varchar("originName", { length: 180 }).notNull(),
+    originBranch: varchar("originBranch", { length: 120 }),
+    originAddress: varchar("originAddress", { length: 255 }),
+    originNeighborhood: varchar("originNeighborhood", { length: 120 }),
+    originCity: varchar("originCity", { length: 120 }),
+    originState: varchar("originState", { length: 2 }),
+    originManagerName: varchar("originManagerName", { length: 160 }).notNull(),
+    originSignatureUrl: varchar("originSignatureUrl", { length: 2048 }),
+    originSignedAt: timestamp("originSignedAt"),
+    destinationName: varchar("destinationName", { length: 180 }).notNull(),
+    destinationBranch: varchar("destinationBranch", { length: 120 }),
+    destinationAddress: varchar("destinationAddress", { length: 255 }),
+    destinationNeighborhood: varchar("destinationNeighborhood", { length: 120 }),
+    destinationCity: varchar("destinationCity", { length: 120 }),
+    destinationState: varchar("destinationState", { length: 2 }),
+    destinationManagerName: varchar("destinationManagerName", { length: 160 }).notNull(),
+    destinationSignatureUrl: varchar("destinationSignatureUrl", { length: 2048 }),
+    destinationSignedAt: timestamp("destinationSignedAt"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("romaneios_share_token_unique").on(table.shareToken),
+    index("romaneios_owner_updated_idx").on(table.createdByUserId, table.updatedAt),
+    index("romaneios_status_updated_idx").on(table.status, table.updatedAt),
+  ],
+);
+
+export const romaneioItems = mysqlTable(
+  "romaneioItems",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    romaneioId: int("romaneioId").notNull().references(() => romaneios.id),
+    position: int("position").notNull(),
+    productCode: varchar("productCode", { length: 80 }),
+    productName: varchar("productName", { length: 255 }).notNull(),
+    unit: varchar("unit", { length: 24 }).notNull().default("UN"),
+    requestedQuantity: double("requestedQuantity").default(0).notNull(),
+    approvedQuantity: double("approvedQuantity").default(0).notNull(),
+    deliveredQuantity: double("deliveredQuantity").default(0).notNull(),
+    notes: varchar("notes", { length: 600 }),
+  },
+  table => [uniqueIndex("romaneio_items_position_unique").on(table.romaneioId, table.position), index("romaneio_items_document_idx").on(table.romaneioId)],
+);
+
 export const adminCredentials = mysqlTable("adminCredentials", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id),
@@ -268,3 +325,5 @@ export type UtilityReport = typeof utilityReports.$inferSelect;
 export type ReceiptHistoryEntry = typeof receiptHistoryEntries.$inferSelect;
 export type SubscriptionSettings = typeof subscriptionSettings.$inferSelect;
 export type SubscriptionProof = typeof subscriptionProofs.$inferSelect;
+export type Romaneio = typeof romaneios.$inferSelect;
+export type RomaneioItem = typeof romaneioItems.$inferSelect;

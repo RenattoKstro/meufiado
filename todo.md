@@ -208,3 +208,5 @@
 - [x] Adicionar indicador PRO de GAP para informar se o recebimento está dentro ou fora do ritmo da Meta Fiado e exibir a diferença em valor.
 - [x] Recalibrar o forecast PRO pela Meta Fiado, limitando projeções irreais e considerando a desaceleração dos últimos dias úteis.
 - [x] Exibir a previsão de fechamento PRO somente após 20 recebimentos diários salvos e ocultá-la sem histórico suficiente.
+- [x] Criar Romaneio PRO em Utilidades com formulário de transferência, itens, PDF e histórico salvo.
+- [x] Criar link compartilhável de Romaneio para assinatura digital dos dois gerentes.
