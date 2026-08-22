@@ -216,3 +216,5 @@
 - [x] Reutilizar dados já salvos de filiais, solicitantes, fornecedores, endereços, bairros e produtos no formulário do Romaneio.
 - [x] Implementar assinatura gerada pelo nome do gerente e o fluxo sequencial de solicitar/enviar assinatura por link.
 - [x] Ajustar o PDF do Romaneio ao modelo visual de referência fornecido.
+- [x] Remover o título e qualquer identificação do Meu Fiado do PDF do Romaneio.
+- [x] Permitir que o assinante escolha o estilo de fonte antes de gerar sua assinatura no Romaneio.

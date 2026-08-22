@@ -44,6 +44,13 @@ export type RomaneioDocument = {
 };
 type RomaneioSummary = Pick<RomaneioDocument, "id" | "documentNumber" | "transferDate" | "originName" | "destinationName" | "status" | "shareToken" | "updatedAt" | "originSignedAt" | "destinationSignedAt" | "pdfUrl">;
 type Signer = "origin" | "destination";
+export const signatureStyles = [
+  { id: "classica", label: "Clássica", font: 'italic 92px "Brush Script MT", "Segoe Script", cursive' },
+  { id: "manuscrita", label: "Manuscrita", font: 'italic 84px "Bradley Hand", "Comic Sans MS", cursive' },
+  { id: "elegante", label: "Elegante", font: "italic 82px Georgia, serif" },
+  { id: "simples", label: "Simples", font: 'italic 76px "Trebuchet MS", sans-serif' },
+] as const;
+export type SignatureStyle = (typeof signatureStyles)[number]["id"];
 
 const currentDate = () => new Date().toISOString().slice(0, 10);
 const emptyParty = (): RomaneioParty => ({ name: "", branch: "", address: "", neighborhood: "" });
@@ -59,7 +66,7 @@ const documentTitle = (document: Pick<RomaneioDocument, "documentNumber">) => `N
 const fromOrigin = (document: RomaneioDocument): RomaneioParty => ({ name: document.originName, branch: document.originBranch || "", address: document.originAddress || "", neighborhood: document.originNeighborhood || "" });
 const fromDestination = (document: RomaneioDocument): RomaneioParty => ({ name: document.destinationName, branch: document.destinationBranch || "", address: document.destinationAddress || "", neighborhood: document.destinationNeighborhood || "" });
 
-export function generateNameSignature(name: string) {
+export function generateNameSignature(name: string, style: SignatureStyle = "classica") {
   const canvas = document.createElement("canvas");
   canvas.width = 1100;
   canvas.height = 260;
@@ -67,11 +74,15 @@ export function generateNameSignature(name: string) {
   if (!context) throw new Error("Não foi possível preparar a assinatura.");
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#111111";
-  context.font = 'italic 92px "Brush Script MT", "Segoe Script", cursive';
+  context.font = signatureStyles.find(entry => entry.id === style)?.font ?? signatureStyles[0].font;
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.fillText(name.trim() || "Assinatura", canvas.width / 2, canvas.height / 2 + 6, canvas.width - 80);
   return canvas.toDataURL("image/png");
+}
+
+export function SignatureStylePicker({ value, onChange }: { value: SignatureStyle; onChange: (style: SignatureStyle) => void }) {
+  return <div className="mt-3"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Estilo da assinatura</p><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{signatureStyles.map(style => <button key={style.id} type="button" onClick={() => onChange(style.id)} className={`rounded-lg border px-2 py-2 text-center transition ${value === style.id ? "border-primary bg-primary/10 text-primary shadow-sm" : "border-border bg-background hover:border-primary/40"}`}><span className="block text-base leading-none" style={{ fontFamily: style.font.replace(/^italic\s+\d+px\s+/, "") }}>Abc</span><span className="mt-1 block text-[10px] font-bold">{style.label}</span></button>)}</div></div>;
 }
 
 async function asImageData(url?: string | null) {
@@ -91,15 +102,6 @@ export async function exportRomaneioPdf(document: RomaneioDocument) {
   let y = 10;
   const darkBlue: [number, number, number] = [0, 0, 139];
   const red: [number, number, number] = [220, 20, 20];
-
-  pdf.setTextColor(...darkBlue);
-  pdf.setFont("times", "bolditalic");
-  pdf.setFontSize(23);
-  pdf.text("MEU FIADO", width / 2, y + 8, { align: "center" });
-  pdf.setDrawColor(...red);
-  pdf.setLineWidth(0.6);
-  pdf.line(width / 2 - 19, y + 10.5, width / 2 + 19, y + 10.5);
-  y += 15;
 
   const sectionHeading = (title: string, height = 8) => {
     pdf.setFillColor(...darkBlue);
@@ -223,6 +225,7 @@ function RomaneioDialog({ onCreated }: { onCreated: (document: RomaneioDocument)
 function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; onClose: () => void }) {
   const utils = trpc.useUtils();
   const [role, setRole] = useState<Signer | null>(null);
+  const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>("classica");
   const sign = trpc.romaneio.sign.useMutation();
   const savePdf = trpc.romaneio.savePdf.useMutation();
   const shareUrl = `${window.location.origin}/romaneio/${document.shareToken}`;
@@ -233,7 +236,7 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
   const signWithName = async () => {
     if (!role) return toast.error("Escolha se você está enviando ou solicitando.");
     try {
-      await sign.mutateAsync({ token: document.shareToken, signer: role, signatureDataUrl: generateNameSignature(roleName) });
+      await sign.mutateAsync({ token: document.shareToken, signer: role, signatureDataUrl: generateNameSignature(roleName, signatureStyle) });
       await utils.romaneio.get.invalidate({ id: document.id });
       await utils.romaneio.list.invalidate();
       toast.success("Sua assinatura foi gerada e registrada.");
@@ -248,7 +251,20 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
       toast.success("PDF gerado, baixado e salvo no histórico.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível gerar o PDF."); }
   };
-  return <Dialog open onOpenChange={open => !open && onClose()}><DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-[1.25rem]"><DialogHeader><div className="flex flex-wrap items-start justify-between gap-3 pr-5"><div><DialogTitle>{documentTitle(document)}</DialogTitle><DialogDescription>{document.destinationName} solicita de {document.originName} · {formatDocumentDate(document.transferDate)}</DialogDescription></div><Badge className={statusStyle[document.status]}>{statusLabel[document.status]}</Badge></div></DialogHeader><div className="rounded-lg border border-primary/20 bg-primary/5 p-4"><p className="font-black">1. Informe seu papel no Romaneio</p><p className="mt-1 text-sm text-muted-foreground">A assinatura é gerada visualmente a partir do nome preenchido no documento.</p><div className="mt-3 grid gap-2 sm:grid-cols-2"><Button type="button" variant={role === "origin" ? "default" : "outline"} onClick={() => setRole("origin")}>Estou enviando <span className="ml-1 text-xs opacity-80">({document.originManagerName})</span></Button><Button type="button" variant={role === "destination" ? "default" : "outline"} onClick={() => setRole("destination")}>Estou solicitando <span className="ml-1 text-xs opacity-80">({document.destinationManagerName})</span></Button></div>{role && <div className="mt-3 rounded-md bg-background/80 p-3 text-sm"><p><span className="font-bold">Sua assinatura:</span> {roleName}</p><p className="mt-1 text-muted-foreground">Após assinar, gere o Romaneio e envie este mesmo link ao gerente que {counterpart} para a segunda assinatura.</p>{ownSigned ? <p className="mt-2 flex items-center gap-1 font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Sua assinatura já está registrada.</p> : <Button className="mt-3" onClick={() => void signWithName()} disabled={sign.isPending}>{sign.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Gerando…</> : <><PenLine className="mr-2 h-4 w-4" />Gerar minha assinatura</>}</Button>}</div>}</div>{ownSigned && <div className="grid gap-2 sm:grid-cols-3"><Button onClick={() => void downloadAndSave()} disabled={savePdf.isPending}><FileDown className="mr-2 h-4 w-4" />Gerar e baixar</Button><Button variant="outline" onClick={() => void copy()}><Copy className="mr-2 h-4 w-4" />Copiar link</Button><Button variant="outline" onClick={() => window.open(shareUrl, "_blank", "noopener,noreferrer")}><Send className="mr-2 h-4 w-4" />Enviar para assinar</Button></div>}{document.pdfUrl && <Button variant="link" className="h-auto p-0 text-sm" asChild><a href={document.pdfUrl} target="_blank" rel="noreferrer"><ExternalLink className="mr-1 h-3.5 w-3.5" />Abrir PDF salvo no histórico</a></Button>}<div className="rounded-lg border border-slate-300 dark:border-slate-700"><div className="border-b bg-blue-950 px-3 py-2 text-center text-sm font-black text-white">DADOS DOS PRODUTOS DA TRANSFERÊNCIA</div><table className="w-full text-sm"><thead className="border-b text-left text-xs uppercase"><tr><th className="p-2 text-center">Código</th><th className="p-2">Descrição</th><th className="p-2 text-center">UND</th></tr></thead><tbody>{document.items.map((item, index) => <tr key={index} className="border-t"><td className="p-2 text-center">{item.productCode || "—"}</td><td className="p-2 font-medium">{item.productName}</td><td className="p-2 text-center">{item.unit || "UN"}</td></tr>)}</tbody></table></div><div className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-muted/45 p-3 text-sm"><p className="font-black">Gerente que solicita</p><p>{document.destinationManagerName}</p><p className="mt-1 text-muted-foreground">{formatDate(document.destinationSignedAt)}</p></div><div className="rounded-lg bg-muted/45 p-3 text-sm"><p className="font-black">Gerente que fornece</p><p>{document.originManagerName}</p><p className="mt-1 text-muted-foreground">{formatDate(document.originSignedAt)}</p></div></div></DialogContent></Dialog>;
+  return <Dialog open onOpenChange={open => !open && onClose()}>
+    <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-[1.25rem]">
+      <DialogHeader><div className="flex flex-wrap items-start justify-between gap-3 pr-5"><div><DialogTitle>{documentTitle(document)}</DialogTitle><DialogDescription>{document.destinationName} solicita de {document.originName} · {formatDocumentDate(document.transferDate)}</DialogDescription></div><Badge className={statusStyle[document.status]}>{statusLabel[document.status]}</Badge></div></DialogHeader>
+      <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+        <p className="font-black">1. Informe seu papel no Romaneio</p><p className="mt-1 text-sm text-muted-foreground">A assinatura é gerada visualmente a partir do nome preenchido no documento.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2"><Button type="button" variant={role === "origin" ? "default" : "outline"} onClick={() => setRole("origin")}>Estou enviando <span className="ml-1 text-xs opacity-80">({document.originManagerName})</span></Button><Button type="button" variant={role === "destination" ? "default" : "outline"} onClick={() => setRole("destination")}>Estou solicitando <span className="ml-1 text-xs opacity-80">({document.destinationManagerName})</span></Button></div>
+        {role && <div className="mt-3 rounded-md bg-background/80 p-3 text-sm"><p><span className="font-bold">Sua assinatura:</span> {roleName}</p><p className="mt-1 text-muted-foreground">Após assinar, gere o Romaneio e envie este mesmo link ao gerente que {counterpart} para a segunda assinatura.</p>{ownSigned ? <p className="mt-2 flex items-center gap-1 font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />Sua assinatura já está registrada.</p> : <><SignatureStylePicker value={signatureStyle} onChange={setSignatureStyle} /><Button className="mt-3" onClick={() => void signWithName()} disabled={sign.isPending}>{sign.isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Gerando…</> : <><PenLine className="mr-2 h-4 w-4" />Gerar minha assinatura</>}</Button></>}</div>}
+      </div>
+      {ownSigned && <div className="grid gap-2 sm:grid-cols-3"><Button onClick={() => void downloadAndSave()} disabled={savePdf.isPending}><FileDown className="mr-2 h-4 w-4" />Gerar e baixar</Button><Button variant="outline" onClick={() => void copy()}><Copy className="mr-2 h-4 w-4" />Copiar link</Button><Button variant="outline" onClick={() => window.open(shareUrl, "_blank", "noopener,noreferrer")}><Send className="mr-2 h-4 w-4" />Enviar para assinar</Button></div>}
+      {document.pdfUrl && <Button variant="link" className="h-auto p-0 text-sm" asChild><a href={document.pdfUrl} target="_blank" rel="noreferrer"><ExternalLink className="mr-1 h-3.5 w-3.5" />Abrir PDF salvo no histórico</a></Button>}
+      <div className="rounded-lg border border-slate-300 dark:border-slate-700"><div className="border-b bg-blue-950 px-3 py-2 text-center text-sm font-black text-white">DADOS DOS PRODUTOS DA TRANSFERÊNCIA</div><table className="w-full text-sm"><thead className="border-b text-left text-xs uppercase"><tr><th className="p-2 text-center">Código</th><th className="p-2">Descrição</th><th className="p-2 text-center">UND</th></tr></thead><tbody>{document.items.map((item, index) => <tr key={index} className="border-t"><td className="p-2 text-center">{item.productCode || "—"}</td><td className="p-2 font-medium">{item.productName}</td><td className="p-2 text-center">{item.unit || "UN"}</td></tr>)}</tbody></table></div>
+      <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg bg-muted/45 p-3 text-sm"><p className="font-black">Gerente que solicita</p><p>{document.destinationManagerName}</p><p className="mt-1 text-muted-foreground">{formatDate(document.destinationSignedAt)}</p></div><div className="rounded-lg bg-muted/45 p-3 text-sm"><p className="font-black">Gerente que fornece</p><p>{document.originManagerName}</p><p className="mt-1 text-muted-foreground">{formatDate(document.originSignedAt)}</p></div></div>
+    </DialogContent>
+  </Dialog>;
 }
 
 export default function RomaneioTool() {
