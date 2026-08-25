@@ -253,3 +253,7 @@
 - [x] Simplificar o aviso de consulta exclusiva da Matriz conforme o texto solicitado.
 - [x] Ajustar o card de Vendas da Matriz para acomodar valores longos sem ultrapassar seus limites.
 - [x] Validar a apresentação dos cards da Matriz em tela ampla e estreita.
+- [x] Simplificar o texto de abertura da Matriz conforme solicitado.
+- [x] Reorganizar Vendas e Recebido em uma linha alinhada no resumo de cada filial.
+- [x] Permitir comparar até quatro filiais lado a lado pela busca de códigos separados por vírgula.
+- [x] Cobrir e validar a ordem, o limite e o layout da comparação de filiais.
