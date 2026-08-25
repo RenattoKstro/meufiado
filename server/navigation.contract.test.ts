@@ -144,6 +144,17 @@ describe("contrato da navegação lateral", () => {
     expect(router).toContain("deleteReport: adminProcedure");
   });
 
+  it("mantém o aviso da Matriz conciso e contém valores extensos de Vendas", async () => {
+    const matrix = await readFile(resolve(process.cwd(), "client/src/pages/Matrix.tsx"), "utf8");
+
+    expect(matrix).toContain("Dados somente para consulta.</strong> A atualização é exclusiva da Administração.");
+    expect(matrix).toContain("const compactMoney");
+    expect(matrix).toContain('value={compactMoney(data.sales)} exactValue={money(data.sales)} tone="emerald"');
+    expect(matrix).toContain('title={exactValue ?? value}');
+    expect(matrix).toContain('className="min-w-0 overflow-hidden rounded-2xl');
+    expect(matrix).toContain('<MatrixDetail label="Vendas" value={money(data.sales)} tone="emerald" />');
+  });
+
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
     expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');

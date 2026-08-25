@@ -248,3 +248,8 @@
 - [x] Confirmar pagamentos por webhook do Mercado Pago e renovar automaticamente a assinatura PRO.
 - [x] Registrar pagamentos de forma idempotente para evitar renovações duplicadas.
 - [x] Atualizar a tela Plano e cobrir com testes os fluxos de pagamento aprovado, pendente e recusado.
+- [x] Validar a importação do Analítico para considerar todas as filiais válidas entre as linhas 3 e 384.
+- [x] Confirmar a contagem das linhas intermediárias e finais do Analítico na carga consolidada.
+- [x] Simplificar o aviso de consulta exclusiva da Matriz conforme o texto solicitado.
+- [x] Ajustar o card de Vendas da Matriz para acomodar valores longos sem ultrapassar seus limites.
+- [x] Validar a apresentação dos cards da Matriz em tela ampla e estreita.
