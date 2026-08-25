@@ -230,3 +230,6 @@
 - [x] Importar os indicadores de Meta Diária e os valores diários da planilha Meta Desafio Diária por Filial e Regional.
 - [x] Associar todos os dados da Matriz simultaneamente por código da Filial e Regional, sem misturar registros.
 - [x] Mostrar na Matriz os indicadores consolidados de todas as planilhas e limitar a guia a PRO e administradores.
+- [x] Usar exclusivamente a Regional da planilha Analítico como referência ao associar dados da Matriz.
+- [x] Ignorar as Regionais das planilhas Dados e Meta Desafio Diária durante a consolidação da Matriz.
+- [x] Exibir no cabeçalho da Matriz a data e hora da última atualização de cada planilha importada.

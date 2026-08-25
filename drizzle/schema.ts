@@ -350,6 +350,17 @@ export const matrixMetrics = mysqlTable("matrixMetrics", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+// Controle da última carga de cada aba do arquivo que alimenta a Matriz.
+// Mantém a rastreabilidade da importação sem interferir nos dados operacionais das filiais.
+export const matrixImportSources = mysqlTable("matrixImportSources", {
+  id: int("id").autoincrement().primaryKey(),
+  source: mysqlEnum("source", ["analytic", "data", "dailyTracking", "challengeDaily"]).notNull().unique(),
+  importedAt: timestamp("importedAt").notNull(),
+  receivedRows: int("receivedRows").default(0).notNull(),
+  validRows: int("validRows").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const receiptHistoryEntries = mysqlTable(
   "receiptHistoryEntries",
   {

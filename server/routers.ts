@@ -327,6 +327,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       await requireMatrixProAccess(ctx.user.id, ctx.user.role);
       return listMatrixOverviews();
     }),
+    importStatus: protectedProcedure.query(async ({ ctx }) => {
+      await requireMatrixProAccess(ctx.user.id, ctx.user.role);
+      return getAnalyticImportStatus();
+    }),
   }),
   history: router({
     list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),
@@ -353,7 +357,18 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const data = parseRows(input.data, dataRowFromSpreadsheet);
       const dailyTracking = parseRows(input.dailyTracking, dailyTrackingRowFromSpreadsheet);
       const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
-      return importMatrixWorkbook({ analytic, data, dailyTracking, challengeDaily }).then(result => ({
+      return importMatrixWorkbook({
+        analytic,
+        data,
+        dailyTracking,
+        challengeDaily,
+        sourceRows: {
+          analytic: { receivedRows: input.analytic.length, validRows: analytic.length },
+          data: { receivedRows: input.data.length, validRows: data.length },
+          dailyTracking: { receivedRows: input.dailyTracking.length, validRows: dailyTracking.length },
+          challengeDaily: { receivedRows: input.challengeDaily.length, validRows: challengeDaily.length },
+        },
+      }).then(result => ({
         ...result,
         received: input.analytic.length + input.data.length + input.dailyTracking.length + input.challengeDaily.length,
         valid: analytic.length + data.length + dailyTracking.length + challengeDaily.length,

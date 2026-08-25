@@ -44,6 +44,20 @@ type MatrixItem = {
   updatedAt: Date | null;
 };
 
+type MatrixImportSource = {
+  source: "analytic" | "data" | "dailyTracking" | "challengeDaily";
+  importedAt: Date;
+  receivedRows: number;
+  validRows: number;
+};
+
+const sourceLabels: Record<MatrixImportSource["source"], string> = {
+  analytic: "Analítico",
+  data: "Dados",
+  dailyTracking: "Acomp. Meta Diária",
+  challengeDaily: "Meta Desafio Diária",
+};
+
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const imported = (item: MatrixItem) => item.metrics !== null;
 const percent = (value: number) => `${value.toFixed(2)}%`;
@@ -62,8 +76,14 @@ function updateLabel(value: Date | null) {
   return `Importado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value))}`;
 }
 
+function sourceUpdateLabel(value: Date | string | null | undefined) {
+  if (!value) return "Aguardando importação";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
 export default function Matrix() {
   const matrixQuery = trpc.matrix.overview.useQuery();
+  const importStatusQuery = trpc.matrix.importStatus.useQuery();
   const [searchTerm, setSearchTerm] = useState("");
   const [regional, setRegional] = useState("all");
   const [hidePending, setHidePending] = useState(false);
@@ -82,6 +102,8 @@ export default function Matrix() {
   }, [hidePending, items, regional, searchTerm]);
   const importedCount = items.filter(imported).length;
   const clearFilters = () => { setSearchTerm(""); setRegional("all"); };
+  const sourceUpdates = ((importStatusQuery.data?.sources ?? []) as MatrixImportSource[]);
+  const sourceUpdatesByName = new Map(sourceUpdates.map(update => [update.source, update]));
 
   if (matrixQuery.isLoading) return <MatrixLoading />;
   if (matrixQuery.isError) return <MatrixError onRetry={() => void matrixQuery.refetch()} />;
@@ -96,6 +118,13 @@ export default function Matrix() {
       <Card className="rounded-2xl border-primary/20 bg-primary/5 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Building2 className="h-4 w-4" /></span><div><p className="text-xl font-black">{importedCount} de {items.length}</p><p className="text-[11px] font-bold text-muted-foreground">filiais com dados importados</p></div></CardContent></Card>
     </header>
 
+    <section aria-label="Atualizações das planilhas" className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {(Object.keys(sourceLabels) as MatrixImportSource["source"][]).map(source => {
+        const update = sourceUpdatesByName.get(source);
+        return <Card key={source} className="rounded-2xl border-border/70 bg-card shadow-sm"><CardContent className="flex items-center gap-3 p-3.5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Clock3 className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-xs font-black">{sourceLabels[source]}</p><p className="mt-0.5 text-[11px] font-semibold text-muted-foreground">{sourceUpdateLabel(update?.importedAt)}</p>{update && <p className="mt-0.5 text-[10px] text-muted-foreground">{update.validRows} linha{update.validRows === 1 ? "" : "s"} válida{update.validRows === 1 ? "" : "s"}</p>}</div></CardContent></Card>;
+      })}
+    </section>
+
     <div className="mb-5 grid gap-3 lg:grid-cols-[1fr_auto_auto] lg:items-end">
       <div className="rounded-2xl border border-primary/25 bg-card p-3 shadow-sm">
         <label htmlFor="matrix-search" className="mb-2 flex items-center justify-between gap-3 text-sm font-black"><span className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-primary-foreground"><Search className="h-3.5 w-3.5" /></span>Pesquisar filial</span><span className="text-xs font-semibold text-muted-foreground">{visibleItems.length} resultado{visibleItems.length === 1 ? "" : "s"}</span></label>
@@ -105,7 +134,7 @@ export default function Matrix() {
       <div className="flex h-11 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3"><div><p className="text-xs font-extrabold">Ocultar pendentes</p><p className="text-[10px] text-muted-foreground">Sem dados importados</p></div><Switch aria-label="Ocultar filiais sem dados importados" checked={hidePending} onCheckedChange={setHidePending} /></div>
     </div>
 
-    <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /><p><strong>Dados somente para consulta.</strong> A Matriz cruza as quatro abas por <strong>Filial e Regional</strong>. Fiado, Desafio, Ticket e Perdas vêm do Analítico; carteira e previsão vêm de Dados; os acompanhamentos vêm das duas planilhas diárias. A atualização é exclusiva da Administração.</p></div>
+    <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /><p><strong>Dados somente para consulta.</strong> A aba <strong>Analítico</strong> define a Filial e a Regional de referência. Dados, Acomp. Meta Diária e Meta Desafio Diária são associados apenas pelo código da Filial, sem considerar a Regional informada nessas outras abas. A atualização é exclusiva da Administração.</p></div>
 
     {visibleItems.length ? <div className="grid gap-4 xl:grid-cols-2">{visibleItems.map(item => <MatrixCard key={item.branch.id} item={item} expanded={expanded === item.branch.id} onToggle={() => setExpanded(current => current === item.branch.id ? null : item.branch.id)} />)}</div> : <EmptyMatrix filtered={Boolean(searchTerm || regional !== "all" || hidePending)} />}
   </section>;

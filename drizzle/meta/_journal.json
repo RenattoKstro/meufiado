@@ -183,6 +183,13 @@
       "when": 1787673208242,
       "tag": "0025_rich_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1787674599748,
+      "tag": "0026_bored_glorian",
+      "breakpoints": true
     }
   ]
 }

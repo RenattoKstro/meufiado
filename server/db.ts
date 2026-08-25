@@ -8,6 +8,7 @@ import {
   chatReadStates,
   chatMessages,
   InsertUser,
+  matrixImportSources,
   matrixMetrics,
   metricSettings,
   receiptHistoryEntries,
@@ -226,6 +227,7 @@ export type MatrixWorkbookRows = {
   data: DataImportRow[];
   dailyTracking: DailyTrackingImportRow[];
   challengeDaily: ChallengeDailyImportRow[];
+  sourceRows?: Partial<Record<"analytic" | "data" | "dailyTracking" | "challengeDaily", { receivedRows: number; validRows: number }>>;
 };
 
 const normalizeRegional = (value: string | null | undefined) => (value ?? "").trim().toLocaleLowerCase("pt-BR");
@@ -234,27 +236,30 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const allBranches = await db.select().from(branches);
-  const matrixKey = (code: string, regional: string | null | undefined) => `${normalizeBranchCode(code)}::${normalizeRegional(regional)}`;
   const byCode = new Map(allBranches.filter(branch => branch.code).map(branch => [normalizeBranchCode(branch.code), branch]));
-  const byCodeAndRegional = new Map(allBranches.filter(branch => branch.code).map(branch => [matrixKey(branch.code!, branch.regional), branch]));
   const existingMetrics = await db.select().from(matrixMetrics);
   const existingByBranch = new Map(existingMetrics.map(metrics => [metrics.branchId, metrics]));
   const byCodeFrom = <T extends { code: string }>(rows: T[]) => new Map<string, T>(rows.map(row => [row.code, row]));
-  const byCodeAndRegionalFrom = <T extends { code: string; regional: string }>(rows: T[]) => new Map(rows.map(row => [matrixKey(row.code, row.regional), row]));
-  const analytics = byCodeAndRegionalFrom(sources.analytic);
-  const dataRows = byCodeAndRegionalFrom(sources.data);
+  const analytics = byCodeFrom(sources.analytic);
+  const dataRows = byCodeFrom(sources.data);
   const dailyTracking = byCodeFrom(sources.dailyTracking);
-  const challengeDaily = byCodeAndRegionalFrom(sources.challengeDaily);
-  const matrixKeys = new Set(Array.from(analytics.keys()).concat(Array.from(dataRows.keys()), Array.from(challengeDaily.keys())));
-  const codesWithRegional = new Set(Array.from(matrixKeys).map(key => key.split("::")[0]));
-  const dailyOnlyCodes = Array.from(dailyTracking.keys()).filter(code => !codesWithRegional.has(code));
+  const challengeDaily = byCodeFrom(sources.challengeDaily);
+  // A aba Analítico é a referência de Filial e Regional. As outras abas apenas
+  // complementam os indicadores da mesma filial pelo código normalizado.
+  const matrixCodes = new Set<string>(Array.from(analytics.keys()));
   let imported = 0;
-  let unmatched = 0;
+  const analyticCodes = new Set(Array.from(analytics.keys()));
+  let unmatched = Array.from(new Set([
+    ...Array.from(dataRows.keys()),
+    ...Array.from(dailyTracking.keys()),
+    ...Array.from(challengeDaily.keys()),
+  ])).filter(code => !analyticCodes.has(code)).length;
   let regionalMismatch = 0;
-  const importForBranch = async (branch: typeof allBranches[number], code: string, importedRegional: string, key?: string) => {
-    const analytic = key ? analytics.get(key) : undefined;
-    const data = key ? dataRows.get(key) : undefined;
-    const challenge = key ? challengeDaily.get(key) : undefined;
+  let createdBranches = 0;
+  const importForBranch = async (branch: typeof allBranches[number], code: string) => {
+    const analytic = analytics.get(code);
+    const data = dataRows.get(code);
+    const challenge = challengeDaily.get(code);
     const previous = existingByBranch.get(branch.id);
     const values = {
       creditGoal: analytic?.creditGoal ?? previous?.creditGoal ?? 0,
@@ -288,32 +293,53 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
       challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge.dailyReceived) : previous?.challengeDailyReceivedJson ?? null,
     };
     await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
-    if (importedRegional) await db.update(branches).set({ regional: importedRegional }).where(eq(branches.id, branch.id));
+    const analyticRegional = analytic?.regional.trim();
+    if (analyticRegional && normalizeRegional(branch.regional) !== normalizeRegional(analyticRegional)) {
+      await db.update(branches).set({ regional: analyticRegional }).where(eq(branches.id, branch.id));
+    }
     imported += 1;
   };
-  for (const key of Array.from(matrixKeys)) {
-    const [code, importedRegional] = key.split("::");
-    const branch = byCodeAndRegional.get(key);
+  for (const code of Array.from(matrixCodes)) {
+    let branch = byCode.get(code);
     if (!branch) {
-      if (byCode.has(code)) regionalMismatch += 1;
-      else unmatched += 1;
-      continue;
+      const analyticRegional = analytics.get(code)?.regional.trim() || null;
+      const result = await db.insert(branches).values({
+        code,
+        name: `Filial ${code}`,
+        regional: analyticRegional,
+        isActive: true,
+      });
+      branch = {
+        id: Number(result[0].insertId),
+        code,
+        name: `Filial ${code}`,
+        regional: analyticRegional,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      byCode.set(code, branch);
+      createdBranches += 1;
     }
-    await importForBranch(branch, code, importedRegional, key);
+    await importForBranch(branch, code);
   }
-  for (const code of dailyOnlyCodes) {
-    const branch = byCode.get(code);
-    if (!branch) { unmatched += 1; continue; }
-    await importForBranch(branch, code, branch.regional ?? "");
+  const importedAt = new Date();
+  const sourceEntries = (Object.keys(sources.sourceRows ?? {}) as Array<"analytic" | "data" | "dailyTracking" | "challengeDaily">)
+    .map(source => [source, sources.sourceRows?.[source]] as const)
+    .filter((entry): entry is readonly ["analytic" | "data" | "dailyTracking" | "challengeDaily", { receivedRows: number; validRows: number }] => Boolean(entry[1]?.receivedRows));
+  for (const [source, summary] of sourceEntries) {
+    await db.insert(matrixImportSources).values({ source, importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows })
+      .onDuplicateKeyUpdate({ set: { importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows } });
   }
-  return { imported, unmatched, regionalMismatch };
+  return { imported, unmatched, regionalMismatch, createdBranches };
 }
 
 export async function getAnalyticImportStatus() {
   const db = await getDb();
-  if (!db) return { lastImportedAt: null };
+  if (!db) return { lastImportedAt: null, sources: [] };
+  const sources = await db.select().from(matrixImportSources).orderBy(matrixImportSources.source);
   const [latest] = await db.select({ updatedAt: matrixMetrics.updatedAt }).from(matrixMetrics).orderBy(desc(matrixMetrics.updatedAt)).limit(1);
-  return { lastImportedAt: latest?.updatedAt ?? null };
+  return { lastImportedAt: latest?.updatedAt ?? null, sources };
 }
 
 export async function setBranchStatus(id: number, isActive: boolean) {

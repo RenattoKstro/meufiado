@@ -51,9 +51,12 @@ describe("permissões administrativas", () => {
     const operatorCaller = proRouter.createCaller(contextFor("user"));
     const matrix = await operatorCaller.matrix.overview();
     expect(matrix).toEqual(expect.any(Array));
+    await expect(operatorCaller.matrix.importStatus()).resolves.toMatchObject({ sources: expect.any(Array) });
 
     await expect(freeRouter.createCaller(contextFor("user")).matrix.overview()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(freeRouter.createCaller(contextFor("user")).matrix.importStatus()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(freeRouter.createCaller(contextFor("admin")).matrix.overview()).resolves.toEqual(expect.any(Array));
+    await expect(freeRouter.createCaller(contextFor("admin")).matrix.importStatus()).resolves.toMatchObject({ sources: expect.any(Array) });
 
     const guestCaller = proRouter.createCaller(contextWithoutUser());
     await expect(guestCaller.matrix.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
