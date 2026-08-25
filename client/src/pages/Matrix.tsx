@@ -13,18 +13,43 @@ type MatrixItem = {
   metrics: {
     creditGoal: number;
     challengeGoal: number;
-    currentOverdue: number;
+    received: number;
+    delinquencyPercent: number;
+    creditEffectivenessPercent: number;
+    challengeEffectivenessPercent: number;
+    ticketGoal: number;
+    ticketPercent: number;
+    ticketBonus: number;
     monthlyLoss: number;
     lossSalesPercent: number;
     lostGoal: number;
     lostReceived: number;
+    lossEffectivenessPercent: number;
+    amountReceivable: number;
+    overdueOpening: number;
+    portfolioTotal: number;
+    receiptForecast: number;
+    closingForecast: number;
+    closingForecastPercent: number;
+    accumulatedLossGoal: number;
+    accumulatedLossReceived: number;
+    accumulatedLossBalance: number;
+    previousDayGoal: number;
+    dailyReceived: number;
+    previousDayDifference: number;
+    accumulatedDifference: number;
+    redesignedDailyGoal: number;
+    challengeDailyReceivedJson: string | null;
   } | null;
   updatedAt: Date | null;
 };
 
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-const percentage = (numerator: number, denominator: number) => denominator > 0 ? (numerator / denominator) * 100 : 0;
 const imported = (item: MatrixItem) => item.metrics !== null;
+const percent = (value: number) => `${value.toFixed(2)}%`;
+function challengeDailyValues(value: string | null) {
+  try { const parsed: unknown = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed.map(item => Number(item) || 0).slice(0, 31) : []; } catch { return []; }
+}
 
 function updateLabel(value: Date | null) {
   if (!value) return "Aguardando importação";
@@ -66,7 +91,7 @@ export default function Matrix() {
       <div>
         <div className="flex items-center gap-2 text-primary"><Database className="h-4 w-4" /><p className="text-xs font-bold uppercase tracking-[0.14em]">Base importada</p></div>
         <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Matriz</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">Acompanhe todas as filiais a partir da planilha Analítico importada pela Administração. Esta é uma consulta consolidada e não permite alterações pelos operadores.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">Acompanhe todas as filiais a partir das abas Analítico, Dados, Acomp.Meta Diaria e Meta Desafio Diária. Esta é uma consulta consolidada exclusiva PRO e não permite alterações pelos operadores.</p>
       </div>
       <Card className="rounded-2xl border-primary/20 bg-primary/5 shadow-sm"><CardContent className="flex items-center gap-3 p-4"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground"><Building2 className="h-4 w-4" /></span><div><p className="text-xl font-black">{importedCount} de {items.length}</p><p className="text-[11px] font-bold text-muted-foreground">filiais com dados importados</p></div></CardContent></Card>
     </header>
@@ -80,7 +105,7 @@ export default function Matrix() {
       <div className="flex h-11 items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3"><div><p className="text-xs font-extrabold">Ocultar pendentes</p><p className="text-[10px] text-muted-foreground">Sem dados importados</p></div><Switch aria-label="Ocultar filiais sem dados importados" checked={hidePending} onCheckedChange={setHidePending} /></div>
     </div>
 
-    <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /><p><strong>Dados somente para consulta.</strong> Os valores abaixo vêm das colunas A, C, G, H, I, R, S, T e U da planilha Analítico e são atualizados exclusivamente pela importação do administrador.</p></div>
+    <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" /><p><strong>Dados somente para consulta.</strong> A Matriz cruza as quatro abas por <strong>Filial e Regional</strong>. Fiado, Desafio, Ticket e Perdas vêm do Analítico; carteira e previsão vêm de Dados; os acompanhamentos vêm das duas planilhas diárias. A atualização é exclusiva da Administração.</p></div>
 
     {visibleItems.length ? <div className="grid gap-4 xl:grid-cols-2">{visibleItems.map(item => <MatrixCard key={item.branch.id} item={item} expanded={expanded === item.branch.id} onToggle={() => setExpanded(current => current === item.branch.id ? null : item.branch.id)} />)}</div> : <EmptyMatrix filtered={Boolean(searchTerm || regional !== "all" || hidePending)} />}
   </section>;
@@ -88,25 +113,32 @@ export default function Matrix() {
 
 function MatrixCard({ item, expanded, onToggle }: { item: MatrixItem; expanded: boolean; onToggle: () => void }) {
   const data = item.metrics;
-  const fiadoProgress = data ? percentage(data.creditGoal, data.currentOverdue) : 0;
-  const challengeProgress = data ? percentage(data.challengeGoal, data.currentOverdue) : 0;
-  const lossRecovery = data ? percentage(data.lostReceived, data.lostGoal) : 0;
+  const challengeDays = data ? challengeDailyValues(data.challengeDailyReceivedJson) : [];
   return <Card className="overflow-hidden rounded-[1.6rem] border-border/70 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"><CardContent className="p-5">
     <button type="button" aria-expanded={expanded} onClick={onToggle} className="flex w-full items-start justify-between gap-4 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Building2 className="h-4 w-4" /></span><div className="min-w-0"><p className="truncate text-sm font-extrabold">{item.branch.name}</p><p className="mt-0.5 truncate text-[11px] font-semibold text-muted-foreground">{item.branch.regional || "Regional não informada"}{item.branch.code ? ` · ${item.branch.code}` : ""}</p></div></div>
       <div className="flex shrink-0 items-center gap-2"><Badge className={data ? "rounded-full bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300" : "rounded-full bg-muted text-muted-foreground hover:bg-muted"}>{data ? "Importada" : "Pendente"}</Badge><ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} /></div>
     </button>
     {data ? <>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3"><Snapshot label="Meta Fiado" value={`${fiadoProgress.toFixed(2)}%`} tone="primary" /><Snapshot label="Meta Desafio" value={`${challengeProgress.toFixed(2)}%`} tone="violet" /><Snapshot label="Recup. perdas" value={`${lossRecovery.toFixed(2)}%`} tone="amber" /></div>
-      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-muted/45 px-3 py-2.5"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"><TrendingDown className="h-4 w-4 text-primary" />Vencido atual</div><span className="text-sm font-black">{money(data.currentOverdue)}</span></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3"><Snapshot label="Efetividade Fiado" value={percent(data.creditEffectivenessPercent)} tone="primary" /><Snapshot label="Efetividade Desafio" value={percent(data.challengeEffectivenessPercent)} tone="violet" /><Snapshot label="% Ticket" value={percent(data.ticketPercent)} tone="amber" /></div>
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-muted/45 px-3 py-2.5"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground"><TrendingDown className="h-4 w-4 text-primary" />Recebido</div><span className="text-sm font-black">{money(data.received)}</span></div>
       <div className="mt-4 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground"><Clock3 className="h-3.5 w-3.5" />{updateLabel(item.updatedAt)}</div>
-      {expanded && <div className="mt-5 grid gap-3 border-t border-border/70 pt-5 sm:grid-cols-2"><MatrixDetail label="Meta Fiado" value={money(data.creditGoal)} /><MatrixDetail label="Meta Desafio" value={money(data.challengeGoal)} tone="violet" /><MatrixDetail label="Vencido atual" value={money(data.currentOverdue)} tone="primary" /><MatrixDetail label="Perdas do mês" value={money(data.monthlyLoss)} tone="rose" /><MatrixDetail label="% perdas venda" value={`${data.lossSalesPercent.toFixed(2)}%`} tone="rose" /><MatrixDetail label="Meta Rec. Perdas" value={money(data.lostGoal)} tone="amber" /><MatrixDetail label="Recuperação Perdas" value={money(data.lostReceived)} tone="amber" /><MatrixDetail label="Falta recuperar perdas" value={money(Math.max(data.lostGoal - data.lostReceived, 0))} /></div>}
-    </> : <div className="mt-5 rounded-2xl border border-dashed border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">Esta filial ainda não possui uma linha correspondente na última importação do Analítico. Solicite ao administrador o envio de uma planilha que contenha este código de filial.</div>}
+      {expanded && <div className="mt-5 space-y-5 border-t border-border/70 pt-5">
+        <MatrixGroup title="Fiado e Desafio"><MatrixDetail label="Meta Fiado" value={money(data.creditGoal)} /><MatrixDetail label="Meta Desafio" value={money(data.challengeGoal)} tone="violet" /><MatrixDetail label="Recebido" value={money(data.received)} tone="primary" /><MatrixDetail label="Inadimplência" value={percent(data.delinquencyPercent)} tone="rose" /><MatrixDetail label="Efetividade Fiado" value={percent(data.creditEffectivenessPercent)} tone="primary" /><MatrixDetail label="Efetividade Desafio" value={percent(data.challengeEffectivenessPercent)} tone="violet" /></MatrixGroup>
+        <MatrixGroup title="Meta Ticket"><MatrixDetail label="Meta Ticket" value={money(data.ticketGoal)} tone="amber" /><MatrixDetail label="% Ticket" value={percent(data.ticketPercent)} tone="amber" /><MatrixDetail label="Bonificação" value={money(data.ticketBonus)} tone="amber" /></MatrixGroup>
+        <MatrixGroup title="Perdas"><MatrixDetail label="Perdas do mês" value={money(data.monthlyLoss)} tone="rose" /><MatrixDetail label="% Perdas Venda" value={percent(data.lossSalesPercent)} tone="rose" /><MatrixDetail label="Meta Rec. Perdas" value={money(data.lostGoal)} tone="amber" /><MatrixDetail label="Recuperado" value={money(data.lostReceived)} tone="amber" /><MatrixDetail label="Efetividade" value={percent(data.lossEffectivenessPercent)} tone="amber" /></MatrixGroup>
+        <MatrixGroup title="Dados e previsão"><MatrixDetail label="A receber" value={money(data.amountReceivable)} /><MatrixDetail label="Abertura vencido" value={money(data.overdueOpening)} /><MatrixDetail label="Carteira" value={money(data.portfolioTotal)} /><MatrixDetail label="Previsão de recebimento" value={money(data.receiptForecast)} tone="primary" /><MatrixDetail label="Previsão de fechamento" value={money(data.closingForecast)} tone="primary" /><MatrixDetail label="% previsão" value={percent(data.closingForecastPercent)} tone="primary" /><MatrixDetail label="Meta Rec. acumulada" value={money(data.accumulatedLossGoal)} /><MatrixDetail label="Rec. realizado" value={money(data.accumulatedLossReceived)} /><MatrixDetail label="Saldo Rec." value={money(data.accumulatedLossBalance)} /></MatrixGroup>
+        <MatrixGroup title="Acompanhamento diário"><MatrixDetail label="Meta dia anterior" value={money(data.previousDayGoal)} /><MatrixDetail label="Realizado" value={money(data.dailyReceived)} tone="primary" /><MatrixDetail label="Dif. dia anterior" value={money(data.previousDayDifference)} tone="rose" /><MatrixDetail label="Diferença acumulada" value={money(data.accumulatedDifference)} tone="rose" /><MatrixDetail label="Meta dia redesenhada" value={money(data.redesignedDailyGoal)} tone="primary" /></MatrixGroup>
+        <ChallengeDailyGrid values={challengeDays} />
+      </div>}
+    </> : <div className="mt-5 rounded-2xl border border-dashed border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">Esta filial ainda não possui uma linha correspondente nas planilhas da última importação. Solicite ao administrador um arquivo que contenha a Filial e a Regional correspondentes.</div>}
   </CardContent></Card>;
 }
 
 function Snapshot({ label, value, tone }: { label: string; value: string; tone: "primary" | "violet" | "amber" }) { const color = tone === "violet" ? "text-violet-600" : tone === "amber" ? "text-amber-600" : "text-primary"; return <div className="rounded-2xl bg-muted/50 px-3 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className={`mt-1 text-lg font-black ${color}`}>{value}</p></div>; }
+function MatrixGroup({ title, children }: { title: string; children: React.ReactNode }) { return <section><p className="mb-2 text-[11px] font-black uppercase tracking-[0.11em] text-muted-foreground">{title}</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div></section>; }
+function ChallengeDailyGrid({ values }: { values: number[] }) { if (!values.length) return <section><p className="mb-2 text-[11px] font-black uppercase tracking-[0.11em] text-muted-foreground">Meta Desafio diária</p><div className="rounded-xl bg-muted/45 px-3 py-3 text-sm text-muted-foreground">Sem valores diários importados.</div></section>; return <section><p className="mb-2 text-[11px] font-black uppercase tracking-[0.11em] text-muted-foreground">Meta Desafio diária — recebido</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">{values.map((value, index) => <div key={index} className="rounded-xl bg-muted/45 px-3 py-2"><p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Dia {index + 1}</p><p className="mt-0.5 text-xs font-black">{money(value)}</p></div>)}</div></section>; }
 function MatrixDetail({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "primary" | "violet" | "amber" | "rose" }) { const color = tone === "primary" ? "text-primary" : tone === "violet" ? "text-violet-600" : tone === "amber" ? "text-amber-600" : tone === "rose" ? "text-rose-600" : "text-foreground"; return <div className="rounded-xl bg-muted/45 px-3 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className={`mt-1 text-sm font-black ${color}`}>{value}</p></div>; }
-function EmptyMatrix({ filtered }: { filtered: boolean }) { return <Card className="rounded-[1.6rem] border-dashed"><CardContent className="grid min-h-72 place-items-center p-8 text-center"><div><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><Target className="h-5 w-5" /></span><h2 className="mt-4 text-lg font-black">{filtered ? "Nenhuma filial encontrada" : "A Matriz ainda não possui dados importados"}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{filtered ? "Altere os filtros para localizar outra filial." : "A Administração deve importar a planilha Analítico para preencher esta consulta."}</p></div></CardContent></Card>; }
+function EmptyMatrix({ filtered }: { filtered: boolean }) { return <Card className="rounded-[1.6rem] border-dashed"><CardContent className="grid min-h-72 place-items-center p-8 text-center"><div><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><Target className="h-5 w-5" /></span><h2 className="mt-4 text-lg font-black">{filtered ? "Nenhuma filial encontrada" : "A Matriz ainda não possui dados importados"}</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{filtered ? "Altere os filtros para localizar outra filial." : "A Administração deve importar um arquivo com as abas Analítico, Dados, Acomp.Meta Diaria e Meta Desafio Diária."}</p></div></CardContent></Card>; }
 function MatrixLoading() { return <div className="mx-auto max-w-7xl space-y-5"><div className="space-y-3"><Skeleton className="h-4 w-32" /><Skeleton className="h-10 w-44" /><Skeleton className="h-5 max-w-xl" /></div><div className="grid gap-4 xl:grid-cols-2">{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-60 rounded-[1.6rem]" />)}</div></div>; }
 function MatrixError({ onRetry }: { onRetry: () => void }) { return <Card className="mx-auto max-w-xl rounded-[1.6rem] border-destructive/20"><CardContent className="p-8 text-center"><CircleAlert className="mx-auto h-6 w-6 text-destructive" /><h1 className="mt-4 text-xl font-black">Não foi possível carregar a Matriz</h1><button type="button" onClick={onRetry} className="mt-4 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">Tentar novamente</button></CardContent></Card>; }

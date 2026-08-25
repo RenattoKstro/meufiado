@@ -225,3 +225,8 @@
 - [x] Criar a guia Matriz com consulta não editável de todas as filiais e seus indicadores importados.
 - [x] Direcionar a importação da planilha Analítico da Administração exclusivamente para os dados da Matriz.
 - [x] Manter as metas e lançamentos dos usuários independentes dos dados consolidados importados na Matriz.
+- [x] Revisar a Matriz para receber os campos de Fiado, Desafio, Ticket e Perdas da planilha Analítico.
+- [x] Importar A Receber, Abertura Vencido, Carteira e Previsão a partir da planilha Dados.
+- [x] Importar os indicadores de Meta Diária e os valores diários da planilha Meta Desafio Diária por Filial e Regional.
+- [x] Associar todos os dados da Matriz simultaneamente por código da Filial e Regional, sem misturar registros.
+- [x] Mostrar na Matriz os indicadores consolidados de todas as planilhas e limitar a guia a PRO e administradores.

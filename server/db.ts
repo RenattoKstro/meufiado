@@ -27,7 +27,14 @@ import {
 import { randomUUID } from "crypto";
 import { ENV } from "./_core/env";
 import { hashPassword, verifyPassword } from "./localAdminAuth";
-import { normalizeBranchCode, type AnalyticImportRow, type BranchImportRow } from "../shared/importRules";
+import {
+  normalizeBranchCode,
+  type AnalyticImportRow,
+  type BranchImportRow,
+  type ChallengeDailyImportRow,
+  type DailyTrackingImportRow,
+  type DataImportRow,
+} from "../shared/importRules";
 import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
 import { resolveMetricStorageScope } from "../shared/branchMetricScope";
@@ -181,17 +188,7 @@ export async function listMatrixOverviews() {
 
   return rows.map(({ branch, metrics }) => ({
     branch,
-    metrics: metrics
-      ? {
-          creditGoal: metrics.creditGoal,
-          challengeGoal: metrics.challengeGoal,
-          currentOverdue: metrics.currentOverdue,
-          monthlyLoss: metrics.monthlyLoss,
-          lossSalesPercent: metrics.lossSalesPercent,
-          lostGoal: metrics.lostGoal,
-          lostReceived: metrics.lostReceived,
-        }
-      : null,
+    metrics: metrics ?? null,
     updatedAt: metrics?.updatedAt ?? null,
   }));
 }
@@ -224,30 +221,92 @@ export async function importBranches(rows: BranchImportRow[]) {
   return { created, updated };
 }
 
-export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
+export type MatrixWorkbookRows = {
+  analytic: AnalyticImportRow[];
+  data: DataImportRow[];
+  dailyTracking: DailyTrackingImportRow[];
+  challengeDaily: ChallengeDailyImportRow[];
+};
+
+const normalizeRegional = (value: string | null | undefined) => (value ?? "").trim().toLocaleLowerCase("pt-BR");
+
+export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const allBranches = await db.select().from(branches);
+  const matrixKey = (code: string, regional: string | null | undefined) => `${normalizeBranchCode(code)}::${normalizeRegional(regional)}`;
   const byCode = new Map(allBranches.filter(branch => branch.code).map(branch => [normalizeBranchCode(branch.code), branch]));
+  const byCodeAndRegional = new Map(allBranches.filter(branch => branch.code).map(branch => [matrixKey(branch.code!, branch.regional), branch]));
+  const existingMetrics = await db.select().from(matrixMetrics);
+  const existingByBranch = new Map(existingMetrics.map(metrics => [metrics.branchId, metrics]));
+  const byCodeFrom = <T extends { code: string }>(rows: T[]) => new Map<string, T>(rows.map(row => [row.code, row]));
+  const byCodeAndRegionalFrom = <T extends { code: string; regional: string }>(rows: T[]) => new Map(rows.map(row => [matrixKey(row.code, row.regional), row]));
+  const analytics = byCodeAndRegionalFrom(sources.analytic);
+  const dataRows = byCodeAndRegionalFrom(sources.data);
+  const dailyTracking = byCodeFrom(sources.dailyTracking);
+  const challengeDaily = byCodeAndRegionalFrom(sources.challengeDaily);
+  const matrixKeys = new Set(Array.from(analytics.keys()).concat(Array.from(dataRows.keys()), Array.from(challengeDaily.keys())));
+  const codesWithRegional = new Set(Array.from(matrixKeys).map(key => key.split("::")[0]));
+  const dailyOnlyCodes = Array.from(dailyTracking.keys()).filter(code => !codesWithRegional.has(code));
   let imported = 0;
   let unmatched = 0;
-  for (const row of rows) {
-    const branch = byCode.get(row.code);
-    if (!branch) { unmatched += 1; continue; }
+  let regionalMismatch = 0;
+  const importForBranch = async (branch: typeof allBranches[number], code: string, importedRegional: string, key?: string) => {
+    const analytic = key ? analytics.get(key) : undefined;
+    const data = key ? dataRows.get(key) : undefined;
+    const challenge = key ? challengeDaily.get(key) : undefined;
+    const previous = existingByBranch.get(branch.id);
     const values = {
-      creditGoal: row.creditGoal,
-      challengeGoal: row.challengeGoal,
-      currentOverdue: row.currentOverdue,
-      monthlyLoss: row.monthlyLoss,
-      lossSalesPercent: row.lossSalesPercent,
-      lostGoal: row.lostGoal,
-      lostReceived: row.lostReceived,
+      creditGoal: analytic?.creditGoal ?? previous?.creditGoal ?? 0,
+      challengeGoal: analytic?.challengeGoal ?? previous?.challengeGoal ?? 0,
+      received: analytic?.received ?? previous?.received ?? 0,
+      delinquencyPercent: analytic?.delinquencyPercent ?? previous?.delinquencyPercent ?? 0,
+      creditEffectivenessPercent: analytic?.creditEffectivenessPercent ?? previous?.creditEffectivenessPercent ?? 0,
+      challengeEffectivenessPercent: analytic?.challengeEffectivenessPercent ?? previous?.challengeEffectivenessPercent ?? 0,
+      ticketGoal: analytic?.ticketGoal ?? previous?.ticketGoal ?? 0,
+      ticketPercent: analytic?.ticketPercent ?? previous?.ticketPercent ?? 0,
+      ticketBonus: analytic?.ticketBonus ?? previous?.ticketBonus ?? 0,
+      monthlyLoss: analytic?.monthlyLoss ?? previous?.monthlyLoss ?? 0,
+      lossSalesPercent: analytic?.lossSalesPercent ?? previous?.lossSalesPercent ?? 0,
+      lostGoal: analytic?.lostGoal ?? previous?.lostGoal ?? 0,
+      lostReceived: analytic?.lostReceived ?? previous?.lostReceived ?? 0,
+      lossEffectivenessPercent: analytic?.lossEffectivenessPercent ?? previous?.lossEffectivenessPercent ?? 0,
+      amountReceivable: data?.amountReceivable ?? previous?.amountReceivable ?? 0,
+      overdueOpening: data?.overdueOpening ?? previous?.overdueOpening ?? 0,
+      portfolioTotal: data?.portfolioTotal ?? previous?.portfolioTotal ?? 0,
+      receiptForecast: data?.receiptForecast ?? previous?.receiptForecast ?? 0,
+      closingForecast: data?.closingForecast ?? previous?.closingForecast ?? 0,
+      closingForecastPercent: data?.closingForecastPercent ?? previous?.closingForecastPercent ?? 0,
+      accumulatedLossGoal: data?.accumulatedLossGoal ?? previous?.accumulatedLossGoal ?? 0,
+      accumulatedLossReceived: data?.accumulatedLossReceived ?? previous?.accumulatedLossReceived ?? 0,
+      accumulatedLossBalance: data?.accumulatedLossBalance ?? previous?.accumulatedLossBalance ?? 0,
+      previousDayGoal: dailyTracking.get(code)?.previousDayGoal ?? previous?.previousDayGoal ?? 0,
+      dailyReceived: dailyTracking.get(code)?.received ?? previous?.dailyReceived ?? 0,
+      previousDayDifference: dailyTracking.get(code)?.previousDayDifference ?? previous?.previousDayDifference ?? 0,
+      accumulatedDifference: dailyTracking.get(code)?.accumulatedDifference ?? previous?.accumulatedDifference ?? 0,
+      redesignedDailyGoal: dailyTracking.get(code)?.redesignedDailyGoal ?? previous?.redesignedDailyGoal ?? 0,
+      challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge.dailyReceived) : previous?.challengeDailyReceivedJson ?? null,
     };
     await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
-    if (row.regional) await db.update(branches).set({ regional: row.regional }).where(eq(branches.id, branch.id));
+    if (importedRegional) await db.update(branches).set({ regional: importedRegional }).where(eq(branches.id, branch.id));
     imported += 1;
+  };
+  for (const key of Array.from(matrixKeys)) {
+    const [code, importedRegional] = key.split("::");
+    const branch = byCodeAndRegional.get(key);
+    if (!branch) {
+      if (byCode.has(code)) regionalMismatch += 1;
+      else unmatched += 1;
+      continue;
+    }
+    await importForBranch(branch, code, importedRegional, key);
   }
-  return { imported, unmatched };
+  for (const code of dailyOnlyCodes) {
+    const branch = byCode.get(code);
+    if (!branch) { unmatched += 1; continue; }
+    await importForBranch(branch, code, branch.regional ?? "");
+  }
+  return { imported, unmatched, regionalMismatch };
 }
 
 export async function getAnalyticImportStatus() {

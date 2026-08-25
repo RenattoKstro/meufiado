@@ -176,6 +176,13 @@
       "when": 1787667434326,
       "tag": "0024_oval_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1787673208242,
+      "tag": "0025_rich_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

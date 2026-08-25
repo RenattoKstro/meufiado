@@ -18,7 +18,7 @@ import {
   getSubscriptionSettings,
   listChatMessages,
   listPrivateChatThreads,
-  importAnalyticMetrics,
+  importMatrixWorkbook,
   importBranches,
   getAnalyticImportStatus,
   getMyMetrics,
@@ -67,7 +67,14 @@ import { ADMIN_SESSION_COOKIE, createAdminSession, createUserSession, USER_SESSI
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 import { COOKIE_NAME } from "@shared/const";
-import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, uniqueRowsByBranchCode } from "../shared/importRules";
+import {
+  analyticRowFromSpreadsheet,
+  branchRowFromSpreadsheet,
+  challengeDailyRowFromSpreadsheet,
+  dailyTrackingRowFromSpreadsheet,
+  dataRowFromSpreadsheet,
+  uniqueRowsByBranchCode,
+} from "../shared/importRules";
 import { OAuth2Client } from "google-auth-library";
 import { TRPCError } from "@trpc/server";
 import { notifyOwner } from "./_core/notification";
@@ -99,6 +106,14 @@ const metricsInput = z.object({
   fiadoAtDay15: z.boolean(),
 });
 const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));
+const matrixWorkbookInput = z.object({
+  analytic: z.array(spreadsheetRow).max(5000).default([]),
+  data: z.array(spreadsheetRow).max(5000).default([]),
+  dailyTracking: z.array(spreadsheetRow).max(5000).default([]),
+  challengeDaily: z.array(spreadsheetRow).max(5000).default([]),
+}).refine(value => value.analytic.length + value.data.length + value.dailyTracking.length + value.challengeDaily.length > 0, {
+  message: "Envie ao menos uma das planilhas da Matriz.",
+});
 const utilityDownloadInput = z.object({
   title: z.string().trim().min(2).max(180),
   fileType: z.string().trim().min(2).max(32),
@@ -193,6 +208,7 @@ type RouterDependencies = {
   updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
   deleteReceiptHistoryEntry?: typeof deleteReceiptHistoryEntry;
   canAccessSubscriptionFeature?: typeof canAccessSubscriptionFeature;
+  getMySubscription?: typeof getMySubscription;
   getAppTextSettings?: typeof getAppTextSettings;
   updateAppTextSettings?: typeof updateAppTextSettings;
 };
@@ -210,6 +226,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
   const resolveHistoryDelete = dependencies.deleteReceiptHistoryEntry ?? deleteReceiptHistoryEntry;
   const resolveFeatureAccess = dependencies.canAccessSubscriptionFeature ?? canAccessSubscriptionFeature;
+  const resolveSubscription = dependencies.getMySubscription ?? getMySubscription;
   const resolveAppTexts = dependencies.getAppTextSettings ?? getAppTextSettings;
   const resolveAppTextsUpdate = dependencies.updateAppTextSettings ?? updateAppTextSettings;
 
@@ -219,8 +236,13 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }
 
   async function requireRomaneioProAccess(userId: number, role: "admin" | "user") {
-    if (role === "admin" || (await getMySubscription(userId)).isPro) return;
+    if (role === "admin" || (await resolveSubscription(userId)).isPro) return;
     throw new TRPCError({ code: "FORBIDDEN", message: "O Romaneio está disponível somente no plano PRO." });
+  }
+
+  async function requireMatrixProAccess(userId: number, role: "admin" | "user") {
+    if (role === "admin" || (await resolveSubscription(userId)).isPro) return;
+    throw new TRPCError({ code: "FORBIDDEN", message: "A Matriz está disponível somente no plano PRO." });
   }
 
   return router({
@@ -301,7 +323,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     }),
   }),
   matrix: router({
-    overview: protectedProcedure.query(() => listMatrixOverviews()),
+    overview: protectedProcedure.query(async ({ ctx }) => {
+      await requireMatrixProAccess(ctx.user.id, ctx.user.role);
+      return listMatrixOverviews();
+    }),
   }),
   history: router({
     list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),
@@ -319,10 +344,20 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const rows = uniqueRowsByBranchCode(parsedRows);
       return importBranches(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
     }),
-    importAnalytics: adminProcedure.input(z.object({ rows: z.array(spreadsheetRow).min(1).max(5000) })).mutation(({ input }) => {
-      const parsedRows = input.rows.map(analyticRowFromSpreadsheet).filter((row): row is NonNullable<typeof row> => row !== null);
-      const rows = uniqueRowsByBranchCode(parsedRows);
-      return importAnalyticMetrics(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
+    importAnalytics: adminProcedure.input(matrixWorkbookInput).mutation(({ input }) => {
+      const parseRows = <T extends { code: string }>(rows: (string | number | null | undefined)[][], parser: (row: unknown[]) => T | null) => {
+        const parsed = rows.map(parser).filter((row): row is T => row !== null);
+        return uniqueRowsByBranchCode(parsed);
+      };
+      const analytic = parseRows(input.analytic, analyticRowFromSpreadsheet);
+      const data = parseRows(input.data, dataRowFromSpreadsheet);
+      const dailyTracking = parseRows(input.dailyTracking, dailyTrackingRowFromSpreadsheet);
+      const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
+      return importMatrixWorkbook({ analytic, data, dailyTracking, challengeDaily }).then(result => ({
+        ...result,
+        received: input.analytic.length + input.data.length + input.dailyTracking.length + input.challengeDaily.length,
+        valid: analytic.length + data.length + dailyTracking.length + challengeDaily.length,
+      }));
     }),
     importStatus: adminProcedure.query(() => getAnalyticImportStatus()),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),

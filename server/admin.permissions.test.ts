@@ -45,12 +45,17 @@ describe("permissões administrativas", () => {
     await expect(guestCaller.branches.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
-  it("entrega a Matriz somente para usuários autenticados e sem procedimento de edição", async () => {
-    const operatorCaller = router.createCaller(contextFor("user"));
+  it("entrega a Matriz somente a administradores e usuários PRO, sem procedimento de edição", async () => {
+    const proRouter = createAppRouter({ getMySubscription: async () => ({ isPro: true } as never) });
+    const freeRouter = createAppRouter({ getMySubscription: async () => ({ isPro: false } as never) });
+    const operatorCaller = proRouter.createCaller(contextFor("user"));
     const matrix = await operatorCaller.matrix.overview();
     expect(matrix).toEqual(expect.any(Array));
 
-    const guestCaller = router.createCaller(contextWithoutUser());
+    await expect(freeRouter.createCaller(contextFor("user")).matrix.overview()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(freeRouter.createCaller(contextFor("admin")).matrix.overview()).resolves.toEqual(expect.any(Array));
+
+    const guestCaller = proRouter.createCaller(contextWithoutUser());
     await expect(guestCaller.matrix.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

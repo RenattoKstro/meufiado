@@ -45,7 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard },
-    { label: "Matriz", path: "/matriz", icon: TableProperties },
+    { label: "Matriz", path: "/matriz", icon: TableProperties, proOnly: true },
     { label: texts.navBranches, path: "/filiais", icon: Building2, feature: "branches" as const },
     { label: texts.navHistory, path: "/historicos", icon: History, feature: "history" as const },
     { label: texts.navUtilities, path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
@@ -63,7 +63,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const hasDelinquency = delinquency !== null && portfolioTotal > 0;
   const delinquencyClass = delinquency !== null && delinquency < 7 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
   function isLocked(item: typeof navigation[number]) {
-    if (!item.feature || user?.role === "admin") return false;
+    if (user?.role === "admin") return false;
+    if (item.proOnly) return !subscriptionQuery.data?.isPro;
+    if (!item.feature) return false;
     const configuredPlan = subscriptionQuery.data?.settings[`${item.feature}Plan` as const] ?? "pro";
     return !subscriptionQuery.data?.isPro && configuredPlan === "pro";
   }
