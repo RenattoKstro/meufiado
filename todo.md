@@ -244,3 +244,7 @@
 - [x] Exibir o status Free ou PRO no perfil e uma tela de plano com validade e período de carência.
 - [x] Corrigir a leitura de filial da planilha Vencido_Dia para usar a coluna B e associar códigos equivalentes normalizados.
 - [x] Cobrir com testes a expiração de assinatura, a carência e o mapeamento de filiais do Vencido_Dia.
+- [x] Integrar o checkout de pagamento do plano PRO com Mercado Pago.
+- [x] Confirmar pagamentos por webhook do Mercado Pago e renovar automaticamente a assinatura PRO.
+- [x] Registrar pagamentos de forma idempotente para evitar renovações duplicadas.
+- [x] Atualizar a tela Plano e cobrir com testes os fluxos de pagamento aprovado, pendente e recusado.

@@ -413,6 +413,51 @@ export const subscriptionProofs = mysqlTable(
   table => [index("subscription_proofs_user_status_idx").on(table.userId, table.status, table.createdAt)],
 );
 
+// Assinaturas recorrentes iniciadas pelo Mercado Pago. A referência externa vincula
+// a cobrança ao usuário sem expor dados pessoais ao provedor de pagamentos.
+export const mercadoPagoSubscriptions = mysqlTable(
+  "mercadoPagoSubscriptions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().unique().references(() => users.id),
+    externalReference: varchar("externalReference", { length: 120 }).notNull(),
+    preapprovalId: varchar("preapprovalId", { length: 120 }),
+    checkoutUrl: varchar("checkoutUrl", { length: 2048 }),
+    providerStatus: varchar("providerStatus", { length: 48 }).notNull().default("pending"),
+    amount: double("amount").notNull(),
+    currencyId: varchar("currencyId", { length: 3 }).notNull().default("BRL"),
+    nextPaymentDate: timestamp("nextPaymentDate"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("mercado_pago_subscriptions_reference_unique").on(table.externalReference),
+    uniqueIndex("mercado_pago_subscriptions_preapproval_unique").on(table.preapprovalId),
+  ],
+);
+
+// Cada pagamento confirmado tem identificador único no Mercado Pago. Essa chave
+// torna a confirmação do webhook idempotente, mesmo quando a notificação é reenviada.
+export const mercadoPagoSubscriptionPayments = mysqlTable(
+  "mercadoPagoSubscriptionPayments",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    mercadoPagoSubscriptionId: int("mercadoPagoSubscriptionId").notNull().references(() => mercadoPagoSubscriptions.id),
+    userId: int("userId").notNull().references(() => users.id),
+    authorizedPaymentId: varchar("authorizedPaymentId", { length: 120 }).notNull(),
+    paymentId: varchar("paymentId", { length: 120 }),
+    paymentStatus: varchar("paymentStatus", { length: 48 }).notNull(),
+    amount: double("amount").notNull(),
+    paidAt: timestamp("paidAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("mercado_pago_authorized_payment_unique").on(table.authorizedPaymentId),
+    uniqueIndex("mercado_pago_payment_unique").on(table.paymentId),
+    index("mercado_pago_subscription_payments_user_created_idx").on(table.userId, table.createdAt),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Branch = typeof branches.$inferSelect;
@@ -425,5 +470,7 @@ export type UtilityReport = typeof utilityReports.$inferSelect;
 export type ReceiptHistoryEntry = typeof receiptHistoryEntries.$inferSelect;
 export type SubscriptionSettings = typeof subscriptionSettings.$inferSelect;
 export type SubscriptionProof = typeof subscriptionProofs.$inferSelect;
+export type MercadoPagoSubscription = typeof mercadoPagoSubscriptions.$inferSelect;
+export type MercadoPagoSubscriptionPayment = typeof mercadoPagoSubscriptionPayments.$inferSelect;
 export type Romaneio = typeof romaneios.$inferSelect;
 export type RomaneioItem = typeof romaneioItems.$inferSelect;

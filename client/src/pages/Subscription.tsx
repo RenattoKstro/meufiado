@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
-import { CheckCircle2, Clipboard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
+import { CheckCircle2, Clipboard, CreditCard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 import { ChangeEvent, useRef } from "react";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ export default function Subscription() {
   const texts = useAppTexts();
   const subscriptionQuery = trpc.subscription.mine.useQuery();
   const submitProof = trpc.subscription.submitProof.useMutation();
+  const mercadoPagoCheckout = trpc.subscription.mercadoPagoCheckout.useMutation();
   const pickerRef = useRef<HTMLInputElement>(null);
   const subscription = subscriptionQuery.data;
 
@@ -50,10 +51,19 @@ export default function Subscription() {
     reader.readAsDataURL(file);
   }
 
+  async function handleMercadoPagoCheckout() {
+    try {
+      const checkout = await mercadoPagoCheckout.mutateAsync();
+      window.location.assign(checkout.checkoutUrl);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o Mercado Pago agora.");
+    }
+  }
+
   if (subscriptionQuery.isLoading) return <section className="mx-auto max-w-4xl"><div className="h-9 w-52 animate-pulse rounded-lg bg-muted" /><div className="mt-7 h-80 animate-pulse rounded-[1.6rem] bg-muted" /></section>;
   if (subscriptionQuery.isError || !subscription) return <section className="mx-auto max-w-3xl"><Card className="rounded-[1.6rem]"><CardContent className="p-7 text-sm text-muted-foreground">Não foi possível carregar sua assinatura agora. Atualize a página e tente novamente.</CardContent></Card></section>;
 
-  const { settings, latestProof, isPro, proExpiresAt, status, graceEndsAt } = subscription;
+  const { settings, latestProof, isPro, proExpiresAt, status, graceEndsAt, mercadoPagoSubscription } = subscription;
   const paymentReady = Boolean(settings.monthlyPrice > 0 && (settings.pixQrCodeUrl || settings.pixCopyPaste || settings.pixKey));
   const waitingReview = latestProof?.status === "pending";
   const isGracePeriod = status === "grace";
@@ -65,8 +75,13 @@ export default function Subscription() {
         <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />{isPro ? "Boas-vindas ao PRO" : "Plano Free"}</CardTitle><CardDescription className="mt-1">{isGracePeriod ? "Sua assinatura venceu, mas você ainda está no período de carência." : isPro ? "Seu acesso premium está ativo." : "Sua conta está no plano Free."}</CardDescription></div>{isGracePeriod ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-400">CARÊNCIA</span> : isPro ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">PRO</span> : <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-extrabold text-muted-foreground">FREE</span>}</div></CardHeader>
         <CardContent className="space-y-4"><div className="rounded-2xl bg-muted/55 p-4"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Mensalidade PRO</p><p className="mt-1 text-2xl font-black">{settings.monthlyPrice > 0 ? money.format(settings.monthlyPrice) : "A definir"}</p><p className="mt-1 text-xs text-muted-foreground">Após o pagamento o admin será notificado e irá liberar o acesso.</p></div>{isGracePeriod && graceEndsAt ? <p className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><Crown className="mt-0.5 h-4 w-4 shrink-0" />Renove até {new Date(graceEndsAt).toLocaleDateString("pt-BR")}. Depois dessa data, sua conta passará para o plano Free.</p> : isPro && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{proExpiresAt ? `Sua assinatura é válida até ${new Date(proExpiresAt).toLocaleDateString("pt-BR")}. Após o vencimento, há cinco dias de carência.` : "Acesso liberado pela administração."}</p>}{latestProof && (!isPro || isGracePeriod) && <ProofStatus status={latestProof.status} note={latestProof.reviewNote} />}</CardContent>
       </Card>
-      <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
-        <CardHeader><CardTitle className="text-lg">Pagamento via PIX</CardTitle><CardDescription>Faça o pagamento, envie a imagem do comprovante. Após o pagamento o admin será notificado e irá liberar o acesso.</CardDescription></CardHeader>
+      <div className="space-y-5">
+        <Card className="rounded-[1.6rem] border-primary/20 bg-primary/[0.025] shadow-sm">
+          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><CreditCard className="h-5 w-5 text-primary" />Pagamento automático</CardTitle><CardDescription>Assine pelo Mercado Pago. A confirmação renova seu acesso PRO automaticamente a cada pagamento aprovado.</CardDescription></CardHeader>
+          <CardContent className="space-y-3"><div className="rounded-xl bg-background/70 p-3 text-sm"><p className="font-extrabold">{settings.monthlyPrice > 0 ? `${money.format(settings.monthlyPrice)} por mês` : "Mensalidade ainda não configurada"}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">O pagamento é concluído no ambiente seguro do Mercado Pago. Você pode acompanhar ou cancelar a assinatura diretamente por lá.</p></div>{mercadoPagoSubscription && <p className="text-xs font-semibold text-muted-foreground">Assinatura Mercado Pago: {mercadoPagoSubscription.providerStatus === "authorized" ? "autorizada" : mercadoPagoSubscription.providerStatus === "pending" ? "aguardando pagamento" : mercadoPagoSubscription.providerStatus}.</p>}<Button type="button" className="h-11 w-full rounded-xl font-extrabold" disabled={mercadoPagoCheckout.isPending || settings.monthlyPrice <= 0} onClick={handleMercadoPagoCheckout}>{mercadoPagoCheckout.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}{mercadoPagoSubscription?.providerStatus === "pending" ? "Continuar no Mercado Pago" : isPro && !isGracePeriod ? "Ativar renovação automática" : "Assinar PRO com Mercado Pago"}</Button></CardContent>
+        </Card>
+        <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
+        <CardHeader><CardTitle className="text-lg">Pagamento manual via PIX</CardTitle><CardDescription>Se preferir, faça o pagamento e envie o comprovante para conferência da administração.</CardDescription></CardHeader>
         <CardContent className="space-y-5">{!paymentReady ? <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">A mensalidade ou os dados de pagamento ainda não foram configurados pela administração.</div> : <>
           <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
             <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-white p-3">{settings.pixQrCodeUrl ? <img src={settings.pixQrCodeUrl} alt={`QR Code PIX de ${money.format(settings.monthlyPrice)}`} className="h-40 w-40 object-contain" /> : <div className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-3 text-center text-xs text-muted-foreground"><ImageIcon className="h-8 w-8" />QR Code não anexado</div>}</div>
@@ -76,7 +91,8 @@ export default function Subscription() {
           <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground"><ShieldCheck className="mr-1.5 inline h-4 w-4 text-primary" />Confirme o nome e o valor no aplicativo do seu banco antes de autorizar. O comprovante é encaminhado somente à administração para conferência e aprovação.</div>
           <input ref={pickerRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleProof} /><Button type="button" className="h-11 w-full rounded-xl font-extrabold" disabled={submitProof.isPending || waitingReview || (isPro && !isGracePeriod)} onClick={() => pickerRef.current?.click()}>{submitProof.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}{isGracePeriod ? "Enviar comprovante para renovar" : isPro ? "Plano PRO ativo" : waitingReview ? "Comprovante em análise" : "Enviar comprovante"}</Button><p className="text-center text-[11px] text-muted-foreground"><FileImage className="mr-1 inline h-3.5 w-3.5" />JPG, PNG ou WEBP · até 3 MB</p>
         </>}</CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   </section>;
 }

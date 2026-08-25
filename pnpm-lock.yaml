@@ -166,6 +166,9 @@ importers:
       lucide-react:
         specifier: ^0.453.0
         version: 0.453.0(react@19.2.1)
+      mercadopago:
+        specifier: ^3.4.0
+        version: 3.4.0
       mysql2:
         specifier: ^3.15.0
         version: 3.15.1
@@ -3810,6 +3813,10 @@ packages:
     resolution: {integrity: sha512-dq+qelQ9akHpcOl/gUVRTxVIOkAJ1wR3QAvb4RsVjS8oVoFjDGTc679wJYmUmknUF5HwMLOgb5O+a3KxfWapPQ==}
     engines: {node: '>= 0.6'}
 
+  mercadopago@3.4.0:
+    resolution: {integrity: sha512-oMbjrD4Y+JA8tj3Vc4BdGAMGGtL5lqqypUb5WPhIMI2X47R8JlE76W3sQ8kfq0wIROxi5gaxCHT/3Ojm4MjTOA==}
+    engines: {node: '>=18'}
+
   merge-descriptors@1.0.3:
     resolution: {integrity: sha512-gaNvAS7TZ897/rVaZ0nMtAyxNyi/pdbjbAwUpFQpN70GqnVfOiXpeUUMKRBmzXaSQ8DdTX4/0ms62r2K+hE6mQ==}
 
@@ -7053,7 +7060,7 @@ snapshots:
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.27.1
-      '@babel/runtime': 7.28.4
+      '@babel/runtime': 7.29.7
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       dom-accessibility-api: 0.5.16
@@ -8854,6 +8861,8 @@ snapshots:
   mdn-data@2.27.1: {}
 
   media-typer@0.3.0: {}
+
+  mercadopago@3.4.0: {}
 
   merge-descriptors@1.0.3: {}
 

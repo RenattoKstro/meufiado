@@ -11,19 +11,23 @@ const dbMocks = vi.hoisted(() => ({
   listSubscriptionProofs: vi.fn(),
   reviewSubscriptionProof: vi.fn(),
   listUtilityDownloads: vi.fn(),
+  getMercadoPagoSubscription: vi.fn(),
+  saveMercadoPagoSubscription: vi.fn(),
 }));
 
 const notificationMocks = vi.hoisted(() => ({ notifyOwner: vi.fn().mockResolvedValue(undefined) }));
+const mercadoPagoMocks = vi.hoisted(() => ({ createRecurringPreapproval: vi.fn() }));
 
 vi.mock("./db", async importActual => ({ ...(await importActual<typeof import("./db")>()), ...dbMocks }));
 vi.mock("./_core/notification", () => notificationMocks);
+vi.mock("./mercadoPago", () => mercadoPagoMocks);
 
 import { createAppRouter } from "./routers";
 
 function contextFor(role: "user" | "admin"): TrpcContext {
   return {
     user: { id: 31, openId: "subscription-test", email: "teste@example.com", name: "Pessoa de teste", loginMethod: "google", role, createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() },
-    req: { protocol: "https", headers: {} } as TrpcContext["req"],
+    req: { header: (name: string) => name === "host" ? "app.example.com" : name === "x-forwarded-proto" ? "https" : undefined } as TrpcContext["req"],
     res: {} as TrpcContext["res"],
   };
 }
@@ -49,6 +53,7 @@ describe("procedures de assinatura", () => {
 
   it("expõe a assinatura ao operador e limita configuração, plano e análise ao administrador", async () => {
     dbMocks.getMySubscription.mockResolvedValue({ plan: "free", isPro: false, proExpiresAt: null, settings, latestProof: null });
+    dbMocks.getMercadoPagoSubscription.mockResolvedValue(null);
     dbMocks.submitSubscriptionProof.mockResolvedValue({ proofUrl: "/manus-storage/proof.png" });
     dbMocks.uploadSubscriptionPixQrCode.mockResolvedValue(settings);
     dbMocks.getSubscriptionSettings.mockResolvedValue(settings);
@@ -70,6 +75,23 @@ describe("procedures de assinatura", () => {
     expect(dbMocks.uploadSubscriptionPixQrCode).toHaveBeenCalledWith(31, expect.stringContaining("data:image/png;base64,"));
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
+  });
+
+  it("cria uma assinatura recorrente e mantém o link de checkout associado ao usuário", async () => {
+    dbMocks.getMercadoPagoSubscription.mockResolvedValue(null);
+    dbMocks.getSubscriptionSettings.mockResolvedValue(settings);
+    mercadoPagoMocks.createRecurringPreapproval.mockResolvedValue({ id: "preapproval-1", status: "pending", init_point: "https://mp.example/checkout", next_payment_date: "2026-09-25T12:00:00.000Z" });
+    dbMocks.saveMercadoPagoSubscription.mockResolvedValue({ id: 1 });
+
+    await expect(createAppRouter().createCaller(contextFor("user")).subscription.mercadoPagoCheckout()).resolves.toEqual({ checkoutUrl: "https://mp.example/checkout", providerStatus: "pending", reused: false });
+    expect(mercadoPagoMocks.createRecurringPreapproval).toHaveBeenCalledWith(expect.objectContaining({ payerEmail: "teste@example.com", monthlyPrice: 19.9, notificationUrl: "https://app.example.com/api/mercadopago/webhook?source_news=webhooks", backUrl: "https://app.example.com/plano?checkout=mercadopago" }));
+    expect(dbMocks.saveMercadoPagoSubscription).toHaveBeenCalledWith(expect.objectContaining({ userId: 31, preapprovalId: "preapproval-1", checkoutUrl: "https://mp.example/checkout", amount: 19.9 }));
+  });
+
+  it("reutiliza um checkout pendente para não criar assinaturas recorrentes duplicadas", async () => {
+    dbMocks.getMercadoPagoSubscription.mockResolvedValue({ checkoutUrl: "https://mp.example/existente", providerStatus: "pending" });
+    await expect(createAppRouter().createCaller(contextFor("user")).subscription.mercadoPagoCheckout()).resolves.toEqual({ checkoutUrl: "https://mp.example/existente", providerStatus: "pending", reused: true });
+    expect(mercadoPagoMocks.createRecurringPreapproval).not.toHaveBeenCalled();
   });
 
   it("permite ao administrador informar uma validade futura para a assinatura PRO", async () => {

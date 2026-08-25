@@ -5,7 +5,17 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
-import { deleteExpiredChatMessages, expireSubscriptionsPastGracePeriod } from "../db";
+import {
+  applyMercadoPagoApprovedPayment,
+  deleteExpiredChatMessages,
+  expireSubscriptionsPastGracePeriod,
+  updateMercadoPagoSubscriptionStatus,
+} from "../db";
+import {
+  getAuthorizedPayment,
+  getPreapproval,
+  validateMercadoPagoWebhook,
+} from "../mercadoPago";
 import { createContext } from "./context";
 import { apiNotFoundHandler } from "./apiFallback";
 import { sdk } from "./sdk";
@@ -63,6 +73,51 @@ async function startServer() {
         context: { path: "/api/scheduled/cleanup-chat" },
         timestamp: new Date().toISOString(),
       });
+    }
+  });
+  app.post("/api/mercadopago/webhook", async (req, res) => {
+    const body = req.body as { type?: string; topic?: string; data?: { id?: string | number } };
+    const dataId = String(req.query["data.id"] ?? body.data?.id ?? "").trim();
+    const signatureIsValid = await validateMercadoPagoWebhook({
+      xSignature: req.header("x-signature") ?? undefined,
+      xRequestId: req.header("x-request-id") ?? undefined,
+      dataId,
+    });
+    if (!signatureIsValid) return res.status(401).json({ error: "invalid-webhook-signature" });
+
+    const topic = body.type ?? body.topic ?? String(req.query.topic ?? "");
+    try {
+      if (topic === "subscription_authorized_payment") {
+        const authorizedPayment = await getAuthorizedPayment(dataId);
+        const preapprovalId = authorizedPayment.preapproval_id;
+        if (!preapprovalId) return res.status(200).json({ ok: true, ignored: "missing-preapproval" });
+        const paymentStatus = authorizedPayment.payment?.status ?? authorizedPayment.status ?? "pending";
+        const paymentAmount = Number(authorizedPayment.payment?.transaction_amount ?? 0);
+        const paidAtRaw = authorizedPayment.payment?.date_approved;
+        const result = await applyMercadoPagoApprovedPayment({
+          authorizedPaymentId: authorizedPayment.id,
+          paymentId: authorizedPayment.payment?.id ? String(authorizedPayment.payment.id) : null,
+          preapprovalId,
+          paymentStatus,
+          amount: Number.isFinite(paymentAmount) ? paymentAmount : 0,
+          paidAt: paidAtRaw ? new Date(paidAtRaw) : null,
+          nextPaymentDate: null,
+        });
+        return res.status(200).json({ ok: true, result });
+      }
+      if (topic === "subscription_preapproval") {
+        const preapproval = await getPreapproval(dataId);
+        await updateMercadoPagoSubscriptionStatus(
+          preapproval.id,
+          preapproval.status,
+          preapproval.next_payment_date ? new Date(preapproval.next_payment_date) : null,
+        );
+        return res.status(200).json({ ok: true, updated: "preapproval" });
+      }
+      return res.status(200).json({ ok: true, ignored: topic || "unknown-topic" });
+    } catch (error) {
+      console.error("[Mercado Pago webhook]", error);
+      return res.status(500).json({ error: "mercado-pago-webhook-failed" });
     }
   });
   // Nunca deixe uma chamada de API desconhecida cair no fallback do SPA, que responde HTML.

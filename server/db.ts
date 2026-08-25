@@ -10,6 +10,8 @@ import {
   InsertUser,
   matrixImportSources,
   matrixMetrics,
+  mercadoPagoSubscriptionPayments,
+  mercadoPagoSubscriptions,
   metricSettings,
   receiptHistoryEntries,
   romaneioActivities,
@@ -763,6 +765,94 @@ export async function setManagedUserPlan(userId: number, plan: SubscriptionPlan,
   if (!db) throw new Error("Banco de dados indisponível");
   const expiresAt = plan === "pro" ? (proExpiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) : null;
   await db.update(users).set({ plan, proExpiresAt: expiresAt }).where(eq(users.id, userId));
+}
+
+export async function getMercadoPagoSubscription(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [subscription] = await db.select().from(mercadoPagoSubscriptions).where(eq(mercadoPagoSubscriptions.userId, userId)).limit(1);
+  return subscription ?? null;
+}
+
+export async function saveMercadoPagoSubscription(input: {
+  userId: number;
+  externalReference: string;
+  preapprovalId: string;
+  checkoutUrl: string | null;
+  providerStatus: string;
+  amount: number;
+  nextPaymentDate: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(mercadoPagoSubscriptions).values(input).onDuplicateKeyUpdate({
+    set: {
+      externalReference: input.externalReference,
+      preapprovalId: input.preapprovalId,
+      checkoutUrl: input.checkoutUrl,
+      providerStatus: input.providerStatus,
+      amount: input.amount,
+      nextPaymentDate: input.nextPaymentDate,
+    },
+  });
+  return getMercadoPagoSubscription(input.userId);
+}
+
+export async function updateMercadoPagoSubscriptionStatus(preapprovalId: string, providerStatus: string, nextPaymentDate: Date | null) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(mercadoPagoSubscriptions)
+    .set({ providerStatus, nextPaymentDate })
+    .where(eq(mercadoPagoSubscriptions.preapprovalId, preapprovalId));
+  const [subscription] = await db.select().from(mercadoPagoSubscriptions).where(eq(mercadoPagoSubscriptions.preapprovalId, preapprovalId)).limit(1);
+  return subscription ?? null;
+}
+
+export async function applyMercadoPagoApprovedPayment(input: {
+  authorizedPaymentId: string;
+  paymentId: string | null;
+  preapprovalId: string;
+  paymentStatus: string;
+  amount: number;
+  paidAt: Date | null;
+  nextPaymentDate: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  return db.transaction(async tx => {
+    const [subscription] = await tx.select().from(mercadoPagoSubscriptions)
+      .where(eq(mercadoPagoSubscriptions.preapprovalId, input.preapprovalId)).limit(1);
+    if (!subscription) return { applied: false, renewed: false, reason: "subscription-not-found" as const };
+
+    await tx.update(mercadoPagoSubscriptions)
+      .set({ providerStatus: input.paymentStatus, nextPaymentDate: input.nextPaymentDate })
+      .where(eq(mercadoPagoSubscriptions.id, subscription.id));
+
+    const [existingPayment] = await tx.select().from(mercadoPagoSubscriptionPayments)
+      .where(eq(mercadoPagoSubscriptionPayments.authorizedPaymentId, input.authorizedPaymentId)).limit(1);
+    if (existingPayment) return { applied: false, renewed: false, reason: "already-processed" as const };
+
+    await tx.insert(mercadoPagoSubscriptionPayments).values({
+      mercadoPagoSubscriptionId: subscription.id,
+      userId: subscription.userId,
+      authorizedPaymentId: input.authorizedPaymentId,
+      paymentId: input.paymentId,
+      paymentStatus: input.paymentStatus,
+      amount: input.amount,
+      paidAt: input.paidAt,
+    });
+    if (input.paymentStatus !== "approved") return { applied: true, renewed: false, reason: "not-approved" as const };
+
+    const [account] = await tx.select({ plan: users.plan, proExpiresAt: users.proExpiresAt })
+      .from(users).where(eq(users.id, subscription.userId)).limit(1);
+    const now = new Date();
+    const activeExpiry = account?.plan === "pro" && account.proExpiresAt && account.proExpiresAt > now
+      ? account.proExpiresAt
+      : now;
+    const renewedUntil = new Date(activeExpiry.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await tx.update(users).set({ plan: "pro", proExpiresAt: renewedUntil }).where(eq(users.id, subscription.userId));
+    return { applied: true, renewed: true, renewedUntil, reason: "approved" as const };
+  });
 }
 
 export async function submitSubscriptionProof(userId: number, dataUrl: string) {
