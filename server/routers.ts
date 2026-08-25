@@ -64,6 +64,7 @@ import {
   updateSubscriptionSettings,
   getMercadoPagoSubscription,
   saveMercadoPagoSubscription,
+  touchUserPresence,
 } from "./db";
 import { createRecurringPreapproval } from "./mercadoPago";
 import { randomUUID } from "crypto";
@@ -301,6 +302,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   profile: router({
     mine: protectedProcedure.query(async ({ ctx }) => (await resolveMyProfile(ctx.user.id)) ?? null),
+    presence: protectedProcedure.mutation(async ({ ctx }) => {
+      await touchUserPresence(ctx.user.id);
+      return { updated: true };
+    }),
     branches: protectedProcedure.query(() => resolveBranchesWithSlots()),
     complete: protectedProcedure.input(profileInput).mutation(({ ctx, input }) => resolveProfileCompletion(ctx.user.id, input)),
     account: protectedProcedure.input(accountInput).mutation(({ ctx, input }) => updateMyAccount(ctx.user.id, input)),
@@ -400,7 +405,11 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     general: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id); }),
     private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id, input.recipientUserId); }),
     privateThreads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listPrivateChatThreads(ctx.user.id); }),
-    supportRecipient: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return getChatSupportAdmin(ctx.user.id); }),
+    supportRecipient: protectedProcedure.query(async ({ ctx }) => {
+      await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
+      await touchUserPresence(ctx.user.id);
+      return getChatSupportAdmin(ctx.user.id);
+    }),
     send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body }); }),
     unreadCount: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return countUnreadChatMessages(ctx.user.id); }),
     markRead: protectedProcedure.mutation(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return markChatMessagesRead(ctx.user.id); }),

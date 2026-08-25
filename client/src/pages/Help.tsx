@@ -99,7 +99,7 @@ const sections: HelpSection[] = [
 export default function Help() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const supportRecipient = trpc.chat.supportRecipient.useQuery(undefined, { retry: false });
+  const supportRecipient = trpc.chat.supportRecipient.useQuery(undefined, { retry: false, refetchInterval: 60_000 });
 
   const openSupportChat = () => {
     const recipient = supportRecipient.data;
@@ -178,8 +178,8 @@ export default function Help() {
 
       <Card className="border-primary/15 bg-primary/[0.04] shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra uma conversa privada com o administrador ou consulte novamente este manual quando necessário.</p></div>
-          <Button type="button" className="rounded-xl" disabled={supportRecipient.isLoading} onClick={openSupportChat}><MessageCircle className="mr-2 h-4 w-4" />Falar com administrador</Button>
+          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra uma conversa privada com o administrador ou consulte novamente este manual quando necessário.</p>{supportRecipient.data && <p className="mt-2 flex items-center gap-2 text-xs font-bold"><span className={`h-2.5 w-2.5 rounded-full ${supportRecipient.data.isOnline ? "bg-emerald-500" : "bg-muted-foreground/50"}`} /><span>{supportRecipient.data.name} · {supportRecipient.data.availabilityLabel}</span></p>}</div>
+          <Button type="button" className="rounded-xl" disabled={supportRecipient.isLoading} onClick={openSupportChat}><MessageCircle className="mr-2 h-4 w-4" />{supportRecipient.data ? `Falar com ${supportRecipient.data.name}` : "Falar com administrador"}</Button>
         </CardContent>
       </Card>
     </section>

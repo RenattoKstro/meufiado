@@ -267,3 +267,6 @@
 - [x] Cobrir a rota e a navegação da Ajuda com testes e validar a experiência em telas amplas e estreitas.
 - [x] Fazer o botão Abrir Chat da Ajuda iniciar uma conversa privada direta com o administrador.
 - [x] Cobrir e validar o encaminhamento de atendimento da Ajuda para o chat privado.
+- [x] Exibir o nome e o status de disponibilidade do administrador no atendimento da Ajuda.
+- [x] Oferecer respostas rápidas para dúvidas frequentes ao abrir uma conversa privada com o administrador.
+- [x] Cobrir com testes o status de atendimento e a abertura das respostas rápidas.

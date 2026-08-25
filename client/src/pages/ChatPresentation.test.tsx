@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const generalQuery = vi.hoisted(() => vi.fn());
 const privateQuery = vi.hoisted(() => vi.fn());
 const privateThreadsQuery = vi.hoisted(() => vi.fn());
+const supportRecipientQuery = vi.hoisted(() => vi.fn());
 const markRead = vi.hoisted(() => vi.fn());
 const sendMessage = vi.hoisted(() => vi.fn());
 const searchValue = vi.hoisted(() => ({ value: "" }));
@@ -19,6 +20,7 @@ vi.mock("@/lib/trpc", () => ({
       general: { useQuery: generalQuery },
       private: { useQuery: privateQuery },
       privateThreads: { useQuery: privateThreadsQuery },
+      supportRecipient: { useQuery: supportRecipientQuery },
       send: { useMutation: () => ({ mutate: sendMessage, isPending: false }) },
       markRead: { useMutation: () => ({ mutate: markRead, isPending: false }) },
     },
@@ -36,6 +38,7 @@ describe("apresentação do chat", () => {
     generalQuery.mockReset();
     privateQuery.mockReset();
     privateThreadsQuery.mockReturnValue({ data: [], isLoading: false });
+    supportRecipientQuery.mockReturnValue({ data: { id: 41, name: "Renato", isOnline: true, availabilityLabel: "Disponível agora" }, isLoading: false });
     markRead.mockReset();
     sendMessage.mockReset();
   });
@@ -86,5 +89,16 @@ describe("apresentação do chat", () => {
     expect(screen.getByText("Mensagem reservada")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Larissa"));
     expect(setLocation).toHaveBeenCalledWith("/chat?perfil=41");
+  });
+
+  it("oferece respostas rápidas ao iniciar o atendimento privado com o administrador", () => {
+    searchValue.value = "?perfil=41";
+    privateQuery.mockReturnValue({ data: [], isLoading: false, isError: false });
+
+    render(<Chat />);
+
+    const reply = "Como registrar o recebido diário?";
+    fireEvent.click(screen.getByRole("button", { name: reply }));
+    expect(screen.getByPlaceholderText("Digite uma mensagem…")).toHaveValue(reply);
   });
 });

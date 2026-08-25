@@ -93,10 +93,13 @@ describe("contrato da navegação lateral", () => {
     expect(help).toContain("trpc.chat.supportRecipient.useQuery");
     expect(help).toContain('setLocation(`/chat?perfil=${recipient.id}`)');
     expect(help).toContain("Falar com administrador");
+    expect(help).toContain("availabilityLabel");
+    expect(help).toContain("isOnline");
 
     const router = await readFile(resolve(process.cwd(), "server/routers.ts"), "utf8");
     expect(router).toContain("supportRecipient: protectedProcedure.query");
     expect(router).toContain("getChatSupportAdmin(ctx.user.id)");
+    expect(router).toContain("presence: protectedProcedure.mutation");
   });
 
   it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {
@@ -115,6 +118,7 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain("refetchInterval: 5_000");
     expect(source).toContain("Não foi possível carregar as mensagens.");
     expect(source).toContain("Não foi possível enviar a mensagem. Tente novamente.");
+    expect(source).toContain("Respostas rápidas");
   });
 
   it("registra Utilidades na navegação e disponibiliza Downloads e Relatórios", async () => {

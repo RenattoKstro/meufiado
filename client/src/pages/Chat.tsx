@@ -25,6 +25,7 @@ export default function Chat() {
   const [body, setBody] = useState("");
   const utils = trpc.useUtils();
   const privateThreadsQuery = trpc.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
+  const supportRecipientQuery = trpc.chat.supportRecipient.useQuery(undefined, { enabled: Boolean(recipientUserId), staleTime: 30_000 });
   const messagesQuery = recipientUserId
     ? trpc.chat.private.useQuery({ recipientUserId }, { refetchInterval: 5_000 })
     : trpc.chat.general.useQuery(undefined, { refetchInterval: 5_000 });
@@ -46,6 +47,13 @@ export default function Chat() {
   }, [latestMessageId, recipientUserId, messagesQuery.isLoading, messagesQuery.isError]);
   const activeThread = privateThreadsQuery.data?.find(thread => thread.recipientUserId === recipientUserId);
   const title = recipientUserId ? activeThread?.recipientName ?? "Conversa privada" : "Chat geral";
+  const isSupportConversation = Boolean(recipientUserId && supportRecipientQuery.data?.id === recipientUserId);
+  const quickReplies = [
+    "Olá! Preciso de ajuda para atualizar minhas metas.",
+    "Como registrar o recebido diário?",
+    "Como funciona o plano PRO?",
+    "Preciso de ajuda com a Matriz.",
+  ];
 
   return <section className="mx-auto max-w-5xl space-y-6">
     <div><p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">Comunicação</p><h1 className="mt-1 text-3xl font-black tracking-tight">{title}</h1><p className="mt-2 text-sm text-muted-foreground">As mensagens são atualizadas a cada poucos segundos e desaparecem automaticamente após 1 hora.</p></div>
@@ -64,6 +72,7 @@ export default function Chat() {
         <div className="min-h-[320px] space-y-3 rounded-2xl bg-muted/35 p-4">
           {messagesQuery.isLoading ? <p className="text-sm text-muted-foreground">Carregando conversa…</p> : messagesQuery.isError ? <div className="grid min-h-[280px] place-items-center text-center"><div><p className="text-sm font-bold text-destructive">Não foi possível carregar as mensagens.</p><Button className="mt-3" variant="outline" size="sm" onClick={() => void messagesQuery.refetch()}>Tentar novamente</Button></div></div> : messagesQuery.data?.length ? messagesQuery.data.map(item => { const ownMessage = item.senderId === user?.id; const sentAt = new Date(item.message.expiresAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); return <article key={item.message.id} className={`flex ${ownMessage ? "justify-end" : "justify-start"}`}><div className={`max-w-[82%] rounded-2xl px-3 py-2.5 shadow-sm ${ownMessage ? "rounded-br-md bg-primary text-primary-foreground" : "rounded-bl-md bg-card text-card-foreground"}`}><div className="flex flex-wrap items-center gap-1.5"><p className={`text-xs font-extrabold ${ownMessage ? "text-primary-foreground" : "text-primary"}`}>{ownMessage ? "Você" : item.sender ?? "Usuário"}</p>{item.senderRole === "admin" && <Badge className={`h-5 gap-1 rounded-full px-1.5 text-[9px] font-black ${ownMessage ? "bg-primary-foreground/15 text-primary-foreground hover:bg-primary-foreground/15" : "bg-primary/10 text-primary hover:bg-primary/10"}`}><BadgeCheck className="h-3 w-3" />Admin</Badge>}</div><p className="mt-1 text-sm leading-relaxed">{item.message.body}</p><p className={`mt-2 text-[10px] ${ownMessage ? "text-primary-foreground/75" : "text-muted-foreground"}`}>Expira às {sentAt}</p></div></article>; }) : <p className="grid min-h-[280px] place-items-center text-center text-sm text-muted-foreground">Ainda não há mensagens. Inicie a conversa.</p>}
         </div>
+        {isSupportConversation && !messagesQuery.isLoading && !messagesQuery.data?.length && <div className="rounded-2xl border border-primary/15 bg-primary/[0.035] p-3"><p className="text-xs font-extrabold text-primary">Respostas rápidas</p><p className="mt-1 text-xs text-muted-foreground">Escolha uma dúvida para preparar sua primeira mensagem ao administrador.</p><div className="mt-3 flex flex-wrap gap-2">{quickReplies.map(reply => <Button key={reply} type="button" size="sm" variant="outline" className="h-auto whitespace-normal rounded-xl px-3 py-2 text-left text-xs" onClick={() => setBody(reply)}>{reply}</Button>)}</div></div>}
         <form className="flex gap-2" onSubmit={event => { event.preventDefault(); if (body.trim()) sendMutation.mutate({ body, recipientUserId }); }}><Input value={body} maxLength={1200} onChange={event => setBody(event.target.value)} placeholder="Digite uma mensagem…" /><Button type="submit" disabled={!body.trim() || sendMutation.isPending}><Send className="mr-2 h-4 w-4" />Enviar</Button></form>
         </CardContent>
       </Card>

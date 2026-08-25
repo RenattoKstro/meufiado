@@ -86,6 +86,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
+export async function touchUserPresence(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
@@ -971,15 +977,44 @@ export async function listPrivateChatThreads(userId: number) {
     .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread));
 }
 
+export type SupportAdminCandidate = {
+  id: number;
+  name: string | null;
+  lastSignedIn: Date | null;
+};
+
+export function selectChatSupportAdmin(administrators: SupportAdminCandidate[], currentUserId: number, now = Date.now()) {
+  const byMostRecentPresence = [...administrators].sort((left, right) => {
+    const rightPresence = right.lastSignedIn?.getTime() ?? 0;
+    const leftPresence = left.lastSignedIn?.getTime() ?? 0;
+    return rightPresence - leftPresence;
+  });
+  const currentAdministrator = byMostRecentPresence.find(candidate => candidate.id === currentUserId);
+  const administrator = currentAdministrator ?? byMostRecentPresence[0] ?? null;
+  if (!administrator) return null;
+  const isOnline = Boolean(administrator.lastSignedIn && now - administrator.lastSignedIn.getTime() <= 3 * 60 * 1000);
+  return {
+    ...administrator,
+    isOnline,
+    availabilityLabel: isOnline ? "Disponível agora" : "Indisponível no momento",
+  };
+}
+
 export async function getChatSupportAdmin(currentUserId: number) {
   const db = await getDb();
   if (!db) return null;
   const administrators = await db
-    .select({ id: users.id, name: users.name })
+    .select({ id: users.id, name: users.name, lastSignedIn: users.lastSignedIn })
     .from(users)
-    .where(eq(users.role, "admin"))
-    .orderBy(asc(users.id));
-  return administrators.find(administrator => administrator.id !== currentUserId) ?? administrators[0] ?? null;
+    .where(eq(users.role, "admin"));
+  const administrator = selectChatSupportAdmin(administrators, currentUserId);
+  if (!administrator) return null;
+  return {
+    id: administrator.id,
+    name: administrator.name ?? "Administrador",
+    isOnline: administrator.isOnline,
+    availabilityLabel: administrator.availabilityLabel,
+  };
 }
 
 export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string }) {

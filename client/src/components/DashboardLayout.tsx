@@ -43,6 +43,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const presenceMutation = trpc.profile.presence.useMutation();
+  React.useEffect(() => {
+    if (!user) return;
+    const announcePresence = () => presenceMutation.mutate();
+    announcePresence();
+    const interval = window.setInterval(announcePresence, 60_000);
+    return () => window.clearInterval(interval);
+  // A presença é apenas um sinal leve de atividade para o atendimento.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard },
     { label: "Matriz", path: "/matriz", icon: TableProperties, proOnly: true },
