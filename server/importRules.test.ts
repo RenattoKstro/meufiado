@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, dataRowFromSpreadsheet, normalizeBranchCode, spreadsheetNumber, uniqueRowsByBranchCode } from "../shared/importRules";
+import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, dataRowFromSpreadsheet, normalizeBranchCode, spreadsheetNumber, spreadsheetPercent, uniqueRowsByBranchCode } from "../shared/importRules";
 
 describe("importação de planilhas", () => {
   it("normaliza os formatos alternativos de código de filial", () => {
@@ -19,6 +19,13 @@ describe("importação de planilhas", () => {
     row[0] = "024.001"; row[2] = "Norte"; row[6] = "1.200,50"; row[7] = 800; row[8] = "430,25"; row[9] = "7,2"; row[10] = "94,1"; row[11] = "96,3"; row[13] = 500; row[14] = 80; row[15] = 100; row[17] = 40; row[18] = "2,5"; row[19] = 120; row[20] = 50; row[21] = "41,67";
     expect(analyticRowFromSpreadsheet(row)).toEqual({ code: "24001", regional: "Norte", creditGoal: 1200.5, challengeGoal: 800, received: 430.25, delinquencyPercent: 7.2, creditEffectivenessPercent: 94.1, challengeEffectivenessPercent: 96.3, ticketGoal: 500, ticketPercent: 80, ticketBonus: 100, monthlyLoss: 40, lossSalesPercent: 2.5, lostGoal: 120, lostReceived: 50, lossEffectivenessPercent: 41.67 });
     expect(spreadsheetNumber("R$ 3.400,10")).toBe(3400.1);
+  });
+
+  it("converte células percentuais brutas do Excel sem alterar percentuais escritos", () => {
+    expect(spreadsheetPercent(0.6863)).toBeCloseTo(68.63);
+    expect(spreadsheetPercent(0.8138)).toBeCloseTo(81.38);
+    expect(spreadsheetPercent(0.8114)).toBeCloseTo(81.14);
+    expect(spreadsheetPercent("68,63%")).toBeCloseTo(68.63);
   });
 
   it("mapeia Dados, acompanhamento diário e os 31 dias da Meta Desafio pela filial", () => {

@@ -65,6 +65,18 @@ export function spreadsheetNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/**
+ * Mantém percentuais digitados como texto (ex.: "68,63%") e converte o valor
+ * bruto do Excel quando a célula usa formatação de porcentagem (ex.: 0.6863).
+ */
+export function spreadsheetPercent(value: unknown) {
+  const parsed = spreadsheetNumber(value);
+  const wasWrittenWithPercentSymbol = typeof value === "string" && value.includes("%");
+  return !wasWrittenWithPercentSymbol && Math.abs(parsed) > 0 && Math.abs(parsed) <= 1
+    ? parsed * 100
+    : parsed;
+}
+
 export function branchRowFromSpreadsheet(row: unknown[]): BranchImportRow | null {
   const code = normalizeBranchCode(row[0]);
   const regional = String(row[1] ?? "").trim();
@@ -81,17 +93,17 @@ export function analyticRowFromSpreadsheet(row: unknown[]): AnalyticImportRow | 
     creditGoal: spreadsheetNumber(row[6]),
     challengeGoal: spreadsheetNumber(row[7]),
     received: spreadsheetNumber(row[8]),
-    delinquencyPercent: spreadsheetNumber(row[9]),
-    creditEffectivenessPercent: spreadsheetNumber(row[10]),
-    challengeEffectivenessPercent: spreadsheetNumber(row[11]),
+    delinquencyPercent: spreadsheetPercent(row[9]),
+    creditEffectivenessPercent: spreadsheetPercent(row[10]),
+    challengeEffectivenessPercent: spreadsheetPercent(row[11]),
     ticketGoal: spreadsheetNumber(row[13]),
-    ticketPercent: spreadsheetNumber(row[14]),
+    ticketPercent: spreadsheetPercent(row[14]),
     ticketBonus: spreadsheetNumber(row[15]),
     monthlyLoss: spreadsheetNumber(row[17]),
-    lossSalesPercent: spreadsheetNumber(row[18]),
+    lossSalesPercent: spreadsheetPercent(row[18]),
     lostGoal: spreadsheetNumber(row[19]),
     lostReceived: spreadsheetNumber(row[20]),
-    lossEffectivenessPercent: spreadsheetNumber(row[21]),
+    lossEffectivenessPercent: spreadsheetPercent(row[21]),
   };
 }
 
@@ -106,7 +118,7 @@ export function dataRowFromSpreadsheet(row: unknown[]): DataImportRow | null {
     portfolioTotal: spreadsheetNumber(row[12]),
     receiptForecast: spreadsheetNumber(row[14]),
     closingForecast: spreadsheetNumber(row[15]),
-    closingForecastPercent: spreadsheetNumber(row[16]),
+    closingForecastPercent: spreadsheetPercent(row[16]),
     accumulatedLossGoal: spreadsheetNumber(row[21]),
     accumulatedLossReceived: spreadsheetNumber(row[22]),
     accumulatedLossBalance: spreadsheetNumber(row[23]),

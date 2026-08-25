@@ -233,3 +233,6 @@
 - [x] Usar exclusivamente a Regional da planilha Analítico como referência ao associar dados da Matriz.
 - [x] Ignorar as Regionais das planilhas Dados e Meta Desafio Diária durante a consolidação da Matriz.
 - [x] Exibir no cabeçalho da Matriz a data e hora da última atualização de cada planilha importada.
+- [x] Corrigir a escala de percentuais importados da Matriz para corresponder aos valores da planilha.
+- [x] Renomear o indicador de Meta Desafio diária para remover o sufixo “recebido”.
+- [x] Organizar os indicadores de cada filial da Matriz em grade de três colunas e até dez linhas.
