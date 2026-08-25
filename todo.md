@@ -261,3 +261,7 @@
 - [x] Adicionar filtros de visualização e ordenação da Matriz por código e percentuais maiores ou menores.
 - [x] Corrigir o card Meta Diária / Rec. Hoje para calcular a meta diária como restante dividido por dias restantes.
 - [x] Cobrir com testes os destaques, as ordenações e o cálculo corrigido da Meta Diária.
+- [x] Criar um botão de Ajuda acessível na navegação do painel.
+- [x] Criar um manual em português com instruções para Visão Geral, Filiais, Históricos, Matriz, Plano e Administração.
+- [x] Incluir orientações de metas, lançamentos, comparação de filiais e acesso PRO no manual.
+- [x] Cobrir a rota e a navegação da Ajuda com testes e validar a experiência em telas amplas e estreitas.

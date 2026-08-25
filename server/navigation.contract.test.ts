@@ -78,6 +78,20 @@ describe("contrato da navegação lateral", () => {
     expect(app).toContain('path="/ajustes" component={MetricsSettings}');
   });
 
+  it("disponibiliza uma Ajuda com manual para os recursos principais do painel", async () => {
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const help = await readFile(resolve(process.cwd(), "client/src/pages/Help.tsx"), "utf8");
+
+    expect(navigation).toContain('label: "Ajuda", path: "/ajuda", icon: CircleHelp');
+    expect(app).toContain('Route path="/ajuda" component={Help}');
+    ["Como usar o Meu Fiado", "Visão Geral e metas", "Históricos e recebimentos diários", "Filiais e Matriz", "Plano Free e PRO", "Administração"].forEach(title => {
+      expect(help).toContain(title);
+    });
+    expect(help).toContain("Digite até quatro códigos separados por vírgula");
+    expect(help).toContain("Meta Diária é calculada pelo valor que falta");
+  });
+
   it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {
     const settings = await readFile(resolve(process.cwd(), "client/src/pages/Settings.tsx"), "utf8");
     const metrics = settings.slice(settings.indexOf("export function MetricsSettings()"), settings.indexOf("export function AppearanceSettings()"));

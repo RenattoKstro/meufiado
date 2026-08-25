@@ -12,6 +12,7 @@ import Account from "@/pages/Account";
 import Branches from "@/pages/Branches";
 import Chat from "@/pages/Chat";
 import Dashboard from "@/pages/Dashboard";
+import Help from "@/pages/Help";
 import History from "@/pages/History";
 import Matrix from "@/pages/Matrix";
 import NotFound from "@/pages/NotFound";
@@ -49,7 +50,7 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz" component={Matrix} /><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat">{() => <SubscriptionFeature feature="chat"><Chat /></SubscriptionFeature>}</Route><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz" component={Matrix} /><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat">{() => <SubscriptionFeature feature="chat"><Chat /></SubscriptionFeature>}</Route><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/ajuda" component={Help} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
 function SubscriptionFeature({ feature, children }: { feature: "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
