@@ -35,6 +35,7 @@ import {
   type ChallengeDailyImportRow,
   type DailyTrackingImportRow,
   type DataImportRow,
+  type ReceiptDailyImportRow,
 } from "../shared/importRules";
 import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
@@ -182,15 +183,27 @@ export async function listMatrixOverviews() {
 
   const rows = await db
     .select({ branch: branches, metrics: matrixMetrics })
-    .from(branches)
-    .leftJoin(matrixMetrics, eq(matrixMetrics.branchId, branches.id))
+    .from(matrixMetrics)
+    .innerJoin(branches, eq(matrixMetrics.branchId, branches.id))
     .where(eq(branches.isActive, true))
     .orderBy(branches.name);
 
-  return rows.map(({ branch, metrics }) => ({
+  // A Matriz usa exclusivamente a base já importada. Filiais legadas sem
+  // métricas e versões repetidas do mesmo código não entram na contagem.
+  // Para um código repetido, mantém-se a métrica mais recente.
+  const uniqueByCode = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = normalizeBranchCode(row.branch.code) || `id-${row.branch.id}`;
+    const current = uniqueByCode.get(key);
+    if (!current || (row.metrics?.updatedAt?.getTime() ?? 0) >= (current.metrics?.updatedAt?.getTime() ?? 0)) {
+      uniqueByCode.set(key, row);
+    }
+  }
+
+  return Array.from(uniqueByCode.values()).map(({ branch, metrics }) => ({
     branch,
-    metrics: metrics ?? null,
-    updatedAt: metrics?.updatedAt ?? null,
+    metrics,
+    updatedAt: metrics.updatedAt,
   }));
 }
 
@@ -227,7 +240,8 @@ export type MatrixWorkbookRows = {
   data: DataImportRow[];
   dailyTracking: DailyTrackingImportRow[];
   challengeDaily: ChallengeDailyImportRow[];
-  sourceRows?: Partial<Record<"analytic" | "data" | "dailyTracking" | "challengeDaily", { receivedRows: number; validRows: number }>>;
+  receiptDaily: ReceiptDailyImportRow[];
+  sourceRows?: Partial<Record<"analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily", { receivedRows: number; validRows: number }>>;
 };
 
 const normalizeRegional = (value: string | null | undefined) => (value ?? "").trim().toLocaleLowerCase("pt-BR");
@@ -236,14 +250,23 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const allBranches = await db.select().from(branches);
-  const byCode = new Map(allBranches.filter(branch => branch.code).map(branch => [normalizeBranchCode(branch.code), branch]));
   const existingMetrics = await db.select().from(matrixMetrics);
   const existingByBranch = new Map(existingMetrics.map(metrics => [metrics.branchId, metrics]));
+  const byCode = new Map<string, typeof allBranches[number]>();
+  for (const branch of allBranches) {
+    const code = normalizeBranchCode(branch.code);
+    if (!code) continue;
+    const current = byCode.get(code);
+    if (!current || (existingByBranch.has(branch.id) && !existingByBranch.has(current.id)) || branch.id > current.id) {
+      byCode.set(code, branch);
+    }
+  }
   const byCodeFrom = <T extends { code: string }>(rows: T[]) => new Map<string, T>(rows.map(row => [row.code, row]));
   const analytics = byCodeFrom(sources.analytic);
   const dataRows = byCodeFrom(sources.data);
   const dailyTracking = byCodeFrom(sources.dailyTracking);
   const challengeDaily = byCodeFrom(sources.challengeDaily);
+  const receiptDaily = byCodeFrom(sources.receiptDaily);
   // A aba Analítico é a referência de Filial e Regional. As outras abas apenas
   // complementam os indicadores da mesma filial pelo código normalizado.
   const matrixCodes = new Set<string>(Array.from(analytics.keys()));
@@ -253,6 +276,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     ...Array.from(dataRows.keys()),
     ...Array.from(dailyTracking.keys()),
     ...Array.from(challengeDaily.keys()),
+    ...Array.from(receiptDaily.keys()),
   ])).filter(code => !analyticCodes.has(code)).length;
   let regionalMismatch = 0;
   let createdBranches = 0;
@@ -260,6 +284,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     const analytic = analytics.get(code);
     const data = dataRows.get(code);
     const challenge = challengeDaily.get(code);
+    const dailyReceipts = receiptDaily.get(code);
     const previous = existingByBranch.get(branch.id);
     const values = {
       creditGoal: analytic?.creditGoal ?? previous?.creditGoal ?? 0,
@@ -291,6 +316,8 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
       accumulatedDifference: dailyTracking.get(code)?.accumulatedDifference ?? previous?.accumulatedDifference ?? 0,
       redesignedDailyGoal: dailyTracking.get(code)?.redesignedDailyGoal ?? previous?.redesignedDailyGoal ?? 0,
       challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge.dailyReceived) : previous?.challengeDailyReceivedJson ?? null,
+      sales: dailyReceipts?.sales ?? previous?.sales ?? 0,
+      receiptDailyJson: dailyReceipts?.dailyReceived ? JSON.stringify(dailyReceipts.dailyReceived) : previous?.receiptDailyJson ?? null,
     };
     await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
     const analyticRegional = analytic?.regional.trim();
@@ -324,9 +351,9 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     await importForBranch(branch, code);
   }
   const importedAt = new Date();
-  const sourceEntries = (Object.keys(sources.sourceRows ?? {}) as Array<"analytic" | "data" | "dailyTracking" | "challengeDaily">)
+  const sourceEntries = (Object.keys(sources.sourceRows ?? {}) as Array<"analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily">)
     .map(source => [source, sources.sourceRows?.[source]] as const)
-    .filter((entry): entry is readonly ["analytic" | "data" | "dailyTracking" | "challengeDaily", { receivedRows: number; validRows: number }] => Boolean(entry[1]?.receivedRows));
+    .filter((entry): entry is readonly ["analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily", { receivedRows: number; validRows: number }] => Boolean(entry[1]?.receivedRows));
   for (const [source, summary] of sourceEntries) {
     await db.insert(matrixImportSources).values({ source, importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows })
       .onDuplicateKeyUpdate({ set: { importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows } });

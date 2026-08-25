@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, dataRowFromSpreadsheet, normalizeBranchCode, spreadsheetNumber, spreadsheetPercent, uniqueRowsByBranchCode } from "../shared/importRules";
+import { analyticRowFromSpreadsheet, branchRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, dataRowFromSpreadsheet, normalizeBranchCode, receiptDailyRowFromSpreadsheet, spreadsheetNumber, spreadsheetPercent, uniqueRowsByBranchCode } from "../shared/importRules";
 
 describe("importação de planilhas", () => {
   it("normaliza os formatos alternativos de código de filial", () => {
@@ -40,5 +40,18 @@ describe("importação de planilhas", () => {
 
   it("mantém apenas a primeira linha de cada filial repetida", () => {
     expect(uniqueRowsByBranchCode([{ code: "2", name: "Primeira" }, { code: "2", name: "Repetida" }, { code: "3", name: "Outra" }])).toEqual([{ code: "2", name: "Primeira" }, { code: "3", name: "Outra" }]);
+  });
+
+  it("mapeia Vencido_Dia e preserva os dias sem valor como sem dado", () => {
+    const row: unknown[] = [];
+    row[0] = "01.002";
+    row[2] = "12.500,00";
+    row[7] = null;
+    row[14] = false;
+    row[21] = "325,40";
+    const receipt = receiptDailyRowFromSpreadsheet(row);
+    expect(receipt).toMatchObject({ code: "1002", sales: 12500 });
+    expect(receipt?.dailyReceived.slice(0, 3)).toEqual([null, null, 325.4]);
+    expect(receipt?.dailyReceived).toHaveLength(31);
   });
 });

@@ -73,6 +73,7 @@ import {
   challengeDailyRowFromSpreadsheet,
   dailyTrackingRowFromSpreadsheet,
   dataRowFromSpreadsheet,
+  receiptDailyRowFromSpreadsheet,
   uniqueRowsByBranchCode,
 } from "../shared/importRules";
 import { OAuth2Client } from "google-auth-library";
@@ -111,7 +112,8 @@ const matrixWorkbookInput = z.object({
   data: z.array(spreadsheetRow).max(5000).default([]),
   dailyTracking: z.array(spreadsheetRow).max(5000).default([]),
   challengeDaily: z.array(spreadsheetRow).max(5000).default([]),
-}).refine(value => value.analytic.length + value.data.length + value.dailyTracking.length + value.challengeDaily.length > 0, {
+  receiptDaily: z.array(spreadsheetRow).max(5000).default([]),
+}).refine(value => value.analytic.length + value.data.length + value.dailyTracking.length + value.challengeDaily.length + value.receiptDaily.length > 0, {
   message: "Envie ao menos uma das planilhas da Matriz.",
 });
 const utilityDownloadInput = z.object({
@@ -357,21 +359,24 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const data = parseRows(input.data, dataRowFromSpreadsheet);
       const dailyTracking = parseRows(input.dailyTracking, dailyTrackingRowFromSpreadsheet);
       const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
+      const receiptDaily = parseRows(input.receiptDaily, receiptDailyRowFromSpreadsheet);
       return importMatrixWorkbook({
         analytic,
         data,
         dailyTracking,
         challengeDaily,
+        receiptDaily,
         sourceRows: {
           analytic: { receivedRows: input.analytic.length, validRows: analytic.length },
           data: { receivedRows: input.data.length, validRows: data.length },
           dailyTracking: { receivedRows: input.dailyTracking.length, validRows: dailyTracking.length },
           challengeDaily: { receivedRows: input.challengeDaily.length, validRows: challengeDaily.length },
+          receiptDaily: { receivedRows: input.receiptDaily.length, validRows: receiptDaily.length },
         },
       }).then(result => ({
         ...result,
-        received: input.analytic.length + input.data.length + input.dailyTracking.length + input.challengeDaily.length,
-        valid: analytic.length + data.length + dailyTracking.length + challengeDaily.length,
+        received: input.analytic.length + input.data.length + input.dailyTracking.length + input.challengeDaily.length + input.receiptDaily.length,
+        valid: analytic.length + data.length + dailyTracking.length + challengeDaily.length + receiptDaily.length,
       }));
     }),
     importStatus: adminProcedure.query(() => getAnalyticImportStatus()),

@@ -347,6 +347,8 @@ export const matrixMetrics = mysqlTable("matrixMetrics", {
   accumulatedDifference: double("accumulatedDifference").default(0).notNull(),
   redesignedDailyGoal: double("redesignedDailyGoal").default(0).notNull(),
   challengeDailyReceivedJson: text("challengeDailyReceivedJson"),
+  sales: double("sales").default(0).notNull(),
+  receiptDailyJson: text("receiptDailyJson"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
@@ -354,7 +356,7 @@ export const matrixMetrics = mysqlTable("matrixMetrics", {
 // Mantém a rastreabilidade da importação sem interferir nos dados operacionais das filiais.
 export const matrixImportSources = mysqlTable("matrixImportSources", {
   id: int("id").autoincrement().primaryKey(),
-  source: mysqlEnum("source", ["analytic", "data", "dailyTracking", "challengeDaily"]).notNull().unique(),
+  source: mysqlEnum("source", ["analytic", "data", "dailyTracking", "challengeDaily", "receiptDaily"]).notNull().unique(),
   importedAt: timestamp("importedAt").notNull(),
   receivedRows: int("receivedRows").default(0).notNull(),
   validRows: int("validRows").default(0).notNull(),

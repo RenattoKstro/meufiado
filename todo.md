@@ -236,3 +236,7 @@
 - [x] Corrigir a escala de percentuais importados da Matriz para corresponder aos valores da planilha.
 - [x] Renomear o indicador de Meta Desafio diária para remover o sufixo “recebido”.
 - [x] Organizar os indicadores de cada filial da Matriz em grade de três colunas e até dez linhas.
+- [x] Corrigir a consolidação da Matriz para manter uma única filial por código do Analítico, sem duplicar registros das outras planilhas.
+- [x] Importar Vendas e os valores de Vlr Rec. Dia da planilha Vencido_Dia como recebimento diário da Matriz.
+- [x] Exibir o card de Vendas e a grade de recebimento diário de 01 a 31 em três colunas na Matriz.
+- [x] Manter os dias sem preenchimento visíveis como sem dado no recebimento diário da Matriz.

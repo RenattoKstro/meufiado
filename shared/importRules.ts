@@ -48,6 +48,12 @@ export type ChallengeDailyImportRow = {
   dailyReceived: number[];
 };
 
+export type ReceiptDailyImportRow = {
+  code: string;
+  sales: number;
+  dailyReceived: Array<number | null>;
+};
+
 export function normalizeBranchCode(value: unknown) {
   const digits = String(value ?? "").trim().replace(/\D/g, "");
   if (!digits) return "";
@@ -145,6 +151,25 @@ export function challengeDailyRowFromSpreadsheet(row: unknown[]): ChallengeDaily
     code,
     regional: String(row[1] ?? "").trim(),
     dailyReceived: Array.from({ length: 31 }, (_, index) => spreadsheetNumber(row[index + 2])),
+  };
+}
+
+/**
+ * Aba Vencido_Dia: C = vendas e, a cada bloco diário de sete colunas,
+ * o valor "Vlr Rec. Dia" ocupa a 5ª posição. Assim, H, O, V... formam
+ * os recebimentos dos dias 01 a 31.
+ */
+export function receiptDailyRowFromSpreadsheet(row: unknown[]): ReceiptDailyImportRow | null {
+  const code = normalizeBranchCode(row[0]);
+  if (!code) return null;
+  const optionalReceipt = (value: unknown) => {
+    if (value === null || value === undefined || value === false || String(value).trim() === "") return null;
+    return spreadsheetNumber(value);
+  };
+  return {
+    code,
+    sales: spreadsheetNumber(row[2]),
+    dailyReceived: Array.from({ length: 31 }, (_, index) => optionalReceipt(row[7 + index * 7])),
   };
 }
 
