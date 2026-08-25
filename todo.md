@@ -240,3 +240,7 @@
 - [x] Importar Vendas e os valores de Vlr Rec. Dia da planilha Vencido_Dia como recebimento diário da Matriz.
 - [x] Exibir o card de Vendas e a grade de recebimento diário de 01 a 31 em três colunas na Matriz.
 - [x] Manter os dias sem preenchimento visíveis como sem dado no recebimento diário da Matriz.
+- [x] Controlar a validade das assinaturas PRO, incluindo cinco dias de carência e retorno automático ao plano Free.
+- [x] Exibir o status Free ou PRO no perfil e uma tela de plano com validade e período de carência.
+- [x] Corrigir a leitura de filial da planilha Vencido_Dia para usar a coluna B e associar códigos equivalentes normalizados.
+- [x] Cobrir com testes a expiração de assinatura, a carência e o mapeamento de filiais do Vencido_Dia.

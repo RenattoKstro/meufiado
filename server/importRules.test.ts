@@ -44,7 +44,7 @@ describe("importação de planilhas", () => {
 
   it("mapeia Vencido_Dia e preserva os dias sem valor como sem dado", () => {
     const row: unknown[] = [];
-    row[0] = "01.002";
+    row[1] = "01.002";
     row[2] = "12.500,00";
     row[7] = null;
     row[14] = false;
@@ -53,5 +53,13 @@ describe("importação de planilhas", () => {
     expect(receipt).toMatchObject({ code: "1002", sales: 12500 });
     expect(receipt?.dailyReceived.slice(0, 3)).toEqual([null, null, 325.4]);
     expect(receipt?.dailyReceived).toHaveLength(31);
+  });
+
+  it("associa no Vencido_Dia códigos equivalentes da coluna B", () => {
+    const row: unknown[] = [];
+    row[1] = "14.002";
+    row[2] = 100;
+    expect(receiptDailyRowFromSpreadsheet(row)).toMatchObject({ code: "14002", sales: 100 });
+    expect(normalizeBranchCode("14.002")).toBe(normalizeBranchCode("14002"));
   });
 });

@@ -121,7 +121,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Avatar className="h-9 w-9 border-2 border-primary/15"><AvatarImage src={profileQuery.data?.profile?.avatarUrl ?? undefined} alt={`Foto de ${user?.name || "perfil"}`} /><AvatarFallback className="bg-primary/10 text-xs font-extrabold text-primary">{initials}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
                   <p className="truncate text-xs font-bold text-sidebar-foreground">{user?.name || "Operador"}</p>
-                  <p className="truncate text-[10px] text-muted-foreground">{user?.role === "admin" ? "Administrador" : subscriptionQuery.data?.isPro ? "Operador PRO" : "Operador Free"}</p>
+                  <p className="truncate text-[10px] text-muted-foreground">{user?.role === "admin" ? "Administrador" : subscriptionQuery.data?.status === "grace" ? "Operador PRO · carência" : subscriptionQuery.data?.isPro ? "Operador PRO" : "Operador Free"}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
               </button>

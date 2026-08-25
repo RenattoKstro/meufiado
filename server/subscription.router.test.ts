@@ -71,4 +71,11 @@ describe("procedures de assinatura", () => {
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
   });
+
+  it("permite ao administrador informar uma validade futura para a assinatura PRO", async () => {
+    const router = createAppRouter({ canAccessSubscriptionFeature: async () => true });
+    const expiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    await router.createCaller(contextFor("admin")).subscriptionAdmin.setUserPlan({ userId: 42, plan: "pro", proExpiresAt: expiresAt });
+    expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro", expiresAt);
+  });
 });

@@ -36,7 +36,7 @@ const MATRIX_SHEET_DETAILS: Record<MatrixSheetKey, { title: string; acceptedName
   data: { title: "Dados", acceptedNames: "Dados", columns: "B Filial · E Regional · K–M carteira · O–Q previsão · V–X recuperação" },
   dailyTracking: { title: "Acomp.Meta Diaria", acceptedNames: "Acomp.Meta Diaria", columns: "A Filial · D–H acompanhamento diário" },
   challengeDaily: { title: "Meta Desafio Diária", acceptedNames: "Meta Desafio Diária", columns: "A Filial · B Regional · C–AG recebidos diários" },
-  receiptDaily: { title: "Vencido_Dia", acceptedNames: "Vencido_Dia", columns: "A Filial · C Vendas · H, O, V… recebimento diário" },
+  receiptDaily: { title: "Vencido_Dia", acceptedNames: "Vencido_Dia", columns: "B Filial · C Vendas · H, O, V… recebimento diário" },
 };
 function normalizeSheetName(name: string) { return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]/g, ""); }
 function identifyMatrixSheet(name: string): MatrixSheetKey | null {

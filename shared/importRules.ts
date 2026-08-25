@@ -155,12 +155,12 @@ export function challengeDailyRowFromSpreadsheet(row: unknown[]): ChallengeDaily
 }
 
 /**
- * Aba Vencido_Dia: C = vendas e, a cada bloco diário de sete colunas,
+ * Aba Vencido_Dia: B = filial, C = vendas e, a cada bloco diário de sete colunas,
  * o valor "Vlr Rec. Dia" ocupa a 5ª posição. Assim, H, O, V... formam
  * os recebimentos dos dias 01 a 31.
  */
 export function receiptDailyRowFromSpreadsheet(row: unknown[]): ReceiptDailyImportRow | null {
-  const code = normalizeBranchCode(row[0]);
+  const code = normalizeBranchCode(row[1]);
   if (!code) return null;
   const optionalReceipt = (value: unknown) => {
     if (value === null || value === undefined || value === false || String(value).trim() === "") return null;

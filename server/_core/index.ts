@@ -5,7 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
-import { deleteExpiredChatMessages } from "../db";
+import { deleteExpiredChatMessages, expireSubscriptionsPastGracePeriod } from "../db";
 import { createContext } from "./context";
 import { apiNotFoundHandler } from "./apiFallback";
 import { sdk } from "./sdk";
@@ -52,8 +52,11 @@ async function startServer() {
         return res.status(403).json({ error: "cron-only" });
       }
 
-      const deletedCount = await deleteExpiredChatMessages();
-      return res.json({ ok: true, deletedCount });
+      const [deletedCount, subscriptions] = await Promise.all([
+        deleteExpiredChatMessages(),
+        expireSubscriptionsPastGracePeriod(),
+      ]);
+      return res.json({ ok: true, deletedCount, expiredSubscriptions: subscriptions.affected });
     } catch (error) {
       return res.status(500).json({
         error: error instanceof Error ? error.message : "Falha ao limpar mensagens vencidas.",

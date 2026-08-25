@@ -446,7 +446,11 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     settings: adminProcedure.query(() => getSubscriptionSettings()),
     updateSettings: adminProcedure.input(subscriptionSettingsInput).mutation(({ ctx, input }) => updateSubscriptionSettings(input, ctx.user.id)),
     uploadPixQrCode: adminProcedure.input(z.object({ dataUrl: z.string().min(32).max(3_000_000) })).mutation(({ ctx, input }) => uploadSubscriptionPixQrCode(ctx.user.id, input.dataUrl)),
-    setUserPlan: adminProcedure.input(z.object({ userId: z.number().int().positive(), plan: subscriptionPlan })).mutation(({ input }) => setManagedUserPlan(input.userId, input.plan)),
+    setUserPlan: adminProcedure.input(z.object({ userId: z.number().int().positive(), plan: subscriptionPlan, proExpiresAt: z.coerce.date().optional().nullable() }).superRefine((input, context) => {
+      if (input.plan === "pro" && input.proExpiresAt && input.proExpiresAt.getTime() <= Date.now()) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ["proExpiresAt"], message: "A validade PRO precisa estar no futuro." });
+      }
+    })).mutation(({ input }) => input.proExpiresAt ? setManagedUserPlan(input.userId, input.plan, input.proExpiresAt) : setManagedUserPlan(input.userId, input.plan)),
     proofs: adminProcedure.query(() => listSubscriptionProofs()),
     reviewProof: adminProcedure.input(z.object({ id: z.number().int().positive(), status: z.enum(["approved", "rejected"]), reviewNote: z.string().trim().max(600).optional().nullable() })).mutation(({ ctx, input }) => reviewSubscriptionProof(input.id, input.status, input.reviewNote ?? null, ctx.user.id)),
   }),

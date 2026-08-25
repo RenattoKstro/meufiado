@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -42,6 +42,7 @@ import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/br
 import { resolveMetricStorageScope } from "../shared/branchMetricScope";
 import { applyWorkingDaysMode, type WorkingDaysMode } from "../shared/workingDays";
 import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type OperatorRole } from "../shared/branchSlots";
+import { resolveSubscriptionAccess, SUBSCRIPTION_GRACE_DAYS } from "../shared/subscriptionAccess";
 import { storagePut } from "./storage";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -727,19 +728,27 @@ export async function uploadSubscriptionPixQrCode(actorUserId: number, dataUrl: 
   return getSubscriptionSettings(db);
 }
 
-function hasActiveProPlan(account: { plan: SubscriptionPlan; proExpiresAt: Date | null }) {
-  return account.plan === "pro" && (!account.proExpiresAt || account.proExpiresAt.getTime() > Date.now());
+export async function expireSubscriptionsPastGracePeriod(now = new Date()) {
+  const db = await getDb();
+  if (!db) return { expiredAt: now, affected: 0 };
+  const graceCutoff = new Date(now.getTime() - SUBSCRIPTION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+  const result = await db.update(users)
+    .set({ plan: "free", proExpiresAt: null })
+    .where(and(eq(users.plan, "pro"), lte(users.proExpiresAt, graceCutoff)));
+  return { expiredAt: now, affected: Number((result as { affectedRows?: number }).affectedRows ?? 0) };
 }
 
 export async function getMySubscription(userId: number) {
   const db = await getDb();
   const settings = await getSubscriptionSettings(db ?? undefined);
-  if (!db) return { plan: "free" as const, isPro: false, proExpiresAt: null, settings, latestProof: null };
+  if (!db) return { plan: "free" as const, isPro: false, status: "free" as const, proExpiresAt: null, graceEndsAt: null, settings, latestProof: null };
   const [account] = await db.select({ plan: users.plan, proExpiresAt: users.proExpiresAt }).from(users).where(eq(users.id, userId)).limit(1);
   const [latestProof] = await db.select().from(subscriptionProofs).where(eq(subscriptionProofs.userId, userId)).orderBy(desc(subscriptionProofs.createdAt)).limit(1);
-  const plan = (account?.plan ?? "free") as SubscriptionPlan;
-  const isPro = hasActiveProPlan({ plan, proExpiresAt: account?.proExpiresAt ?? null });
-  return { plan, isPro, proExpiresAt: account?.proExpiresAt ?? null, settings, latestProof: latestProof ?? null };
+  const access = resolveSubscriptionAccess({ plan: (account?.plan ?? "free") as SubscriptionPlan, proExpiresAt: account?.proExpiresAt ?? null });
+  if (account && access.status === "expired") {
+    await db.update(users).set({ plan: "free", proExpiresAt: null }).where(eq(users.id, userId));
+  }
+  return { plan: access.plan, isPro: access.isPro, status: access.status, proExpiresAt: account?.proExpiresAt ?? null, graceEndsAt: access.graceEndsAt, settings, latestProof: latestProof ?? null };
 }
 
 export async function canAccessSubscriptionFeature(userId: number, role: "admin" | "user", feature: SubscriptionFeatureKey) {
@@ -749,11 +758,11 @@ export async function canAccessSubscriptionFeature(userId: number, role: "admin"
   return subscription.isPro || subscription.settings[settingKey] === "free";
 }
 
-export async function setManagedUserPlan(userId: number, plan: SubscriptionPlan) {
+export async function setManagedUserPlan(userId: number, plan: SubscriptionPlan, proExpiresAt?: Date | null) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  const proExpiresAt = plan === "pro" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null;
-  await db.update(users).set({ plan, proExpiresAt }).where(eq(users.id, userId));
+  const expiresAt = plan === "pro" ? (proExpiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) : null;
+  await db.update(users).set({ plan, proExpiresAt: expiresAt }).where(eq(users.id, userId));
 }
 
 export async function submitSubscriptionProof(userId: number, dataUrl: string) {
