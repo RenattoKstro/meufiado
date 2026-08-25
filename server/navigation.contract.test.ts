@@ -151,7 +151,7 @@ describe("contrato da navegação lateral", () => {
     expect(matrix).toContain("const compactMoney");
     expect(matrix).toContain('value={compact ? compactMoney(data.sales) : money(data.sales)} exactValue={money(data.sales)} tone="emerald"');
     expect(matrix).toContain('title={exactValue ?? value}');
-    expect(matrix).toContain('className="min-w-0 overflow-hidden rounded-2xl');
+    expect(matrix).toContain("min-w-0 overflow-hidden rounded-2xl px-3 py-3");
     expect(matrix).toContain('<MatrixDetail label="Vendas" value={money(data.sales)} tone="emerald" />');
   });
 
@@ -164,6 +164,10 @@ describe("contrato da navegação lateral", () => {
     expect(matrix).toContain("Digite até quatro códigos separados por vírgula");
     expect(matrix).toContain('<div className="mt-4 grid grid-cols-2 gap-2"><SummaryAmount label="Vendas"');
     expect(matrix).toContain('<SummaryAmount label="Recebido"');
+    expect(matrix).toContain("comparisonEffectivenessHighlights(visibleItems)");
+    expect(matrix).toContain("Melhor efetividade");
+    expect(matrix).toContain("Menor efetividade");
+    expect(matrix).toContain("Maior efetividade Fiado");
   });
 
   it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {

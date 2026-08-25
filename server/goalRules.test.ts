@@ -5,6 +5,7 @@ import {
   challengeMissingForTarget,
   challengePercentage,
   CHALLENGE_TIERS,
+  dailyCollectionGoal,
   dailyRequirement,
   delinquencyPercentage,
   fiadoMissingForTarget,
@@ -14,6 +15,7 @@ import {
   lostGoalMissingForTarget,
   missingForTarget,
   receiptAmounts,
+  remainingToGoal,
   ticketPercentage,
   ticketGoalAmount,
   ticketGoalState,
@@ -46,6 +48,13 @@ describe("regras de premiação", () => {
     expect(fiadoPercentage(667582.89, 939915.48)).toBeCloseTo(71.03, 2);
     expect(receiptAmounts(1641481.71, 939915.48, 939915.48)).toEqual({ accumulated: 701566.23, today: 0 });
     expect(fiadoMissingForTarget(80, 667582.89, 939915.48)).toBeCloseTo(84349.49, 2);
+  });
+
+  it("calcula a Meta Diária pelo restante até a Meta Fiado dividido pelos dias restantes", () => {
+    expect(remainingToGoal(939915.48, 667582.89)).toBeCloseTo(272332.59, 2);
+    expect(dailyCollectionGoal(939915.48, 667582.89, 4)).toBeCloseTo(68083.1475, 4);
+    expect(dailyCollectionGoal(650000, 667582.89, 4)).toBe(0);
+    expect(dailyCollectionGoal(939915.48, 667582.89, 0)).toBe(0);
   });
 
   it("calcula a Meta Desafio pela meta cadastrada sobre o vencido atual", () => {

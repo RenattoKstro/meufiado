@@ -18,7 +18,7 @@ describe("textos e precisão da Visão Geral", () => {
     expect(dashboardSource).not.toContain("À receber × 80%");
     expect(dashboardSource).not.toContain("Vencido atual ÷ carteira total");
     expect(dashboardSource).toContain('label="Meta Diária / Rec. Hoje"');
-    expect(dashboardSource).toContain("const dailyGoal = workingDaysRemaining > 0 ? Math.max(fiadoRemaining, 0) / workingDaysRemaining : 0");
+    expect(dashboardSource).toContain("const dailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.creditGoal, workingDaysRemaining);");
     expect(dashboardSource).toContain("value={`${currency(dailyGoal)} / ${currency(receipts.today)}`}");
     expect(dashboardSource).not.toContain('label="Recebido hoje"');
     expect(dashboardSource).not.toContain("Abertura do dia − vencido atual");
@@ -31,8 +31,8 @@ describe("textos e precisão da Visão Geral", () => {
   });
 
   it("destaca os valores restantes de Fiado e Desafio na Visão Geral e nos cartões principais", () => {
-    expect(dashboardSource).toContain("const fiadoRemaining = metrics.creditGoal - metrics.currentOverdue");
-    expect(dashboardSource).toContain("const challengeRemaining = metrics.challengeGoal - metrics.currentOverdue");
+    expect(dashboardSource).toContain("const fiadoRemaining = remainingToGoal(metrics.currentOverdue, metrics.creditGoal)");
+    expect(dashboardSource).toContain("const challengeRemaining = remainingToGoal(metrics.currentOverdue, metrics.challengeGoal)");
     expect(dashboardSource).toContain('label="Restante Fiado"');
     expect(dashboardSource).toContain('label="Restante Desafio"');
     expect(dashboardSource).toContain('remainingLabel="Restante Fiado"');

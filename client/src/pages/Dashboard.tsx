@@ -24,6 +24,8 @@ import {
   receiptAmounts,
   ticketGoalState,
   totalReward,
+  dailyCollectionGoal,
+  remainingToGoal,
 } from "../../../shared/goalRules";
 import { AlertTriangle, ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, TicketCheck, TrendingUp, Trophy } from "lucide-react";
 import { Link } from "wouter";
@@ -75,10 +77,10 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     reachedByDay15: metrics.fiadoAtDay15,
   });
   const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
-  const fiadoRemaining = metrics.creditGoal - metrics.currentOverdue;
-  const challengeRemaining = metrics.challengeGoal - metrics.currentOverdue;
+  const fiadoRemaining = remainingToGoal(metrics.currentOverdue, metrics.creditGoal);
+  const challengeRemaining = remainingToGoal(metrics.currentOverdue, metrics.challengeGoal);
   const workingDaysRemaining = Math.max(metrics.workingDaysTotal - metrics.workingDaysElapsed, 0);
-  const dailyGoal = workingDaysRemaining > 0 ? Math.max(fiadoRemaining, 0) / workingDaysRemaining : 0;
+  const dailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.creditGoal, workingDaysRemaining);
   const projection = receiptProjection({
     historyTotalReceived: historyQuery?.data?.totalReceived ?? 0,
     historyDaysRecorded: historyQuery?.data?.daysRecorded ?? 0,

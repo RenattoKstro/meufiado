@@ -257,3 +257,7 @@
 - [x] Reorganizar Vendas e Recebido em uma linha alinhada no resumo de cada filial.
 - [x] Permitir comparar até quatro filiais lado a lado pela busca de códigos separados por vírgula.
 - [x] Cobrir e validar a ordem, o limite e o layout da comparação de filiais.
+- [x] Destacar automaticamente a melhor e a pior efetividade na comparação lado a lado da Matriz.
+- [x] Adicionar filtros de visualização e ordenação da Matriz por código e percentuais maiores ou menores.
+- [x] Corrigir o card Meta Diária / Rec. Hoje para calcular a meta diária como restante dividido por dias restantes.
+- [x] Cobrir com testes os destaques, as ordenações e o cálculo corrigido da Meta Diária.

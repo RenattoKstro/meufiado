@@ -131,6 +131,14 @@ export function dailyRequirement(missingAmount: number, workingDaysTotal: number
   return daysRemaining > 0 ? missingAmount / daysRemaining : 0;
 }
 
+export function remainingToGoal(currentOverdue: number, targetOverdue: number) {
+  return Math.max(currentOverdue - targetOverdue, 0);
+}
+
+export function dailyCollectionGoal(currentOverdue: number, targetOverdue: number, daysRemaining: number) {
+  return daysRemaining > 0 ? remainingToGoal(currentOverdue, targetOverdue) / daysRemaining : 0;
+}
+
 export function isTicketValid(fiadoReachedByDay15: boolean) {
   return fiadoReachedByDay15;
 }
