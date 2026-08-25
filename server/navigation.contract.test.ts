@@ -90,6 +90,13 @@ describe("contrato da navegação lateral", () => {
     });
     expect(help).toContain("Digite até quatro códigos separados por vírgula");
     expect(help).toContain("Meta Diária é calculada pelo valor que falta");
+    expect(help).toContain("trpc.chat.supportRecipient.useQuery");
+    expect(help).toContain('setLocation(`/chat?perfil=${recipient.id}`)');
+    expect(help).toContain("Falar com administrador");
+
+    const router = await readFile(resolve(process.cwd(), "server/routers.ts"), "utf8");
+    expect(router).toContain("supportRecipient: protectedProcedure.query");
+    expect(router).toContain("getChatSupportAdmin(ctx.user.id)");
   });
 
   it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {

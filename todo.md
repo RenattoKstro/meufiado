@@ -265,3 +265,5 @@
 - [x] Criar um manual em português com instruções para Visão Geral, Filiais, Históricos, Matriz, Plano e Administração.
 - [x] Incluir orientações de metas, lançamentos, comparação de filiais e acesso PRO no manual.
 - [x] Cobrir a rota e a navegação da Ajuda com testes e validar a experiência em telas amplas e estreitas.
+- [x] Fazer o botão Abrir Chat da Ajuda iniciar uma conversa privada direta com o administrador.
+- [x] Cobrir e validar o encaminhamento de atendimento da Ajuda para o chat privado.

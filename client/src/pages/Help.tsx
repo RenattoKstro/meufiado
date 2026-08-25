@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { BookOpen, CalendarDays, CheckCircle2, ClipboardList, Crown, FileSpreadsheet, Gauge, GitCompareArrows, History, LayoutDashboard, MessageCircle, ShieldCheck, TableProperties, Target, Users, Wrench } from "lucide-react";
-import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { Link, useLocation } from "wouter";
 
 type HelpSection = {
   value: string;
@@ -97,6 +98,17 @@ const sections: HelpSection[] = [
 
 export default function Help() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const supportRecipient = trpc.chat.supportRecipient.useQuery(undefined, { retry: false });
+
+  const openSupportChat = () => {
+    const recipient = supportRecipient.data;
+    if (recipient && recipient.id !== user?.id) {
+      setLocation(`/chat?perfil=${recipient.id}`);
+      return;
+    }
+    setLocation("/chat");
+  };
 
   return (
     <section className="mx-auto max-w-5xl space-y-6 pb-10">
@@ -166,8 +178,8 @@ export default function Help() {
 
       <Card className="border-primary/15 bg-primary/[0.04] shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra o Chat para falar com a equipe ou consulte novamente este manual quando necessário.</p></div>
-          <Button asChild className="rounded-xl"><Link href="/chat"><MessageCircle className="mr-2 h-4 w-4" />Abrir Chat</Link></Button>
+          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra uma conversa privada com o administrador ou consulte novamente este manual quando necessário.</p></div>
+          <Button type="button" className="rounded-xl" disabled={supportRecipient.isLoading} onClick={openSupportChat}><MessageCircle className="mr-2 h-4 w-4" />Falar com administrador</Button>
         </CardContent>
       </Card>
     </section>

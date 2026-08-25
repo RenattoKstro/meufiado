@@ -971,6 +971,17 @@ export async function listPrivateChatThreads(userId: number) {
     .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread));
 }
 
+export async function getChatSupportAdmin(currentUserId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const administrators = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(eq(users.role, "admin"))
+    .orderBy(asc(users.id));
+  return administrators.find(administrator => administrator.id !== currentUserId) ?? administrators[0] ?? null;
+}
+
 export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
