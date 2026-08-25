@@ -10,17 +10,19 @@ const privateThreadsQuery = vi.hoisted(() => vi.fn());
 const supportRecipientQuery = vi.hoisted(() => vi.fn());
 const markRead = vi.hoisted(() => vi.fn());
 const sendMessage = vi.hoisted(() => vi.fn());
+const selectTopic = vi.hoisted(() => vi.fn());
 const searchValue = vi.hoisted(() => ({ value: "" }));
 const setLocation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ chat: { general: { invalidate: vi.fn() }, private: { invalidate: vi.fn() }, unreadCount: { invalidate: vi.fn() } } }),
+    useUtils: () => ({ chat: { general: { invalidate: vi.fn() }, private: { invalidate: vi.fn() }, privateThreads: { invalidate: vi.fn() }, unreadCount: { invalidate: vi.fn() } } }),
     chat: {
       general: { useQuery: generalQuery },
       private: { useQuery: privateQuery },
       privateThreads: { useQuery: privateThreadsQuery },
       supportRecipient: { useQuery: supportRecipientQuery },
+      selectSupportTopic: { useMutation: () => ({ mutate: selectTopic, isPending: false }) },
       send: { useMutation: () => ({ mutate: sendMessage, isPending: false }) },
       markRead: { useMutation: () => ({ mutate: markRead, isPending: false }) },
     },
@@ -41,6 +43,7 @@ describe("apresentação do chat", () => {
     supportRecipientQuery.mockReturnValue({ data: { id: 41, name: "Renato", isOnline: true, availabilityLabel: "Disponível agora" }, isLoading: false });
     markRead.mockReset();
     sendMessage.mockReset();
+    selectTopic.mockReset();
   });
   afterEach(cleanup);
 
@@ -98,7 +101,10 @@ describe("apresentação do chat", () => {
     render(<Chat />);
 
     const reply = "Como registrar o recebido diário?";
-    fireEvent.click(screen.getByRole("button", { name: reply }));
+    fireEvent.click(screen.getByRole("button", { name: /recebimento diário.*como registrar/i }));
     expect(screen.getByPlaceholderText("Digite uma mensagem…")).toHaveValue(reply);
+    expect(selectTopic).toHaveBeenCalledWith({ recipientUserId: 41, topic: "Recebimento diário" });
+    fireEvent.submit(screen.getByPlaceholderText("Digite uma mensagem…").closest("form")!);
+    expect(sendMessage).toHaveBeenCalledWith({ body: reply, recipientUserId: 41, supportTopic: "Recebimento diário" });
   });
 });

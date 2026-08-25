@@ -21,6 +21,7 @@ import {
   romaneios,
   subscriptionProofs,
   subscriptionSettings,
+  supportConversations,
   utilityDownloads,
   utilityReports,
   userProfiles,
@@ -914,6 +915,7 @@ export async function deleteManagedUser(profileId: number, actorUserId: number) 
   if (profile.userId === actorUserId) throw new Error("Use seu próprio acesso para alterar a sua conta.");
   if (profile.userId) {
     await db.delete(chatMessages).where(or(eq(chatMessages.senderUserId, profile.userId), eq(chatMessages.recipientUserId, profile.userId)));
+    await db.delete(supportConversations).where(or(eq(supportConversations.requesterUserId, profile.userId), eq(supportConversations.adminUserId, profile.userId)));
     await db.delete(userCredentials).where(eq(userCredentials.userId, profile.userId));
     await db.delete(adminCredentials).where(eq(adminCredentials.userId, profile.userId));
     await db.delete(metricSettings).where(eq(metricSettings.userId, profile.userId));
@@ -963,7 +965,17 @@ export async function listPrivateChatThreads(userId: number) {
     const partnerId = message.senderUserId === userId ? message.recipientUserId : message.senderUserId;
     if (!latestByPartner.has(partnerId)) latestByPartner.set(partnerId, message);
   }
-  const partnerIds = Array.from(latestByPartner.keys());
+  const supportThreads = await db
+    .select({ requesterUserId: supportConversations.requesterUserId, adminUserId: supportConversations.adminUserId, topic: supportConversations.topic, updatedAt: supportConversations.updatedAt })
+    .from(supportConversations)
+    .where(or(eq(supportConversations.requesterUserId, userId), eq(supportConversations.adminUserId, userId)))
+    .orderBy(desc(supportConversations.updatedAt));
+  const supportByPartner = new Map<number, typeof supportThreads[number]>();
+  for (const thread of supportThreads) {
+    const partnerId = thread.requesterUserId === userId ? thread.adminUserId : thread.requesterUserId;
+    if (!supportByPartner.has(partnerId)) supportByPartner.set(partnerId, thread);
+  }
+  const partnerIds = Array.from(new Set([...Array.from(latestByPartner.keys()), ...Array.from(supportByPartner.keys())]));
   if (!partnerIds.length) return [];
   const partners = await db.select({ id: users.id, name: users.name, role: users.role }).from(users).where(inArray(users.id, partnerIds));
   const partnersById = new Map(partners.map(partner => [partner.id, partner]));
@@ -971,16 +983,26 @@ export async function listPrivateChatThreads(userId: number) {
     .map(partnerId => {
       const partner = partnersById.get(partnerId);
       const latestMessage = latestByPartner.get(partnerId);
-      if (!partner || !latestMessage) return null;
-      return { recipientUserId: partner.id, recipientName: partner.name ?? "Usuário", recipientRole: partner.role, lastMessageBody: latestMessage.body, lastMessageAt: latestMessage.createdAt };
+      const supportThread = supportByPartner.get(partnerId);
+      if (!partner || (!latestMessage && !supportThread)) return null;
+      return {
+        recipientUserId: partner.id,
+        recipientName: partner.name ?? "Usuário",
+        recipientRole: partner.role,
+        lastMessageBody: latestMessage?.body ?? `Assunto: ${supportThread?.topic ?? "Atendimento"}`,
+        lastMessageAt: latestMessage?.createdAt ?? supportThread!.updatedAt,
+        supportTopic: supportThread?.topic ?? null,
+      };
     })
-    .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread));
+    .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread))
+    .sort((left, right) => right.lastMessageAt.getTime() - left.lastMessageAt.getTime());
 }
 
 export type SupportAdminCandidate = {
   id: number;
   name: string | null;
   lastSignedIn: Date | null;
+  supportAvailability: "available" | "away" | "busy";
 };
 
 export function selectChatSupportAdmin(administrators: SupportAdminCandidate[], currentUserId: number, now = Date.now()) {
@@ -993,10 +1015,17 @@ export function selectChatSupportAdmin(administrators: SupportAdminCandidate[], 
   const administrator = currentAdministrator ?? byMostRecentPresence[0] ?? null;
   if (!administrator) return null;
   const isOnline = Boolean(administrator.lastSignedIn && now - administrator.lastSignedIn.getTime() <= 3 * 60 * 1000);
+  const availabilityLabel = administrator.supportAvailability === "away"
+    ? "Ausente"
+    : administrator.supportAvailability === "busy"
+      ? "Em atendimento"
+      : isOnline
+        ? "Disponível agora"
+        : "Indisponível no momento";
   return {
     ...administrator,
     isOnline,
-    availabilityLabel: isOnline ? "Disponível agora" : "Indisponível no momento",
+    availabilityLabel,
   };
 }
 
@@ -1004,7 +1033,7 @@ export async function getChatSupportAdmin(currentUserId: number) {
   const db = await getDb();
   if (!db) return null;
   const administrators = await db
-    .select({ id: users.id, name: users.name, lastSignedIn: users.lastSignedIn })
+    .select({ id: users.id, name: users.name, lastSignedIn: users.lastSignedIn, supportAvailability: users.supportAvailability })
     .from(users)
     .where(eq(users.role, "admin"));
   const administrator = selectChatSupportAdmin(administrators, currentUserId);
@@ -1014,16 +1043,50 @@ export async function getChatSupportAdmin(currentUserId: number) {
     name: administrator.name ?? "Administrador",
     isOnline: administrator.isOnline,
     availabilityLabel: administrator.availabilityLabel,
+    supportAvailability: administrator.supportAvailability,
   };
 }
 
-export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string }) {
+export async function getMySupportAvailability(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [user] = await db.select({ supportAvailability: users.supportAvailability }).from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new Error("Administrador não encontrado.");
+  return user;
+}
+
+export async function setMySupportAvailability(userId: number, supportAvailability: "available" | "away" | "busy") {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(users).set({ supportAvailability }).where(eq(users.id, userId));
+  return { supportAvailability };
+}
+
+export async function recordSupportConversationTopic(input: { requesterUserId: number; adminUserId: number; topic: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const topic = input.topic.trim();
+  if (!topic) throw new Error("Informe o assunto do atendimento.");
+  const [administrator] = await db.select({ role: users.role }).from(users).where(eq(users.id, input.adminUserId)).limit(1);
+  if (administrator?.role !== "admin") throw new Error("O atendimento deve ser direcionado a um administrador.");
+  await db
+    .insert(supportConversations)
+    .values({ requesterUserId: input.requesterUserId, adminUserId: input.adminUserId, topic })
+    .onDuplicateKeyUpdate({ set: { topic, updatedAt: new Date() } });
+  return { topic };
+}
+
+export async function sendChatMessage(input: { senderUserId: number; recipientUserId?: number | null; body: string; supportTopic?: string | null }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const body = input.body.trim();
   if (!body) throw new Error("A mensagem não pode estar vazia.");
+  const supportTopic = input.supportTopic?.trim() || null;
+  if (supportTopic && input.recipientUserId) {
+    await recordSupportConversationTopic({ requesterUserId: input.senderUserId, adminUserId: input.recipientUserId, topic: supportTopic });
+  }
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  await db.insert(chatMessages).values({ senderUserId: input.senderUserId, recipientUserId: input.recipientUserId ?? null, body, expiresAt });
+  await db.insert(chatMessages).values({ senderUserId: input.senderUserId, recipientUserId: input.recipientUserId ?? null, supportTopic, body, expiresAt });
 }
 
 export async function deleteExpiredChatMessages() {

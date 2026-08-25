@@ -270,3 +270,7 @@
 - [x] Exibir o nome e o status de disponibilidade do administrador no atendimento da Ajuda.
 - [x] Oferecer respostas rápidas para dúvidas frequentes ao abrir uma conversa privada com o administrador.
 - [x] Cobrir com testes o status de atendimento e a abertura das respostas rápidas.
+- [x] Permitir ao administrador selecionar manualmente os status disponível, ausente e em atendimento.
+- [x] Registrar o assunto selecionado nas respostas rápidas para organizar os atendimentos privados.
+- [x] Remover do manual de Ajuda a seção e as instruções de Administração.
+- [x] Cobrir com testes os status manuais, o registro de assunto e o conteúdo simplificado da Ajuda.

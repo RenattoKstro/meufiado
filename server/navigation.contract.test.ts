@@ -85,9 +85,11 @@ describe("contrato da navegação lateral", () => {
 
     expect(navigation).toContain('label: "Ajuda", path: "/ajuda", icon: CircleHelp');
     expect(app).toContain('Route path="/ajuda" component={Help}');
-    ["Como usar o Meu Fiado", "Visão Geral e metas", "Históricos e recebimentos diários", "Filiais e Matriz", "Plano Free e PRO", "Administração"].forEach(title => {
+    ["Como usar o Meu Fiado", "Visão Geral e metas", "Históricos e recebimentos diários", "Filiais e Matriz", "Plano Free e PRO"].forEach(title => {
       expect(help).toContain(title);
     });
+    expect(help).not.toContain('value="administracao"');
+    expect(help).not.toContain("Orientações exclusivas para administrar usuários");
     expect(help).toContain("Digite até quatro códigos separados por vírgula");
     expect(help).toContain("Meta Diária é calculada pelo valor que falta");
     expect(help).toContain("trpc.chat.supportRecipient.useQuery");
@@ -100,6 +102,12 @@ describe("contrato da navegação lateral", () => {
     expect(router).toContain("supportRecipient: protectedProcedure.query");
     expect(router).toContain("getChatSupportAdmin(ctx.user.id)");
     expect(router).toContain("presence: protectedProcedure.mutation");
+    expect(router).toContain("setSupportAvailability: adminProcedure");
+    expect(router).toContain("selectSupportTopic: protectedProcedure");
+    expect(router).toContain("recordSupportConversationTopic");
+    const account = await readFile(resolve(process.cwd(), "client/src/pages/Account.tsx"), "utf8");
+    expect(account).toContain("Status do atendimento");
+    expect(account).toContain("Em atendimento");
   });
 
   it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {

@@ -12,6 +12,8 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 
+export const supportAvailability = mysqlEnum("supportAvailability", ["available", "away", "busy"]);
+
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -21,6 +23,7 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   plan: mysqlEnum("plan", ["free", "pro"]).default("free").notNull(),
   proExpiresAt: timestamp("proExpiresAt"),
+  supportAvailability: supportAvailability.default("available").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -100,6 +103,7 @@ export const chatMessages = mysqlTable(
     id: int("id").autoincrement().primaryKey(),
     senderUserId: int("senderUserId").notNull().references(() => users.id),
     recipientUserId: int("recipientUserId").references(() => users.id),
+    supportTopic: varchar("supportTopic", { length: 120 }),
     body: varchar("body", { length: 1200 }).notNull(),
     expiresAt: timestamp("expiresAt").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -107,6 +111,22 @@ export const chatMessages = mysqlTable(
   table => [
     index("chat_messages_expiry_idx").on(table.expiresAt),
     index("chat_messages_private_idx").on(table.senderUserId, table.recipientUserId, table.createdAt),
+  ],
+);
+
+export const supportConversations = mysqlTable(
+  "supportConversations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    requesterUserId: int("requesterUserId").notNull().references(() => users.id),
+    adminUserId: int("adminUserId").notNull().references(() => users.id),
+    topic: varchar("topic", { length: 120 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [
+    uniqueIndex("support_conversations_pair_unique").on(table.requesterUserId, table.adminUserId),
+    index("support_conversations_admin_idx").on(table.adminUserId, table.updatedAt),
   ],
 );
 

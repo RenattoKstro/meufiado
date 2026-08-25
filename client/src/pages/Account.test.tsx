@@ -8,15 +8,21 @@ const mineQuery = vi.hoisted(() => vi.fn());
 const accountMutation = vi.hoisted(() => vi.fn());
 const avatarMutation = vi.hoisted(() => vi.fn());
 const invalidate = vi.hoisted(() => vi.fn());
+const supportAvailabilityQuery = vi.hoisted(() => vi.fn());
+const supportAvailabilityMutation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 7, name: "Ana Souza", email: "ana@exemplo.com" } }) }));
 vi.mock("@/lib/trpc", () => ({
   trpc: {
-    useUtils: () => ({ profile: { mine: { invalidate } }, auth: { me: { invalidate } } }),
+    useUtils: () => ({ profile: { mine: { invalidate } }, auth: { me: { invalidate } }, chat: { mySupportAvailability: { invalidate }, supportRecipient: { invalidate } } }),
     profile: {
       mine: { useQuery: mineQuery },
       account: { useMutation: accountMutation },
       uploadAvatar: { useMutation: avatarMutation },
+    },
+    chat: {
+      mySupportAvailability: { useQuery: supportAvailabilityQuery },
+      setSupportAvailability: { useMutation: supportAvailabilityMutation },
     },
   },
 }));
@@ -30,6 +36,8 @@ describe("Conta", () => {
     mineQuery.mockReturnValue({ isLoading: false, data: { profile: { fullName: "Ana Souza", phone: "(67) 99999-0000", instagram: "ana.recebe", email: "ana@exemplo.com", avatarUrl: null } } });
     accountMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn().mockResolvedValue({}) });
     avatarMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
+    supportAvailabilityQuery.mockReturnValue({ isLoading: false, data: { supportAvailability: "available" } });
+    supportAvailabilityMutation.mockReturnValue({ isPending: false, mutate: vi.fn() });
 
     render(<Account />);
     expect(screen.getByLabelText("Nome")).toHaveValue("Ana Souza");

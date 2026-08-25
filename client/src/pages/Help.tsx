@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { BookOpen, CalendarDays, CheckCircle2, ClipboardList, Crown, FileSpreadsheet, Gauge, GitCompareArrows, History, LayoutDashboard, MessageCircle, ShieldCheck, TableProperties, Target, Users, Wrench } from "lucide-react";
+import { BookOpen, CalendarDays, CheckCircle2, ClipboardList, Crown, FileSpreadsheet, Gauge, GitCompareArrows, History, LayoutDashboard, MessageCircle, TableProperties, Target, Users, Wrench } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Link, useLocation } from "wouter";
 
@@ -158,27 +158,11 @@ export default function Help() {
             </AccordionItem>
           );
         })}
-        {user?.role === "admin" && (
-          <AccordionItem value="administracao" className="overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.035] px-5 shadow-sm">
-            <AccordionTrigger className="gap-3 py-5 text-left hover:no-underline">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"><ShieldCheck className="h-5 w-5" /></span>
-              <span className="min-w-0 flex-1"><span className="block font-extrabold">Administração</span><span className="mt-1 block text-sm font-normal text-muted-foreground">Orientações exclusivas para administrar usuários, planos e dados consolidados.</span></span>
-            </AccordionTrigger>
-            <AccordionContent className="pb-5 pl-13">
-              <ul className="space-y-2 pl-1 text-sm leading-relaxed text-muted-foreground">
-                <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>Gerencie usuários, filiais, permissões PRO, acessos e conteúdos de Utilidades.</span></li>
-                <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>Na importação da Matriz, envie o Excel completo com Analítico, Dados, Acomp.Meta Diaria, Meta Desafio Diária e Vencido_Dia.</span></li>
-                <li className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><span>O Analítico define as filiais e regionais da Matriz; as demais abas apenas complementam indicadores pelo código da filial.</span></li>
-              </ul>
-              <Button asChild size="sm" className="mt-5 rounded-xl"><Link href="/admin">Abrir Administração</Link></Button>
-            </AccordionContent>
-          </AccordionItem>
-        )}
       </Accordion>
 
       <Card className="border-primary/15 bg-primary/[0.04] shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra uma conversa privada com o administrador ou consulte novamente este manual quando necessário.</p>{supportRecipient.data && <p className="mt-2 flex items-center gap-2 text-xs font-bold"><span className={`h-2.5 w-2.5 rounded-full ${supportRecipient.data.isOnline ? "bg-emerald-500" : "bg-muted-foreground/50"}`} /><span>{supportRecipient.data.name} · {supportRecipient.data.availabilityLabel}</span></p>}</div>
+          <div><p className="font-extrabold">Ainda precisa de orientação?</p><p className="mt-1 text-sm text-muted-foreground">Abra uma conversa privada com o administrador ou consulte novamente este manual quando necessário.</p>{supportRecipient.data && <p className="mt-2 flex items-center gap-2 text-xs font-bold"><span className={`h-2.5 w-2.5 rounded-full ${supportRecipient.data.supportAvailability === "busy" ? "bg-amber-500" : supportRecipient.data.supportAvailability === "away" ? "bg-muted-foreground/50" : supportRecipient.data.isOnline ? "bg-emerald-500" : "bg-muted-foreground/50"}`} /><span>{supportRecipient.data.name} · {supportRecipient.data.availabilityLabel}</span></p>}</div>
           <Button type="button" className="rounded-xl" disabled={supportRecipient.isLoading} onClick={openSupportChat}><MessageCircle className="mr-2 h-4 w-4" />{supportRecipient.data ? `Falar com ${supportRecipient.data.name}` : "Falar com administrador"}</Button>
         </CardContent>
       </Card>

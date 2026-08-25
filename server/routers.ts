@@ -17,6 +17,7 @@ import {
   getAppTextSettings,
   getSubscriptionSettings,
   getChatSupportAdmin,
+  getMySupportAvailability,
   listChatMessages,
   listPrivateChatThreads,
   importMatrixWorkbook,
@@ -52,7 +53,9 @@ import {
   updateLocalAdminCredentials,
   loginGoogleOperator,
   markChatMessagesRead,
+  recordSupportConversationTopic,
   sendChatMessage,
+  setMySupportAvailability,
   listSubscriptionProofs,
   reviewSubscriptionProof,
   setManagedUserPlan,
@@ -410,7 +413,22 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       await touchUserPresence(ctx.user.id);
       return getChatSupportAdmin(ctx.user.id);
     }),
-    send: protectedProcedure.input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional() })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body }); }),
+    mySupportAvailability: adminProcedure.query(({ ctx }) => getMySupportAvailability(ctx.user.id)),
+    setSupportAvailability: adminProcedure
+      .input(z.enum(["available", "away", "busy"]))
+      .mutation(({ ctx, input }) => setMySupportAvailability(ctx.user.id, input)),
+    selectSupportTopic: protectedProcedure
+      .input(z.object({ recipientUserId: z.number().int().positive(), topic: z.string().trim().min(2).max(120) }))
+      .mutation(async ({ ctx, input }) => {
+        await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
+        return recordSupportConversationTopic({ requesterUserId: ctx.user.id, adminUserId: input.recipientUserId, topic: input.topic });
+      }),
+    send: protectedProcedure
+      .input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional(), supportTopic: z.string().trim().min(2).max(120).optional() }))
+      .mutation(async ({ ctx, input }) => {
+        await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
+        return sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body, supportTopic: input.supportTopic });
+      }),
     unreadCount: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return countUnreadChatMessages(ctx.user.id); }),
     markRead: protectedProcedure.mutation(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return markChatMessagesRead(ctx.user.id); }),
   }),
