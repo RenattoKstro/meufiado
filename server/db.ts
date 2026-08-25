@@ -8,6 +8,7 @@ import {
   chatReadStates,
   chatMessages,
   InsertUser,
+  matrixMetrics,
   metricSettings,
   receiptHistoryEntries,
   romaneioActivities,
@@ -167,6 +168,34 @@ export async function listBranchOverviews() {
   }));
 }
 
+export async function listMatrixOverviews() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const rows = await db
+    .select({ branch: branches, metrics: matrixMetrics })
+    .from(branches)
+    .leftJoin(matrixMetrics, eq(matrixMetrics.branchId, branches.id))
+    .where(eq(branches.isActive, true))
+    .orderBy(branches.name);
+
+  return rows.map(({ branch, metrics }) => ({
+    branch,
+    metrics: metrics
+      ? {
+          creditGoal: metrics.creditGoal,
+          challengeGoal: metrics.challengeGoal,
+          currentOverdue: metrics.currentOverdue,
+          monthlyLoss: metrics.monthlyLoss,
+          lossSalesPercent: metrics.lossSalesPercent,
+          lostGoal: metrics.lostGoal,
+          lostReceived: metrics.lostReceived,
+        }
+      : null,
+    updatedAt: metrics?.updatedAt ?? null,
+  }));
+}
+
 export async function createBranch(input: { name: string; code?: string; regional?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
@@ -214,7 +243,7 @@ export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
       lostGoal: row.lostGoal,
       lostReceived: row.lostReceived,
     };
-    await db.insert(branchMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
+    await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
     if (row.regional) await db.update(branches).set({ regional: row.regional }).where(eq(branches.id, branch.id));
     imported += 1;
   }
@@ -224,7 +253,7 @@ export async function importAnalyticMetrics(rows: AnalyticImportRow[]) {
 export async function getAnalyticImportStatus() {
   const db = await getDb();
   if (!db) return { lastImportedAt: null };
-  const [latest] = await db.select({ updatedAt: branchMetrics.updatedAt }).from(branchMetrics).orderBy(desc(branchMetrics.updatedAt)).limit(1);
+  const [latest] = await db.select({ updatedAt: matrixMetrics.updatedAt }).from(matrixMetrics).orderBy(desc(matrixMetrics.updatedAt)).limit(1);
   return { lastImportedAt: latest?.updatedAt ?? null };
 }
 

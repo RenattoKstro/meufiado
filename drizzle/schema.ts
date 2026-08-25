@@ -313,6 +313,21 @@ export const branchMetrics = mysqlTable("branchMetrics", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+// Dados exclusivamente importados pelo administrador a partir da planilha Analítico.
+// Esta tabela não participa das métricas editáveis pelos operadores de cada filial.
+export const matrixMetrics = mysqlTable("matrixMetrics", {
+  id: int("id").autoincrement().primaryKey(),
+  branchId: int("branchId").notNull().unique().references(() => branches.id),
+  creditGoal: double("creditGoal").default(0).notNull(),
+  challengeGoal: double("challengeGoal").default(0).notNull(),
+  currentOverdue: double("currentOverdue").default(0).notNull(),
+  monthlyLoss: double("monthlyLoss").default(0).notNull(),
+  lossSalesPercent: double("lossSalesPercent").default(0).notNull(),
+  lostGoal: double("lostGoal").default(0).notNull(),
+  lostReceived: double("lostReceived").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 export const receiptHistoryEntries = mysqlTable(
   "receiptHistoryEntries",
   {

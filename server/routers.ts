@@ -28,6 +28,7 @@ import {
   listRomaneioParties,
   listRomaneioProducts,
   listBranchOverviews,
+  listMatrixOverviews,
   listActiveBranchesWithSlots,
   listAllBranches,
   listManagedUsers,
@@ -298,6 +299,9 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       await requireFeatureAccess(ctx.user.id, ctx.user.role, "branches");
       return listBranchOverviews();
     }),
+  }),
+  matrix: router({
+    overview: protectedProcedure.query(() => listMatrixOverviews()),
   }),
   history: router({
     list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),

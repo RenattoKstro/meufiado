@@ -222,3 +222,6 @@
 - [x] Salvar a preferência de estilo de assinatura de cada gerente para os próximos Romaneios.
 - [x] Registrar e exibir no histórico do Romaneio o estilo de assinatura usado por cada gerente.
 - [x] Permitir que o gerente desenhe e confirme uma assinatura manual diretamente na tela do Romaneio.
+- [x] Criar a guia Matriz com consulta não editável de todas as filiais e seus indicadores importados.
+- [x] Direcionar a importação da planilha Analítico da Administração exclusivamente para os dados da Matriz.
+- [x] Manter as metas e lançamentos dos usuários independentes dos dados consolidados importados na Matriz.

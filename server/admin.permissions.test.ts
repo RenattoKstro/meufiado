@@ -44,4 +44,13 @@ describe("permissões administrativas", () => {
     const guestCaller = router.createCaller(contextWithoutUser());
     await expect(guestCaller.branches.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
+
+  it("entrega a Matriz somente para usuários autenticados e sem procedimento de edição", async () => {
+    const operatorCaller = router.createCaller(contextFor("user"));
+    const matrix = await operatorCaller.matrix.overview();
+    expect(matrix).toEqual(expect.any(Array));
+
+    const guestCaller = router.createCaller(contextWithoutUser());
+    await expect(guestCaller.matrix.overview()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

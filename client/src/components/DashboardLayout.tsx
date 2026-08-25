@@ -27,7 +27,7 @@ import { useAppTexts } from "@/contexts/AppTextContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
-import { BarChart3, Building2, ChevronDown, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import { BarChart3, Building2, ChevronDown, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
@@ -45,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard },
+    { label: "Matriz", path: "/matriz", icon: TableProperties },
     { label: texts.navBranches, path: "/filiais", icon: Building2, feature: "branches" as const },
     { label: texts.navHistory, path: "/historicos", icon: History, feature: "history" as const },
     { label: texts.navUtilities, path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
