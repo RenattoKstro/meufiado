@@ -150,6 +150,11 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain('setLocation("/plano")');
   });
 
+  it("mantém o card de status do Plano na altura do próprio conteúdo no desktop", async () => {
+    const subscription = await readFile(resolve(process.cwd(), "client/src/pages/Subscription.tsx"), "utf8");
+    expect(subscription).toContain("lg:self-start rounded-[1.6rem]");
+  });
+
   it("registra Utilidades na navegação e disponibiliza Downloads e Relatórios", async () => {
     const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
