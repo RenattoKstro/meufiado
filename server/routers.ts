@@ -14,6 +14,7 @@ import {
   countUnreadChatMessages,
   canAccessSubscriptionFeature,
   getMySubscription,
+  getSubscriptionChargeAmount,
   getAppTextSettings,
   getSubscriptionSettings,
   getChatSupportAdmin,
@@ -151,6 +152,8 @@ const historyEntryInput = z.object({
 const subscriptionPlan = z.enum(["free", "pro"]);
 const subscriptionSettingsInput = z.object({
   monthlyPrice: z.number().min(0).max(100_000).finite(),
+  promotionOriginalPrice: z.number().min(0).max(100_000).finite(),
+  promotionPrice: z.number().min(0).max(100_000).finite(),
   pixKey: z.string().trim().max(255),
   pixCopyPaste: z.string().trim().max(2048),
   pixReceiverName: z.string().trim().min(2).max(25),
@@ -159,6 +162,10 @@ const subscriptionSettingsInput = z.object({
   historyPlan: subscriptionPlan,
   utilitiesPlan: subscriptionPlan,
   chatPlan: subscriptionPlan,
+}).superRefine((value, context) => {
+  const promotionIsCleared = value.promotionOriginalPrice === 0 && value.promotionPrice === 0;
+  const promotionIsValid = value.promotionOriginalPrice > value.promotionPrice && value.promotionPrice > 0;
+  if (!promotionIsCleared && !promotionIsValid) context.addIssue({ code: z.ZodIssueCode.custom, path: ["promotionPrice"], message: "Informe um preço promocional menor que o preço anterior ou deixe os dois campos zerados." });
 });
 const proofInput = z.object({ dataUrl: z.string().min(32).max(4_500_000) });
 const appTextSettingsInput = z.object({
@@ -475,7 +482,8 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
         return { checkoutUrl: existing.checkoutUrl, providerStatus: existing.providerStatus, reused: true };
       }
       const settings = await getSubscriptionSettings();
-      if (!settings.monthlyPrice || settings.monthlyPrice <= 0) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A mensalidade PRO ainda não foi configurada pela administração." });
+      const chargeAmount = getSubscriptionChargeAmount(settings);
+      if (!chargeAmount || chargeAmount <= 0) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A mensalidade PRO ainda não foi configurada pela administração." });
       if (!ctx.user.email) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Seu cadastro precisa ter um e-mail para iniciar o pagamento." });
       const forwardedHost = ctx.req.header("x-forwarded-host")?.split(",")[0]?.trim();
       const host = forwardedHost || ctx.req.header("host");
@@ -486,7 +494,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const preapproval = await createRecurringPreapproval({
         payerEmail: ctx.user.email,
         externalReference,
-        monthlyPrice: settings.monthlyPrice,
+        monthlyPrice: chargeAmount,
         notificationUrl: `${appUrl}/api/mercadopago/webhook?source_news=webhooks`,
         backUrl: `${appUrl}/plano?checkout=mercadopago`,
       });
@@ -498,7 +506,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
         preapprovalId: preapproval.id,
         checkoutUrl,
         providerStatus: preapproval.status,
-        amount: settings.monthlyPrice,
+        amount: chargeAmount,
         nextPaymentDate: preapproval.next_payment_date ? new Date(preapproval.next_payment_date) : null,
       });
       return { checkoutUrl, providerStatus: preapproval.status, reused: false };

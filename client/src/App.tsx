@@ -1,5 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -24,7 +26,7 @@ import Utilities from "@/pages/Utilities";
 import Subscription from "@/pages/Subscription";
 import RomaneioShare from "@/pages/RomaneioShare";
 import Welcome from "@/pages/Welcome";
-import { ShieldAlert } from "lucide-react";
+import { ArrowRight, Crown, ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
 
@@ -50,18 +52,23 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz" component={Matrix} /><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat">{() => <SubscriptionFeature feature="chat"><Chat /></SubscriptionFeature>}</Route><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/ajuda" component={Help} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz">{() => <SubscriptionFeature feature="matrix"><Matrix /></SubscriptionFeature>}</Route><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat">{() => <SubscriptionFeature feature="chat"><Chat /></SubscriptionFeature>}</Route><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/ajuda" component={Help} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
-function SubscriptionFeature({ feature, children }: { feature: "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
+function SubscriptionFeature({ feature, children }: { feature: "matrix" | "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
   const { user } = useAuth();
   const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   if (user?.role === "admin") return <>{children}</>;
   if (subscriptionQuery.isLoading) return <LoadingScreen />;
   const settings = subscriptionQuery.data?.settings;
-  const requiredPlan = settings?.[`${feature}Plan` as const] ?? "pro";
+  const requiredPlan = feature === "matrix" ? "pro" : settings?.[`${feature}Plan` as const] ?? "pro";
   if (subscriptionQuery.data?.isPro || requiredPlan === "free") return <>{children}</>;
-  return <Subscription />;
+  return <ProFeatureGate />;
+}
+
+function ProFeatureGate() {
+  const [, navigate] = useLocation();
+  return <section className="mx-auto grid min-h-[62vh] max-w-xl place-items-center"><Card className="w-full overflow-hidden rounded-[1.8rem] border-primary/20 bg-card shadow-xl shadow-primary/10"><CardContent className="p-7 text-center sm:p-10"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary"><Crown className="h-7 w-7" /></span><p className="mt-6 text-xs font-black uppercase tracking-[.14em] text-primary">Acesso PRO</p><h1 className="mt-2 text-2xl font-black tracking-[-0.035em]">FUNÇÃO DISPONÍVEL APENAS PARA USUÁRIOS PRO</h1><p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">Conheça as opções do plano, veja o valor vigente e libere os recursos premium da sua conta.</p><Button type="button" className="mt-7 h-11 rounded-xl px-5 font-extrabold" onClick={() => navigate("/plano")}><Crown className="mr-2 h-4 w-4" />Ir para a tela de Plano<ArrowRight className="ml-2 h-4 w-4" /></Button></CardContent></Card></section>;
 }
 
 function App() { return <ErrorBoundary><ThemeProvider><AppTextProvider><TooltipProvider><Toaster /><Switch><Route path="/romaneio/:token" component={RomaneioShare} /><Route component={AuthenticatedApp} /></Switch></TooltipProvider></AppTextProvider></ThemeProvider></ErrorBoundary>; }

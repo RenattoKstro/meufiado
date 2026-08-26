@@ -678,6 +678,8 @@ export type SubscriptionFeatureKey = typeof subscriptionFeatureKeys[number];
 export type SubscriptionPlan = "free" | "pro";
 export type SubscriptionSettingsInput = {
   monthlyPrice: number;
+  promotionOriginalPrice: number;
+  promotionPrice: number;
   pixKey: string;
   pixCopyPaste: string;
   pixReceiverName: string;
@@ -690,6 +692,8 @@ export type SubscriptionSettingsInput = {
 
 const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: string } = {
   monthlyPrice: 0,
+  promotionOriginalPrice: 0,
+  promotionPrice: 0,
   pixKey: "",
   pixCopyPaste: "",
   pixQrCodeUrl: "",
@@ -700,6 +704,14 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   utilitiesPlan: "pro",
   chatPlan: "pro",
 };
+
+export function hasActiveSubscriptionPromotion(settings: Pick<SubscriptionSettingsInput, "promotionOriginalPrice" | "promotionPrice">) {
+  return settings.promotionOriginalPrice > settings.promotionPrice && settings.promotionPrice > 0;
+}
+
+export function getSubscriptionChargeAmount(settings: Pick<SubscriptionSettingsInput, "monthlyPrice" | "promotionOriginalPrice" | "promotionPrice">) {
+  return hasActiveSubscriptionPromotion(settings) ? settings.promotionPrice : settings.monthlyPrice;
+}
 
 export async function getSubscriptionSettings(database?: ApplicationDatabase) {
   const db = database ?? await getDb();

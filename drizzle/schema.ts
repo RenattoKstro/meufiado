@@ -403,6 +403,8 @@ export const receiptHistoryEntries = mysqlTable(
 export const subscriptionSettings = mysqlTable("subscriptionSettings", {
   id: int("id").autoincrement().primaryKey(),
   monthlyPrice: double("monthlyPrice").default(0).notNull(),
+  promotionOriginalPrice: double("promotionOriginalPrice").default(0).notNull(),
+  promotionPrice: double("promotionPrice").default(0).notNull(),
   pixKey: varchar("pixKey", { length: 255 }).default("").notNull(),
   pixCopyPaste: varchar("pixCopyPaste", { length: 2048 }).default("").notNull(),
   pixQrCodeUrl: varchar("pixQrCodeUrl", { length: 2048 }).default("").notNull(),

@@ -274,3 +274,7 @@
 - [x] Registrar o assunto selecionado nas respostas rápidas para organizar os atendimentos privados.
 - [x] Remover do manual de Ajuda a seção e as instruções de Administração.
 - [x] Cobrir com testes os status manuais, o registro de assunto e o conteúdo simplificado da Ajuda.
+- [x] Permitir que o administrador configure uma promoção de assinatura com preço anterior e preço promocional.
+- [x] Aplicar a promoção configurada na tela Plano e no fluxo de cobrança, preservando o valor padrão quando não houver promoção ativa.
+- [x] Exibir uma mesma tela de recurso PRO para usuários Free nas áreas Matriz, Filiais, Históricos, Utilidades e Chat, com atalho direto para o Plano.
+- [x] Cobrir as regras de promoção e o bloqueio unificado de recursos PRO com testes automatizados.

@@ -32,7 +32,7 @@ function contextFor(role: "user" | "admin"): TrpcContext {
   };
 }
 
-const settings = { id: 1, monthlyPrice: 19.9, pixKey: "pix@exemplo.com", pixCopyPaste: "0002012636...", pixQrCodeUrl: "https://example.com/qr.png", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "pro" as const, historyPlan: "pro" as const, utilitiesPlan: "free" as const, chatPlan: "pro" as const, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
+const settings = { id: 1, monthlyPrice: 19.9, promotionOriginalPrice: 0, promotionPrice: 0, pixKey: "pix@exemplo.com", pixCopyPaste: "0002012636...", pixQrCodeUrl: "https://example.com/qr.png", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "pro" as const, historyPlan: "pro" as const, utilitiesPlan: "free" as const, chatPlan: "pro" as const, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
 
 describe("procedures de assinatura", () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -67,11 +67,11 @@ describe("procedures de assinatura", () => {
     expect(notificationMocks.notifyOwner).toHaveBeenCalledWith(expect.objectContaining({ title: "Novo comprovante de assinatura" }));
     await expect(user.subscriptionAdmin.settings()).rejects.toMatchObject({ code: "FORBIDDEN" });
 
-    await admin.subscriptionAdmin.updateSettings({ monthlyPrice: 29.9, pixKey: "chave-pix", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" });
+    await admin.subscriptionAdmin.updateSettings({ monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, pixKey: "chave-pix", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" });
     await admin.subscriptionAdmin.uploadPixQrCode({ dataUrl: "data:image/png;base64,aGVsbG8gaXN0byBlIHVtIGNvbXByb3ZhbnRlIHZhbGlkbyE=" });
     await admin.subscriptionAdmin.setUserPlan({ userId: 42, plan: "pro" });
     await admin.subscriptionAdmin.reviewProof({ id: 7, status: "approved" });
-    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free" }), 31);
+    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free" }), 31);
     expect(dbMocks.uploadSubscriptionPixQrCode).toHaveBeenCalledWith(31, expect.stringContaining("data:image/png;base64,"));
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
@@ -86,6 +86,22 @@ describe("procedures de assinatura", () => {
     await expect(createAppRouter().createCaller(contextFor("user")).subscription.mercadoPagoCheckout()).resolves.toEqual({ checkoutUrl: "https://mp.example/checkout", providerStatus: "pending", reused: false });
     expect(mercadoPagoMocks.createRecurringPreapproval).toHaveBeenCalledWith(expect.objectContaining({ payerEmail: "teste@example.com", monthlyPrice: 19.9, notificationUrl: "https://app.example.com/api/mercadopago/webhook?source_news=webhooks", backUrl: "https://app.example.com/plano?checkout=mercadopago" }));
     expect(dbMocks.saveMercadoPagoSubscription).toHaveBeenCalledWith(expect.objectContaining({ userId: 31, preapprovalId: "preapproval-1", checkoutUrl: "https://mp.example/checkout", amount: 19.9 }));
+  });
+
+  it("cobra o preço promocional quando a oferta está configurada", async () => {
+    dbMocks.getMercadoPagoSubscription.mockResolvedValue(null);
+    dbMocks.getSubscriptionSettings.mockResolvedValue({ ...settings, promotionOriginalPrice: 29.9, promotionPrice: 19.9 });
+    mercadoPagoMocks.createRecurringPreapproval.mockResolvedValue({ id: "preapproval-promo", status: "pending", init_point: "https://mp.example/promo" });
+    dbMocks.saveMercadoPagoSubscription.mockResolvedValue({ id: 2 });
+
+    await expect(createAppRouter().createCaller(contextFor("user")).subscription.mercadoPagoCheckout()).resolves.toEqual({ checkoutUrl: "https://mp.example/promo", providerStatus: "pending", reused: false });
+    expect(mercadoPagoMocks.createRecurringPreapproval).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 19.9 }));
+    expect(dbMocks.saveMercadoPagoSubscription).toHaveBeenCalledWith(expect.objectContaining({ amount: 19.9 }));
+  });
+
+  it("recusa promoção inválida para proteger o preço da assinatura", async () => {
+    const admin = createAppRouter({ canAccessSubscriptionFeature: async () => true }).createCaller(contextFor("admin"));
+    await expect(admin.subscriptionAdmin.updateSettings({ monthlyPrice: 29.9, promotionOriginalPrice: 19.9, promotionPrice: 24.9, pixKey: "", pixCopyPaste: "", pixReceiverName: "MEU FIADO", pixReceiverBank: "", branchesPlan: "pro", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("reutiliza um checkout pendente para não criar assinaturas recorrentes duplicadas", async () => {

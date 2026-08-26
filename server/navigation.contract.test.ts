@@ -163,7 +163,13 @@ describe("contrato da navegação lateral", () => {
     expect(panel).toContain('checked={isProOnly}');
     expect(panel).toContain('[settingKey]: checked ? "pro" : "free"');
     expect(panel).toContain('exclusiva para PRO');
+    expect(panel).toContain('Promoção de assinatura');
+    expect(panel).toContain('Preço antigo (R$)');
+    expect(panel).toContain('Por: preço novo (R$)');
     expect(app).toContain("refetchInterval: 15_000");
+    expect(app).toContain('feature="matrix"');
+    expect(app).toContain('FUNÇÃO DISPONÍVEL APENAS PARA USUÁRIOS PRO');
+    expect(app).toContain('Ir para a tela de Plano');
     expect(navigation).toContain("refetchInterval: 15_000");
   });
 

@@ -14,6 +14,8 @@ import { toast } from "sonner";
 type PageKey = "branches" | "history" | "utilities" | "chat";
 type SettingsForm = {
   monthlyPrice: string;
+  promotionOriginalPrice: string;
+  promotionPrice: string;
   pixKey: string;
   pixCopyPaste: string;
   pixReceiverName: string;
@@ -25,7 +27,7 @@ type SettingsForm = {
 };
 
 const pageLabels: Record<PageKey, string> = { branches: "Filiais", history: "Históricos", utilities: "Utilidades", chat: "Chat" };
-const initialForm: SettingsForm = { monthlyPrice: "", pixKey: "", pixCopyPaste: "", pixReceiverName: "MEU FIADO", pixReceiverBank: "", branchesPlan: "pro", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" };
+const initialForm: SettingsForm = { monthlyPrice: "", promotionOriginalPrice: "", promotionPrice: "", pixKey: "", pixCopyPaste: "", pixReceiverName: "MEU FIADO", pixReceiverBank: "", branchesPlan: "pro", historyPlan: "pro", utilitiesPlan: "pro", chatPlan: "pro" };
 
 export default function SubscriptionAdminPanel({ users, onChanged }: { users: Array<{ profile: { userId: number | null; fullName: string }; account: { id: number; email: string | null; plan: "free" | "pro"; proExpiresAt: Date | null; role: "admin" | "user" } | null }>; onChanged: () => Promise<void> }) {
   const utils = trpc.useUtils();
@@ -42,14 +44,18 @@ export default function SubscriptionAdminPanel({ users, onChanged }: { users: Ar
   useEffect(() => {
     const settings = settingsQuery.data;
     if (!settings) return;
-    setForm({ monthlyPrice: String(settings.monthlyPrice), pixKey: settings.pixKey, pixCopyPaste: settings.pixCopyPaste, pixReceiverName: settings.pixReceiverName, pixReceiverBank: settings.pixReceiverBank, branchesPlan: settings.branchesPlan, historyPlan: settings.historyPlan, utilitiesPlan: settings.utilitiesPlan, chatPlan: settings.chatPlan });
+    setForm({ monthlyPrice: String(settings.monthlyPrice), promotionOriginalPrice: settings.promotionOriginalPrice > 0 ? String(settings.promotionOriginalPrice) : "", promotionPrice: settings.promotionPrice > 0 ? String(settings.promotionPrice) : "", pixKey: settings.pixKey, pixCopyPaste: settings.pixCopyPaste, pixReceiverName: settings.pixReceiverName, pixReceiverBank: settings.pixReceiverBank, branchesPlan: settings.branchesPlan, historyPlan: settings.historyPlan, utilitiesPlan: settings.utilitiesPlan, chatPlan: settings.chatPlan });
   }, [settingsQuery.data]);
 
   async function saveConfiguration() {
     const monthlyPrice = Number(form.monthlyPrice.replace(",", "."));
     if (!Number.isFinite(monthlyPrice) || monthlyPrice < 0) { toast.error("Informe um valor mensal válido."); return; }
+    const promotionOriginalPrice = form.promotionOriginalPrice.trim() ? Number(form.promotionOriginalPrice.replace(",", ".")) : 0;
+    const promotionPrice = form.promotionPrice.trim() ? Number(form.promotionPrice.replace(",", ".")) : 0;
+    const promotionIsCleared = promotionOriginalPrice === 0 && promotionPrice === 0;
+    if (!Number.isFinite(promotionOriginalPrice) || !Number.isFinite(promotionPrice) || (!promotionIsCleared && !(promotionOriginalPrice > promotionPrice && promotionPrice > 0))) { toast.error("Informe preço antigo maior que o preço promocional ou deixe os dois campos vazios."); return; }
     try {
-      await saveSettings.mutateAsync({ monthlyPrice, pixKey: form.pixKey.trim(), pixCopyPaste: form.pixCopyPaste.trim(), pixReceiverName: form.pixReceiverName.trim(), pixReceiverBank: form.pixReceiverBank.trim(), branchesPlan: form.branchesPlan, historyPlan: form.historyPlan, utilitiesPlan: form.utilitiesPlan, chatPlan: form.chatPlan });
+      await saveSettings.mutateAsync({ monthlyPrice, promotionOriginalPrice, promotionPrice, pixKey: form.pixKey.trim(), pixCopyPaste: form.pixCopyPaste.trim(), pixReceiverName: form.pixReceiverName.trim(), pixReceiverBank: form.pixReceiverBank.trim(), branchesPlan: form.branchesPlan, historyPlan: form.historyPlan, utilitiesPlan: form.utilitiesPlan, chatPlan: form.chatPlan });
       await utils.subscriptionAdmin.settings.invalidate();
       toast.success("Configuração de assinatura salva.");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar a configuração."); }
@@ -93,11 +99,12 @@ export default function SubscriptionAdminPanel({ users, onChanged }: { users: Ar
       <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />Mensalidade e páginas por plano</CardTitle><CardDescription>Novas contas começam no Free. Ative o controle de cada página para torná-la exclusiva do PRO; desative-o para liberá-la no Free.</CardDescription></CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2"><Label htmlFor="subscription-price">Mensalidade (R$)</Label><Input id="subscription-price" type="number" min="0" step="0.01" value={form.monthlyPrice} onChange={event => setForm(current => ({ ...current, monthlyPrice: event.target.value }))} placeholder="Ex.: 19.90" /></div>
+          <div className="space-y-2"><Label htmlFor="subscription-price">Mensalidade padrão (R$)</Label><Input id="subscription-price" type="number" min="0" step="0.01" value={form.monthlyPrice} onChange={event => setForm(current => ({ ...current, monthlyPrice: event.target.value }))} placeholder="Ex.: 19.90" /></div>
           <div className="space-y-2"><Label htmlFor="subscription-receiver">Nome do recebedor</Label><Input id="subscription-receiver" maxLength={25} value={form.pixReceiverName} onChange={event => setForm(current => ({ ...current, pixReceiverName: event.target.value }))} placeholder="Ex.: MEU FIADO" /></div>
           <div className="space-y-2"><Label htmlFor="subscription-pix">Chave PIX (opcional)</Label><Input id="subscription-pix" value={form.pixKey} onChange={event => setForm(current => ({ ...current, pixKey: event.target.value }))} placeholder="CPF, e-mail, telefone ou chave aleatória" /></div>
           <div className="space-y-2"><Label htmlFor="subscription-bank">Nome do banco (opcional)</Label><Input id="subscription-bank" maxLength={80} value={form.pixReceiverBank} onChange={event => setForm(current => ({ ...current, pixReceiverBank: event.target.value }))} placeholder="Ex.: Banco do Brasil" /></div>
         </div>
+        <div className="rounded-2xl border border-primary/20 bg-primary/[0.035] p-4"><div><p className="text-sm font-extrabold text-primary">Promoção de assinatura</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Preencha os dois valores para exibir e cobrar a oferta. Deixe ambos vazios para usar somente a mensalidade padrão.</p></div><div className="mt-4 grid gap-4 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="subscription-promotion-original">Preço antigo (R$)</Label><Input id="subscription-promotion-original" type="number" min="0" step="0.01" value={form.promotionOriginalPrice} onChange={event => setForm(current => ({ ...current, promotionOriginalPrice: event.target.value }))} placeholder="Ex.: 29.90" /></div><div className="space-y-2"><Label htmlFor="subscription-promotion-price">Por: preço novo (R$)</Label><Input id="subscription-promotion-price" type="number" min="0" step="0.01" value={form.promotionPrice} onChange={event => setForm(current => ({ ...current, promotionPrice: event.target.value }))} placeholder="Ex.: 19.90" /></div></div></div>
         <div className="space-y-2"><Label htmlFor="subscription-copy-paste">PIX Copia e Cola</Label><Textarea id="subscription-copy-paste" value={form.pixCopyPaste} maxLength={2048} onChange={event => setForm(current => ({ ...current, pixCopyPaste: event.target.value }))} placeholder="Cole aqui o código PIX Copia e Cola fornecido pela sua instituição." className="min-h-28 font-mono text-xs" /></div>
         <div className="rounded-2xl border border-dashed border-border bg-muted/25 p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3">{qrCodeUrl ? <img src={qrCodeUrl} alt="QR Code PIX configurado" className="h-16 w-16 rounded-lg border bg-white object-contain p-1" /> : <span className="grid h-16 w-16 place-items-center rounded-lg bg-muted text-muted-foreground"><ImagePlus className="h-6 w-6" /></span>}<div><p className="text-sm font-extrabold">Imagem do QR Code PIX</p><p className="mt-1 text-xs text-muted-foreground">Envie a imagem oficial fornecida pela instituição recebedora. JPG, PNG ou WEBP de até 2 MB.</p></div></div><input ref={qrPickerRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadPaymentQr} /><Button type="button" variant="outline" className="rounded-xl" disabled={uploadQrCode.isPending} onClick={() => qrPickerRef.current?.click()}>{uploadQrCode.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}{qrCodeUrl ? "Trocar imagem" : "Anexar QR Code"}</Button></div></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{(Object.keys(pageLabels) as PageKey[]).map(key => { const settingKey = `${key}Plan` as const; const isProOnly = form[settingKey] === "pro"; return <div key={key} className="flex items-center justify-between rounded-xl border border-border/70 bg-muted/25 px-3 py-3"><div><p className="text-sm font-extrabold">{pageLabels[key]}</p><p className="text-[11px] text-muted-foreground">{isProOnly ? "Exclusiva PRO" : "Liberada no Free"}</p></div><div className="flex items-center gap-2"><Switch checked={isProOnly} onCheckedChange={checked => setForm(current => ({ ...current, [settingKey]: checked ? "pro" : "free" }))} aria-label={`${pageLabels[key]} exclusiva para PRO`} /><span className="text-[10px] font-bold text-muted-foreground">PRO</span></div></div>; })}</div>
