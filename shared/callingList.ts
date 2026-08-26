@@ -3,6 +3,13 @@ export const CALLING_LIST_COLUMNS = ["vendor", "delay", "overdueValue", "documen
 export type CallingListColumn = typeof CALLING_LIST_COLUMNS[number];
 export type CallingListRow = Record<CallingListColumn, string> & { id: string };
 
+export type CallingListFilters = {
+  vendor?: string;
+  query?: string;
+  minOverdueValue?: string;
+  maxOverdueValue?: string;
+};
+
 export const CALLING_LIST_LABELS: Record<CallingListColumn, string> = {
   vendor: "Vendedor",
   delay: "Atraso",
@@ -59,4 +66,38 @@ export function convertCallingListRows(sourceRows: Record<string, unknown>[]): C
 
 export function listCallingVendors(rows: CallingListRow[]) {
   return Array.from(new Set(rows.map(row => row.vendor).filter(Boolean))).sort((first, second) => first.localeCompare(second, "pt-BR"));
+}
+
+export function parseCallingListOverdueValue(value: string) {
+  const numericText = value.replace(/[^\d,.-]/g, "").trim();
+  if (!numericText) return null;
+
+  const hasComma = numericText.includes(",");
+  const hasDot = numericText.includes(".");
+  const lastDotIndex = numericText.lastIndexOf(".");
+  const dotFraction = hasDot ? numericText.slice(lastDotIndex + 1) : "";
+  const treatsDotAsThousandsSeparator = hasDot && !hasComma && dotFraction.length === 3;
+  const normalized = hasComma
+    ? numericText.replace(/\./g, "").replace(",", ".")
+    : treatsDotAsThousandsSeparator
+      ? numericText.replace(/\./g, "")
+      : numericText.replace(/,/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function filterCallingListRows(rows: CallingListRow[], filters: CallingListFilters) {
+  const vendor = filters.vendor ?? "all";
+  const query = filters.query?.trim().toLocaleLowerCase("pt-BR") ?? "";
+  const minimum = parseCallingListOverdueValue(filters.minOverdueValue ?? "");
+  const maximum = parseCallingListOverdueValue(filters.maxOverdueValue ?? "");
+
+  return rows.filter(row => {
+    const matchesVendor = vendor === "all" || row.vendor === vendor;
+    const searchable = `${row.customer} ${row.document} ${row.phone} ${row.vendor}`.toLocaleLowerCase("pt-BR");
+    const overdueValue = parseCallingListOverdueValue(row.overdueValue);
+    const matchesMinimum = minimum === null || (overdueValue !== null && overdueValue >= minimum);
+    const matchesMaximum = maximum === null || (overdueValue !== null && overdueValue <= maximum);
+    return matchesVendor && searchable.includes(query) && matchesMinimum && matchesMaximum;
+  });
 }
