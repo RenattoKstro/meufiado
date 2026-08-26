@@ -299,3 +299,7 @@
 - [x] Liberar para usuários Free a conversa privada com administrador iniciada pelo atendimento, mantendo o chat geral e demais conversas privados ao PRO.
 - [x] Solicitar e emitir notificações do navegador ao receber nova mensagem privada ou geral, sem notificar as próprias mensagens.
 - [x] Cobrir as permissões de atendimento Free e o comportamento das notificações de novas mensagens com testes automatizados.
+- [x] Permitir que o usuário ative ou silencie notificações de novas mensagens em seu perfil.
+- [x] Respeitar a preferência de notificações ao solicitar permissão e emitir avisos do navegador.
+- [x] Informar no atendimento Free que chat geral e conversas com outros integrantes são exclusivos do plano PRO, com atalho para o Plano.
+- [x] Cobrir a preferência de notificações e a orientação de atendimento Free com testes automatizados.

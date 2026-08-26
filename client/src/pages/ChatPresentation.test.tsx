@@ -110,4 +110,17 @@ describe("apresentação do chat", () => {
     fireEvent.submit(screen.getByPlaceholderText("Digite uma mensagem…").closest("form")!);
     expect(sendMessage).toHaveBeenCalledWith({ body: reply, recipientUserId: 41, supportTopic: "Recebimento diário" });
   });
+
+  it("orienta a conta Free sobre o plano PRO sem bloquear o atendimento ao administrador", () => {
+    searchValue.value = "?perfil=41";
+    subscriptionQuery.mockReturnValue({ data: { isPro: false, settings: { chatPlan: "pro" } }, isLoading: false });
+    privateQuery.mockReturnValue({ data: [], isLoading: false, isError: false });
+
+    render(<Chat />);
+
+    expect(screen.getByText("Para falar com outros integrantes ou usar o Chat geral, é necessário ter uma assinatura PRO.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Digite uma mensagem…")).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano PRO" }));
+    expect(setLocation).toHaveBeenCalledWith("/plano");
+  });
 });

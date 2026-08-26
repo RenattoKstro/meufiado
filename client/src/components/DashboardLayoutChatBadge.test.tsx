@@ -13,6 +13,7 @@ vi.stubGlobal("ResizeObserver", class {
 const unreadQuery = vi.hoisted(() => vi.fn());
 const unreadUpdatesQuery = vi.hoisted(() => vi.fn(() => ({ data: 0 })));
 const metricsQuery = vi.hoisted(() => vi.fn(() => ({ data: { currentOverdue: 8, portfolioTotal: 100 } })));
+const profileQuery = vi.hoisted(() => vi.fn(() => ({ data: { profile: { avatarUrl: null, messageNotificationsEnabled: true } } })));
 const presenceMutation = vi.hoisted(() => vi.fn(() => ({ mutate: vi.fn() })));
 const notificationSpy = vi.hoisted(() => vi.fn());
 const notificationPermissionSpy = vi.hoisted(() => vi.fn(async () => "granted"));
@@ -36,7 +37,7 @@ vi.mock("@/lib/trpc", () => ({
     chat: { unreadCount: { useQuery: unreadQuery } },
     updates: { unreadCount: { useQuery: unreadUpdatesQuery } },
     profile: {
-      mine: { useQuery: () => ({ data: { profile: { avatarUrl: null } } }) },
+      mine: { useQuery: profileQuery },
       presence: { useMutation: presenceMutation },
     },
     metrics: { mine: { useQuery: metricsQuery } },
@@ -51,6 +52,7 @@ describe("contador de mensagens no menu", () => {
   afterEach(() => {
     cleanup();
     metricsQuery.mockReturnValue({ data: { currentOverdue: 8, portfolioTotal: 100 } });
+    profileQuery.mockReturnValue({ data: { profile: { avatarUrl: null, messageNotificationsEnabled: true } } });
     notificationSpy.mockReset();
     notificationPermissionSpy.mockClear();
     BrowserNotificationMock.permission = "granted";
@@ -92,6 +94,20 @@ describe("contador de mensagens no menu", () => {
     unreadQuery.mockReturnValue({ data: 2 });
     view.rerender(<DashboardLayout><div>Conteúdo</div></DashboardLayout>);
     expect(notificationSpy).toHaveBeenCalledWith("Meu Fiado", { body: "Você recebeu 2 novas mensagens." });
+  });
+
+  it("mantém o contador, mas não pede permissão nem alerta quando as notificações estão silenciadas", () => {
+    BrowserNotificationMock.permission = "default";
+    profileQuery.mockReturnValue({ data: { profile: { avatarUrl: null, messageNotificationsEnabled: false } } });
+    unreadQuery.mockReturnValue({ data: 0 });
+    const view = render(<DashboardLayout><div>Conteúdo</div></DashboardLayout>);
+    expect(notificationPermissionSpy).not.toHaveBeenCalled();
+
+    BrowserNotificationMock.permission = "granted";
+    unreadQuery.mockReturnValue({ data: 1 });
+    view.rerender(<DashboardLayout><div>Conteúdo</div></DashboardLayout>);
+    expect(screen.getByLabelText("1 mensagens novas")).toBeInTheDocument();
+    expect(notificationSpy).not.toHaveBeenCalled();
   });
 
   it("mostra a inadimplência inteira ao lado de Meu Fiado com a cor do limite", () => {

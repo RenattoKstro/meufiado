@@ -85,6 +85,7 @@ export const userProfiles = mysqlTable(
     isActive: boolean("isActive").default(true).notNull(),
     isOnVacation: boolean("isOnVacation").default(false).notNull(),
     showLostGoal: boolean("showLostGoal").default(false).notNull(),
+    messageNotificationsEnabled: boolean("messageNotificationsEnabled").default(true).notNull(),
     colorMode: colorMode.default("light").notNull(),
     colorPalette: colorPalette.default("ocean").notNull(),
     profileComplete: boolean("profileComplete").default(false).notNull(),

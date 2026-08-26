@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const mineQuery = vi.hoisted(() => vi.fn());
 const accountMutation = vi.hoisted(() => vi.fn());
 const avatarMutation = vi.hoisted(() => vi.fn());
+const preferencesMutation = vi.hoisted(() => vi.fn());
 const invalidate = vi.hoisted(() => vi.fn());
 const supportAvailabilityQuery = vi.hoisted(() => vi.fn());
 const supportAvailabilityMutation = vi.hoisted(() => vi.fn());
@@ -19,6 +20,7 @@ vi.mock("@/lib/trpc", () => ({
       mine: { useQuery: mineQuery },
       account: { useMutation: accountMutation },
       uploadAvatar: { useMutation: avatarMutation },
+      preferences: { useMutation: preferencesMutation },
     },
     chat: {
       mySupportAvailability: { useQuery: supportAvailabilityQuery },
@@ -33,9 +35,10 @@ describe("Conta", () => {
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
   it("permite editar contatos e apresenta o seletor de foto de perfil", async () => {
-    mineQuery.mockReturnValue({ isLoading: false, data: { profile: { fullName: "Ana Souza", phone: "(67) 99999-0000", instagram: "ana.recebe", email: "ana@exemplo.com", avatarUrl: null } } });
+    mineQuery.mockReturnValue({ isLoading: false, data: { profile: { fullName: "Ana Souza", phone: "(67) 99999-0000", instagram: "ana.recebe", email: "ana@exemplo.com", avatarUrl: null, messageNotificationsEnabled: true } } });
     accountMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn().mockResolvedValue({}) });
     avatarMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
+    preferencesMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn().mockResolvedValue({}) });
     supportAvailabilityQuery.mockReturnValue({ isLoading: false, data: { supportAvailability: "available" } });
     supportAvailabilityMutation.mockReturnValue({ isPending: false, mutate: vi.fn() });
 
@@ -49,5 +52,21 @@ describe("Conta", () => {
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Ana Luiza Souza" } });
     fireEvent.submit(screen.getByRole("button", { name: /Salvar dados/ }).closest("form")!);
     await waitFor(() => expect(accountMutation().mutateAsync).toHaveBeenCalledWith({ fullName: "Ana Luiza Souza", phone: "(67) 99999-0000", instagram: "ana.recebe" }));
+  });
+
+  it("permite silenciar notificações de mensagens pelo perfil", async () => {
+    const mutateAsync = vi.fn().mockResolvedValue({});
+    mineQuery.mockReturnValue({ isLoading: false, data: { profile: { fullName: "Ana Souza", phone: "(67) 99999-0000", instagram: "", email: "ana@exemplo.com", avatarUrl: null, messageNotificationsEnabled: true } } });
+    accountMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
+    avatarMutation.mockReturnValue({ isPending: false, mutateAsync: vi.fn() });
+    preferencesMutation.mockReturnValue({ isPending: false, mutateAsync });
+    supportAvailabilityQuery.mockReturnValue({ isLoading: false, data: { supportAvailability: "available" } });
+    supportAvailabilityMutation.mockReturnValue({ isPending: false, mutate: vi.fn() });
+
+    render(<Account />);
+    const control = screen.getByRole("switch", { name: "Ativar notificações de mensagens" });
+    expect(control).toBeChecked();
+    fireEvent.click(control);
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ messageNotificationsEnabled: false }));
   });
 });

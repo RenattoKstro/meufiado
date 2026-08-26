@@ -232,6 +232,13 @@
       "when": 1787761913288,
       "tag": "0032_fearless_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1787764703983,
+      "tag": "0033_petite_synch",
+      "breakpoints": true
     }
   ]
 }

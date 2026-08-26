@@ -43,6 +43,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const unreadUpdatesQuery = trpc.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const messageNotificationsEnabled = profileQuery.data?.profile?.messageNotificationsEnabled !== false;
   const presenceMutation = trpc.profile.presence.useMutation();
   const lastUnreadChatCount = useRef<number | null>(null);
   React.useEffect(() => {
@@ -55,9 +56,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
   React.useEffect(() => {
-    if (!user || typeof window === "undefined" || !("Notification" in window)) return;
+    if (!user || !messageNotificationsEnabled || typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission === "default") void Notification.requestPermission();
-  }, [user?.id]);
+  }, [user?.id, messageNotificationsEnabled]);
   React.useEffect(() => {
     const unread = unreadChatQuery.data;
     if (typeof unread !== "number") return;
@@ -65,12 +66,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       lastUnreadChatCount.current = unread;
       return;
     }
-    if (unread > lastUnreadChatCount.current && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+    if (unread > lastUnreadChatCount.current && messageNotificationsEnabled && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
       const addedMessages = unread - lastUnreadChatCount.current;
       new Notification("Meu Fiado", { body: addedMessages === 1 ? "Você recebeu uma nova mensagem." : `Você recebeu ${addedMessages} novas mensagens.` });
     }
     lastUnreadChatCount.current = unread;
-  }, [unreadChatQuery.data]);
+  }, [unreadChatQuery.data, messageNotificationsEnabled]);
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard },
     { label: "Matriz", path: "/matriz", icon: TableProperties, proOnly: true },

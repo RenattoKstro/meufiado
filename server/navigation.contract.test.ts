@@ -108,6 +108,8 @@ describe("contrato da navegação lateral", () => {
     const account = await readFile(resolve(process.cwd(), "client/src/pages/Account.tsx"), "utf8");
     expect(account).toContain("Status do atendimento");
     expect(account).toContain("Em atendimento");
+    expect(account).toContain("Notificações de mensagens");
+    expect(account).toContain("messageNotificationsEnabled");
   });
 
   it("exibe Atualizações abaixo de Ajuda para todos os usuários", async () => {
@@ -144,6 +146,8 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain("Não foi possível carregar as mensagens.");
     expect(source).toContain("Não foi possível enviar a mensagem. Tente novamente.");
     expect(source).toContain("Respostas rápidas");
+    expect(source).toContain("Para falar com outros integrantes ou usar o Chat geral, é necessário ter uma assinatura PRO.");
+    expect(source).toContain('setLocation("/plano")');
   });
 
   it("registra Utilidades na navegação e disponibiliza Downloads e Relatórios", async () => {
