@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CALLING_LIST_COLUMNS, CALLING_LIST_LABELS, convertCallingListRows, listCallingVendors, type CallingListColumn, type CallingListRow } from "@shared/callingList";
-import { buildCallingListExport } from "@shared/callingListExport";
+import { buildCallingListExport, buildCompactCallingListExcelExport } from "@shared/callingListExport";
 import { Download, FileSpreadsheet, FileText, Grid3X3, ListFilter, Printer, SlidersHorizontal, Trash2, Upload } from "lucide-react";
 import { type ChangeEvent, useMemo, useRef, useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
 
 type ListDensity = "compact" | "normal" | "comfortable";
@@ -80,14 +80,30 @@ export default function CallingListTool() {
 
   function exportExcel() {
     if (!displayedRows.length) { toast.error("Não há contatos filtrados para exportar."); return; }
-    const { headers, body, excelWidths } = buildCallingListExport(displayedRows, visibleColumns);
+    const { headers, body, excelWidths, rowHeight, autoFilterRef } = buildCompactCallingListExcelExport(displayedRows, visibleColumns);
     const sheet = XLSX.utils.aoa_to_sheet([headers, ...body]);
     sheet["!cols"] = excelWidths;
+    sheet["!rows"] = Array.from({ length: body.length + 1 }, () => ({ hpt: rowHeight }));
+    sheet["!autofilter"] = { ref: autoFilterRef };
     sheet["!freeze"] = { xSplit: 0, ySplit: 1 };
+    sheet["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0, paperSize: 9, scale: 85 };
+    sheet["!margins"] = { left: 0.2, right: 0.2, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 };
+    sheet["!printOptions"] = { gridLines: true };
+    const thinBorder = { style: "thin", color: { rgb: "202020" } };
+    const headerStyle = { fill: { fgColor: { rgb: "E5E7EB" } }, font: { bold: true, sz: 9, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
+    const cellStyle = { font: { sz: 9, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
+    for (let columnIndex = 0; columnIndex < headers.length; columnIndex += 1) {
+      const headerCell = sheet[XLSX.utils.encode_cell({ r: 0, c: columnIndex })] as XLSX.CellObject & { s?: unknown };
+      if (headerCell) headerCell.s = headerStyle;
+    }
+    for (let rowIndex = 1; rowIndex <= body.length; rowIndex += 1) for (let columnIndex = 0; columnIndex < headers.length; columnIndex += 1) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: columnIndex })] as XLSX.CellObject & { s?: unknown };
+      if (cell) cell.s = cellStyle;
+    }
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Lista de acionamento");
     XLSX.writeFile(workbook, "lista-acionamento.xlsx", { compression: true });
-    toast.success("Lista editada exportada em Excel.");
+    toast.success("Lista compacta exportada em Excel.");
   }
 
   function exportPdf() {

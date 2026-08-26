@@ -10,13 +10,17 @@ export const callingListPdfColumnWidths: Record<CallingListColumn, number> = {
 };
 
 export const callingListExcelColumnWidths: Record<CallingListColumn, number> = {
-  vendor: 22,
-  delay: 12,
-  overdueValue: 18,
-  document: 22,
-  customer: 34,
-  phone: 44,
+  vendor: 17,
+  delay: 8,
+  overdueValue: 14,
+  document: 18,
+  customer: 36,
+  phone: 16,
 };
+
+function splitPhones(value: string) {
+  return value.split("•").map(phone => phone.trim()).filter(Boolean);
+}
 
 export function buildCallingListExport(rows: CallingListRow[], columns: CallingListColumn[]) {
   return {
@@ -24,5 +28,31 @@ export function buildCallingListExport(rows: CallingListRow[], columns: CallingL
     body: rows.map(row => columns.map(column => row[column] || "—")),
     pdfWidths: columns.map(column => callingListPdfColumnWidths[column]),
     excelWidths: columns.map(column => ({ wch: callingListExcelColumnWidths[column] })),
+  };
+}
+
+export function buildCompactCallingListExcelExport(rows: CallingListRow[], columns: CallingListColumn[]) {
+  const phoneColumnCount = columns.includes("phone")
+    ? Math.max(1, ...rows.map(row => splitPhones(row.phone).length))
+    : 0;
+  const headers = columns.flatMap(column => {
+    if (column !== "phone") return [CALLING_LIST_LABELS[column]];
+    return Array.from({ length: phoneColumnCount }, (_, index) => index === 0 ? "Telefone" : `Telefone ${index + 1}`);
+  });
+  const body = rows.map(row => columns.flatMap(column => {
+    if (column !== "phone") return [row[column] || "—"];
+    const phones = splitPhones(row.phone);
+    return Array.from({ length: phoneColumnCount }, (_, index) => phones[index] || "");
+  }));
+  const excelWidths = columns.flatMap(column => column === "phone"
+    ? Array.from({ length: phoneColumnCount }, () => ({ wch: callingListExcelColumnWidths.phone }))
+    : [{ wch: callingListExcelColumnWidths[column] }]);
+
+  return {
+    headers,
+    body,
+    excelWidths,
+    rowHeight: 15,
+    autoFilterRef: `A1:${String.fromCharCode(64 + headers.length)}${body.length + 1}`,
   };
 }
