@@ -282,3 +282,6 @@
 - [x] Manter somente as colunas Vendedor, Atraso, Valor Vencido, CPF/CNPJ Cliente, Cliente e Telefone, com edição e exclusão de linhas.
 - [x] Permitir filtro por vendedor, ajustes de tamanho, grades de impressão e preparação da lista para imprimir.
 - [x] Cobrir a conversão de planilhas e os controles de Acionamento com testes automatizados.
+- [x] Exportar a lista editada do Aciona One para Excel com as colunas atualmente visíveis e o filtro aplicado.
+- [x] Exportar a lista editada do Aciona One para PDF horizontal, com larguras ajustadas para evitar cortes na página.
+- [x] Cobrir as exportações em Excel e PDF horizontal com testes automatizados.
