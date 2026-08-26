@@ -10,12 +10,12 @@ export const callingListPdfColumnWidths: Record<CallingListColumn, number> = {
 };
 
 export const callingListExcelColumnWidths: Record<CallingListColumn, number> = {
-  vendor: 17,
-  delay: 8,
-  overdueValue: 14,
-  document: 18,
-  customer: 36,
-  phone: 16,
+  vendor: 14,
+  delay: 6,
+  overdueValue: 11,
+  document: 15,
+  customer: 28,
+  phone: 13,
 };
 
 function splitPhones(value: string) {
@@ -52,7 +52,7 @@ export function buildCompactCallingListExcelExport(rows: CallingListRow[], colum
     headers,
     body,
     excelWidths,
-    rowHeight: 15,
+    rowHeight: 12,
     autoFilterRef: `A1:${String.fromCharCode(64 + headers.length)}${body.length + 1}`,
   };
 }

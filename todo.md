@@ -291,3 +291,8 @@
 - [x] Atualizar o texto de orientação da ferramenta Aciona One conforme solicitado.
 - [x] Adicionar uma área pública de Atualizações abaixo de Ajuda na navegação lateral, visível a todos os usuários.
 - [x] Cobrir a rota e a visibilidade do log de atualizações com testes automatizados.
+- [x] Criar procedimentos e dados persistentes para administradores adicionarem, editarem e excluírem notas de atualização.
+- [x] Adicionar interface de gestão das notas de atualização no painel de Administração e exibir os logs anteriores para todos.
+- [x] Exibir selo visual “Novo” na navegação de Atualizações enquanto houver notas ainda não lidas pelo usuário.
+- [x] Compactar ainda mais a lista e a exportação impressa do Aciona One para acomodar mais clientes por página.
+- [x] Cobrir a gestão de atualizações, o selo de novidades e a lista compactada com testes automatizados.

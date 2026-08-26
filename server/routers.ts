@@ -9,9 +9,12 @@ import {
   deleteReceiptHistoryEntry,
   deleteUtilityDownload,
   deleteUtilityReport,
+  deleteUpdateNote,
   createUtilityDownload,
   createUtilityReport,
+  createUpdateNote,
   countUnreadChatMessages,
+  countUnreadUpdateNotes,
   canAccessSubscriptionFeature,
   getMySubscription,
   getSubscriptionChargeAmount,
@@ -39,12 +42,14 @@ import {
   listRomaneioDocuments,
   listUtilityDownloads,
   listUtilityReports,
+  listUpdateNotes,
   saveMyMetrics,
   setBranchStatus,
   updateManagedUser,
   updateReceiptHistoryEntry,
   updateUtilityDownload,
   updateUtilityReport,
+  updateUpdateNote,
   updateAccountRole,
   updateAppTextSettings,
   updateMyAccount,
@@ -54,6 +59,7 @@ import {
   updateLocalAdminCredentials,
   loginGoogleOperator,
   markChatMessagesRead,
+  markUpdateNotesRead,
   recordSupportConversationTopic,
   sendChatMessage,
   setMySupportAvailability,
@@ -136,6 +142,12 @@ const utilityDownloadInput = z.object({
 const utilityReportInput = z.object({
   title: z.string().trim().min(2).max(180),
   description: z.string().trim().min(2).max(10_000),
+  isVisible: z.boolean(),
+});
+const updateNoteInput = z.object({
+  title: z.string().trim().min(2).max(180),
+  description: z.string().trim().min(2).max(10_000),
+  category: z.string().trim().min(2).max(80),
   isVisible: z.boolean(),
 });
 const accountInput = z.object({
@@ -442,6 +454,17 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   utilities: router({
     downloads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "utilities"); return listUtilityDownloads(ctx.user.role === "admin"); }),
     reports: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "utilities"); return listUtilityReports(ctx.user.role === "admin"); }),
+  }),
+  updates: router({
+    list: protectedProcedure.query(() => listUpdateNotes(false)),
+    unreadCount: protectedProcedure.query(({ ctx }) => countUnreadUpdateNotes(ctx.user.id)),
+    markRead: protectedProcedure.mutation(async ({ ctx }) => markUpdateNotesRead(ctx.user.id)),
+  }),
+  updatesAdmin: router({
+    list: adminProcedure.query(() => listUpdateNotes(true)),
+    create: adminProcedure.input(updateNoteInput).mutation(({ ctx, input }) => createUpdateNote(input, ctx.user.id)),
+    update: adminProcedure.input(updateNoteInput.extend({ id: z.number().int().positive() })).mutation(({ input }) => updateUpdateNote(input.id, input)),
+    delete: adminProcedure.input(z.object({ id: z.number().int().positive() })).mutation(({ input }) => deleteUpdateNote(input.id)),
   }),
   romaneio: router({
     list: protectedProcedure.query(async ({ ctx }) => {

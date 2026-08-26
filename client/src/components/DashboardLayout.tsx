@@ -41,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const chatIsFree = subscriptionQuery.data?.settings.chatPlan === "free";
   const canUseChat = user?.role === "admin" || subscriptionQuery.data?.isPro || chatIsFree;
   const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
+  const unreadUpdatesQuery = trpc.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const presenceMutation = trpc.profile.presence.useMutation();
@@ -114,6 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <span>{item.label}</span>
                     {isLocked(item as typeof navigation[number]) && <LockKeyhole className="ml-auto h-3.5 w-3.5 text-muted-foreground group-data-[active=true]:text-primary-foreground group-data-[collapsible=icon]:hidden" />}
                     {item.path === "/chat" && (unreadChatQuery.data ?? 0) > 0 && <Badge aria-label={`${unreadChatQuery.data} mensagens novas`} className="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[10px] font-black group-data-[collapsible=icon]:hidden">{(unreadChatQuery.data ?? 0) > 99 ? "99+" : unreadChatQuery.data}</Badge>}
+                    {item.path === "/atualizacoes" && (unreadUpdatesQuery.data ?? 0) > 0 && <Badge aria-label="Há atualizações novas" className="ml-auto h-5 rounded-full bg-emerald-500 px-2 text-[10px] font-black text-white hover:bg-emerald-500 group-data-[collapsible=icon]:hidden">Novo</Badge>}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

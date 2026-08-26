@@ -121,7 +121,9 @@ describe("contrato da navegação lateral", () => {
     expect(navigation.indexOf('label: "Ajuda"')).toBeLessThan(navigation.indexOf('label: "Atualizações"'));
     expect(app).toContain('Route path="/atualizacoes" component={Updates}');
     expect(updates).toContain("Este histórico é visível para todos os usuários.");
-    expect(updates).toContain("Aciona One: lista compacta para impressão");
+    expect(updates).toContain("trpc.updates.list.useQuery()");
+    expect(updates).toContain("markRead.mutate()");
+    expect(navigation).toContain('aria-label="Há atualizações novas"');
     expect(callingList).toContain("Envie a planilha exportada do Aciona, o sistema irá editar e deixará informações mais importantes para impressão.");
   });
 

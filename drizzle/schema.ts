@@ -170,6 +170,31 @@ export const utilityReports = mysqlTable(
   table => [index("utility_reports_visibility_idx").on(table.isVisible, table.updatedAt)],
 );
 
+export const updateNotes = mysqlTable(
+  "updateNotes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    title: varchar("title", { length: 180 }).notNull(),
+    description: text("description").notNull(),
+    category: varchar("category", { length: 80 }).default("Geral").notNull(),
+    isVisible: boolean("isVisible").default(true).notNull(),
+    createdByUserId: int("createdByUserId").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => [index("update_notes_visibility_idx").on(table.isVisible, table.createdAt)],
+);
+
+export const updateReadStates = mysqlTable(
+  "updateReadStates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+    lastReadUpdateId: int("lastReadUpdateId").default(0).notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+);
+
 export const romaneioStatus = mysqlEnum("romaneioStatus", ["draft", "shared", "partially_signed", "signed"]);
 
 export const romaneios = mysqlTable(
@@ -489,6 +514,7 @@ export type BranchMetric = typeof branchMetrics.$inferSelect;
 export type UserCredential = typeof userCredentials.$inferSelect;
 export type UtilityDownload = typeof utilityDownloads.$inferSelect;
 export type UtilityReport = typeof utilityReports.$inferSelect;
+export type UpdateNote = typeof updateNotes.$inferSelect;
 export type ReceiptHistoryEntry = typeof receiptHistoryEntries.$inferSelect;
 export type SubscriptionSettings = typeof subscriptionSettings.$inferSelect;
 export type SubscriptionProof = typeof subscriptionProofs.$inferSelect;

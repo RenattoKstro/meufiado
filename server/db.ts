@@ -22,6 +22,8 @@ import {
   subscriptionProofs,
   subscriptionSettings,
   supportConversations,
+  updateNotes,
+  updateReadStates,
   utilityDownloads,
   utilityReports,
   userProfiles,
@@ -1146,6 +1148,66 @@ export type UtilityReportInput = {
   description: string;
   isVisible: boolean;
 };
+
+export type UpdateNoteInput = {
+  title: string;
+  description: string;
+  category: string;
+  isVisible: boolean;
+};
+
+export async function listUpdateNotes(includeHidden = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const ordering = [desc(updateNotes.createdAt), desc(updateNotes.id)];
+  if (includeHidden) return db.select().from(updateNotes).orderBy(...ordering);
+  return db.select().from(updateNotes).where(eq(updateNotes.isVisible, true)).orderBy(...ordering);
+}
+
+export async function createUpdateNote(input: UpdateNoteInput, createdByUserId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.insert(updateNotes).values({ ...input, createdByUserId });
+}
+
+export async function updateUpdateNote(id: number, input: UpdateNoteInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.update(updateNotes).set(input).where(eq(updateNotes.id, id));
+}
+
+export async function deleteUpdateNote(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  await db.delete(updateNotes).where(eq(updateNotes.id, id));
+}
+
+export async function countUnreadUpdateNotes(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [state] = await db.select().from(updateReadStates).where(eq(updateReadStates.userId, userId)).limit(1);
+  const [result] = await db
+    .select({ total: count() })
+    .from(updateNotes)
+    .where(and(eq(updateNotes.isVisible, true), gt(updateNotes.id, state?.lastReadUpdateId ?? 0)));
+  return Number(result?.total ?? 0);
+}
+
+export async function markUpdateNotesRead(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const [latest] = await db
+    .select({ id: updateNotes.id })
+    .from(updateNotes)
+    .where(eq(updateNotes.isVisible, true))
+    .orderBy(desc(updateNotes.id))
+    .limit(1);
+  if (!latest) return;
+  await db
+    .insert(updateReadStates)
+    .values({ userId, lastReadUpdateId: latest.id })
+    .onDuplicateKeyUpdate({ set: { lastReadUpdateId: latest.id, updatedAt: new Date() } });
+}
 
 export async function listUtilityDownloads(includeHidden = false) {
   const db = await getDb();

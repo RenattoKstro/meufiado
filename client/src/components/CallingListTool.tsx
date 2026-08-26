@@ -86,12 +86,12 @@ export default function CallingListTool() {
     sheet["!rows"] = Array.from({ length: body.length + 1 }, () => ({ hpt: rowHeight }));
     sheet["!autofilter"] = { ref: autoFilterRef };
     sheet["!freeze"] = { xSplit: 0, ySplit: 1 };
-    sheet["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0, paperSize: 9, scale: 85 };
-    sheet["!margins"] = { left: 0.2, right: 0.2, top: 0.35, bottom: 0.35, header: 0.15, footer: 0.15 };
+    sheet["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0, paperSize: 9, scale: 75 };
+    sheet["!margins"] = { left: 0.1, right: 0.1, top: 0.18, bottom: 0.18, header: 0.08, footer: 0.08 };
     sheet["!printOptions"] = { gridLines: true };
     const thinBorder = { style: "thin", color: { rgb: "202020" } };
-    const headerStyle = { fill: { fgColor: { rgb: "E5E7EB" } }, font: { bold: true, sz: 9, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
-    const cellStyle = { font: { sz: 9, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
+    const headerStyle = { fill: { fgColor: { rgb: "E5E7EB" } }, font: { bold: true, sz: 8, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
+    const cellStyle = { font: { sz: 8, color: { rgb: "111827" } }, alignment: { vertical: "center" }, border: { top: thinBorder, right: thinBorder, bottom: thinBorder, left: thinBorder } };
     for (let columnIndex = 0; columnIndex < headers.length; columnIndex += 1) {
       const headerCell = sheet[XLSX.utils.encode_cell({ r: 0, c: columnIndex })] as XLSX.CellObject & { s?: unknown };
       if (headerCell) headerCell.s = headerStyle;
