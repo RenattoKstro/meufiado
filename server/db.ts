@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, gte, inArray, isNull, lt, lte, ne, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   adminCredentials,
@@ -1118,7 +1118,14 @@ export async function markChatMessagesRead(userId: number) {
   await db.insert(chatReadStates).values({ userId, lastReadMessageId }).onDuplicateKeyUpdate({ set: { lastReadMessageId } });
 }
 
-export async function countUnreadChatMessages(userId: number) {
+export async function isAdministratorUser(userId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const [user] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  return user?.role === "admin";
+}
+
+export async function countUnreadChatMessages(userId: number, options?: { adminOnly?: boolean }) {
   const db = await getDb();
   if (!db) return 0;
   const [readState] = await db.select({ lastReadMessageId: chatReadStates.lastReadMessageId }).from(chatReadStates).where(eq(chatReadStates.userId, userId)).limit(1);
@@ -1126,11 +1133,13 @@ export async function countUnreadChatMessages(userId: number) {
   const [result] = await db
     .select({ total: count() })
     .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.senderUserId, users.id))
     .where(and(
       gt(chatMessages.id, lastReadMessageId),
       gt(chatMessages.expiresAt, new Date()),
       ne(chatMessages.senderUserId, userId),
       or(isNull(chatMessages.recipientUserId), eq(chatMessages.recipientUserId, userId)),
+      ...(options?.adminOnly ? [eq(users.role, "admin"), isNotNull(chatMessages.recipientUserId)] : []),
     ));
   return Number(result?.total ?? 0);
 }

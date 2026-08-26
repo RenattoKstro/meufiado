@@ -25,11 +25,13 @@ export default function Chat() {
   const [body, setBody] = useState("");
   const [selectedSupportTopic, setSelectedSupportTopic] = useState<string | null>(null);
   const utils = trpc.useUtils();
+  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const canUseGeneralChat = user?.role === "admin" || Boolean(subscriptionQuery.data?.isPro) || subscriptionQuery.data?.settings.chatPlan === "free";
   const privateThreadsQuery = trpc.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
-  const supportRecipientQuery = trpc.chat.supportRecipient.useQuery(undefined, { enabled: Boolean(recipientUserId), staleTime: 30_000 });
-  const messagesQuery = recipientUserId
-    ? trpc.chat.private.useQuery({ recipientUserId }, { refetchInterval: 5_000 })
-    : trpc.chat.general.useQuery(undefined, { refetchInterval: 5_000 });
+  const supportRecipientQuery = trpc.chat.supportRecipient.useQuery(undefined, { staleTime: 30_000 });
+  const generalMessagesQuery = trpc.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 5_000 });
+  const privateMessagesQuery = trpc.chat.private.useQuery({ recipientUserId: recipientUserId ?? 0 }, { enabled: Boolean(recipientUserId), refetchInterval: 5_000 });
+  const messagesQuery = recipientUserId ? privateMessagesQuery : generalMessagesQuery;
   const sendMutation = trpc.chat.send.useMutation({
     onSuccess: async () => {
       setBody("");
@@ -51,6 +53,11 @@ export default function Chat() {
   // A conversa aberta não deve acumular notificações. A mutation não invalida esta query, evitando recarregamento cíclico.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latestMessageId, recipientUserId, messagesQuery.isLoading, messagesQuery.isError]);
+  useEffect(() => {
+    if (!recipientUserId && !canUseGeneralChat && supportRecipientQuery.data?.id) {
+      setLocation(`/chat?perfil=${supportRecipientQuery.data.id}`);
+    }
+  }, [canUseGeneralChat, recipientUserId, setLocation, supportRecipientQuery.data?.id]);
   const activeThread = privateThreadsQuery.data?.find(thread => thread.recipientUserId === recipientUserId);
   const title = recipientUserId ? activeThread?.recipientName ?? "Conversa privada" : "Chat geral";
   const isSupportConversation = Boolean(recipientUserId && supportRecipientQuery.data?.id === recipientUserId);
@@ -67,7 +74,7 @@ export default function Chat() {
       <Card className="overflow-hidden rounded-[1.7rem] border-border/70 shadow-sm">
         <CardHeader className="border-b border-border/70 px-4 py-4"><CardTitle className="text-sm">Conversas</CardTitle><CardDescription>Escolha o tipo de chat.</CardDescription></CardHeader>
         <CardContent className="space-y-2 p-3">
-          <Button type="button" variant={!recipientUserId ? "secondary" : "ghost"} onClick={() => setLocation("/chat")} className="h-auto w-full justify-start gap-2 rounded-xl px-3 py-2.5 text-left"><UsersRound className="h-4 w-4" />Chat geral</Button>
+          {canUseGeneralChat ? <Button type="button" variant={!recipientUserId ? "secondary" : "ghost"} onClick={() => setLocation("/chat")} className="h-auto w-full justify-start gap-2 rounded-xl px-3 py-2.5 text-left"><UsersRound className="h-4 w-4" />Chat geral</Button> : <Button type="button" variant="secondary" onClick={() => supportRecipientQuery.data?.id && setLocation(`/chat?perfil=${supportRecipientQuery.data.id}`)} className="h-auto w-full justify-start gap-2 rounded-xl px-3 py-2.5 text-left"><MessageCircle className="h-4 w-4" />Falar com administrador</Button>}
           <div className="px-2 pt-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-muted-foreground">Chats privados</p></div>
           {privateThreadsQuery.isLoading ? <p className="px-2 py-2 text-xs text-muted-foreground">Carregando conversas…</p> : privateThreadsQuery.data?.length ? privateThreadsQuery.data.map(thread => <button type="button" key={thread.recipientUserId} onClick={() => setLocation(`/chat?perfil=${thread.recipientUserId}`)} className={`w-full rounded-xl px-3 py-2.5 text-left transition-colors ${recipientUserId === thread.recipientUserId ? "bg-primary/10 text-primary" : "hover:bg-muted/70"}`}><div className="flex items-center gap-1.5"><span className="truncate text-sm font-extrabold">{thread.recipientName}</span>{thread.recipientRole === "admin" && <Badge className="h-4 rounded-full px-1 text-[8px]">Admin</Badge>}</div>{thread.supportTopic && <p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-primary"><Tag className="h-3 w-3" />{thread.supportTopic}</p>}<p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{thread.lastMessageBody}</p></button>) : <p className="px-2 py-2 text-xs leading-relaxed text-muted-foreground">Suas conversas privadas aparecerão aqui após a primeira mensagem.</p>}
         </CardContent>

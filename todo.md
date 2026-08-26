@@ -296,3 +296,6 @@
 - [x] Exibir selo visual “Novo” na navegação de Atualizações enquanto houver notas ainda não lidas pelo usuário.
 - [x] Compactar ainda mais a lista e a exportação impressa do Aciona One para acomodar mais clientes por página.
 - [x] Cobrir a gestão de atualizações, o selo de novidades e a lista compactada com testes automatizados.
+- [x] Liberar para usuários Free a conversa privada com administrador iniciada pelo atendimento, mantendo o chat geral e demais conversas privados ao PRO.
+- [x] Solicitar e emitir notificações do navegador ao receber nova mensagem privada ou geral, sem notificar as próprias mensagens.
+- [x] Cobrir as permissões de atendimento Free e o comportamento das notificações de novas mensagens com testes automatizados.

@@ -22,6 +22,7 @@ import {
   getSubscriptionSettings,
   getChatSupportAdmin,
   getMySupportAvailability,
+  isAdministratorUser,
   listChatMessages,
   listPrivateChatThreads,
   importMatrixWorkbook,
@@ -265,6 +266,16 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Esta página está disponível no plano PRO." });
   }
 
+  async function canUseChatFeature(userId: number, role: "admin" | "user") {
+    return resolveFeatureAccess(userId, role, "chat");
+  }
+
+  async function requireChatAccessOrAdminSupport(userId: number, role: "admin" | "user", recipientUserId?: number) {
+    if (await canUseChatFeature(userId, role)) return;
+    if (recipientUserId && await isAdministratorUser(recipientUserId)) return;
+    throw new TRPCError({ code: "FORBIDDEN", message: "No plano Free, o Chat está disponível apenas para falar com um administrador." });
+  }
+
   async function requireRomaneioProAccess(userId: number, role: "admin" | "user") {
     if (role === "admin" || (await resolveSubscription(userId)).isPro) return;
     throw new TRPCError({ code: "FORBIDDEN", message: "O Romaneio está disponível somente no plano PRO." });
@@ -425,10 +436,13 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   chat: router({
     general: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id); }),
-    private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listChatMessages(ctx.user.id, input.recipientUserId); }),
-    privateThreads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return listPrivateChatThreads(ctx.user.id); }),
+    private: protectedProcedure.input(z.object({ recipientUserId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireChatAccessOrAdminSupport(ctx.user.id, ctx.user.role, input.recipientUserId); return listChatMessages(ctx.user.id, input.recipientUserId); }),
+    privateThreads: protectedProcedure.query(async ({ ctx }) => {
+      const hasChatFeature = await canUseChatFeature(ctx.user.id, ctx.user.role);
+      const threads = await listPrivateChatThreads(ctx.user.id);
+      return hasChatFeature ? threads : threads.filter(thread => thread.recipientRole === "admin");
+    }),
     supportRecipient: protectedProcedure.query(async ({ ctx }) => {
-      await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
       await touchUserPresence(ctx.user.id);
       return getChatSupportAdmin(ctx.user.id);
     }),
@@ -439,17 +453,17 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     selectSupportTopic: protectedProcedure
       .input(z.object({ recipientUserId: z.number().int().positive(), topic: z.string().trim().min(2).max(120) }))
       .mutation(async ({ ctx, input }) => {
-        await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
+        await requireChatAccessOrAdminSupport(ctx.user.id, ctx.user.role, input.recipientUserId);
         return recordSupportConversationTopic({ requesterUserId: ctx.user.id, adminUserId: input.recipientUserId, topic: input.topic });
       }),
     send: protectedProcedure
       .input(z.object({ body: z.string().trim().min(1).max(1200), recipientUserId: z.number().int().positive().optional(), supportTopic: z.string().trim().min(2).max(120).optional() }))
       .mutation(async ({ ctx, input }) => {
-        await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat");
+        await requireChatAccessOrAdminSupport(ctx.user.id, ctx.user.role, input.recipientUserId);
         return sendChatMessage({ senderUserId: ctx.user.id, recipientUserId: input.recipientUserId, body: input.body, supportTopic: input.supportTopic });
       }),
-    unreadCount: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return countUnreadChatMessages(ctx.user.id); }),
-    markRead: protectedProcedure.mutation(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "chat"); return markChatMessagesRead(ctx.user.id); }),
+    unreadCount: protectedProcedure.query(async ({ ctx }) => countUnreadChatMessages(ctx.user.id, { adminOnly: !(await canUseChatFeature(ctx.user.id, ctx.user.role)) })),
+    markRead: protectedProcedure.mutation(async ({ ctx }) => markChatMessagesRead(ctx.user.id)),
   }),
   utilities: router({
     downloads: protectedProcedure.query(async ({ ctx }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "utilities"); return listUtilityDownloads(ctx.user.role === "admin"); }),

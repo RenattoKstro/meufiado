@@ -28,7 +28,7 @@ import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
 import { BarChart3, BellRing, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
-import React from "react";
+import React, { useRef } from "react";
 import { Link, useLocation } from "wouter";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -38,13 +38,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
   const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
-  const chatIsFree = subscriptionQuery.data?.settings.chatPlan === "free";
-  const canUseChat = user?.role === "admin" || subscriptionQuery.data?.isPro || chatIsFree;
-  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user) && Boolean(canUseChat), refetchInterval: 5_000 });
+  const canUseChat = Boolean(user);
+  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
   const unreadUpdatesQuery = trpc.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const presenceMutation = trpc.profile.presence.useMutation();
+  const lastUnreadChatCount = useRef<number | null>(null);
   React.useEffect(() => {
     if (!user) return;
     const announcePresence = () => presenceMutation.mutate();
@@ -54,6 +54,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // A presença é apenas um sinal leve de atividade para o atendimento.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+  React.useEffect(() => {
+    if (!user || typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "default") void Notification.requestPermission();
+  }, [user?.id]);
+  React.useEffect(() => {
+    const unread = unreadChatQuery.data;
+    if (typeof unread !== "number") return;
+    if (lastUnreadChatCount.current === null) {
+      lastUnreadChatCount.current = unread;
+      return;
+    }
+    if (unread > lastUnreadChatCount.current && typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      const addedMessages = unread - lastUnreadChatCount.current;
+      new Notification("Meu Fiado", { body: addedMessages === 1 ? "Você recebeu uma nova mensagem." : `Você recebeu ${addedMessages} novas mensagens.` });
+    }
+    lastUnreadChatCount.current = unread;
+  }, [unreadChatQuery.data]);
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard },
     { label: "Matriz", path: "/matriz", icon: TableProperties, proOnly: true },
@@ -77,6 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const delinquencyClass = delinquency !== null && delinquency < 7 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive";
   function isLocked(item: typeof navigation[number]) {
     if (user?.role === "admin") return false;
+    if (item.feature === "chat") return false;
     if (item.proOnly) return !subscriptionQuery.data?.isPro;
     if (!item.feature) return false;
     const configuredPlan = subscriptionQuery.data?.settings[`${item.feature}Plan` as const] ?? "pro";

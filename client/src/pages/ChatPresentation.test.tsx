@@ -11,12 +11,14 @@ const supportRecipientQuery = vi.hoisted(() => vi.fn());
 const markRead = vi.hoisted(() => vi.fn());
 const sendMessage = vi.hoisted(() => vi.fn());
 const selectTopic = vi.hoisted(() => vi.fn());
+const subscriptionQuery = vi.hoisted(() => vi.fn());
 const searchValue = vi.hoisted(() => ({ value: "" }));
 const setLocation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
     useUtils: () => ({ chat: { general: { invalidate: vi.fn() }, private: { invalidate: vi.fn() }, privateThreads: { invalidate: vi.fn() }, unreadCount: { invalidate: vi.fn() } } }),
+    subscription: { mine: { useQuery: subscriptionQuery } },
     chat: {
       general: { useQuery: generalQuery },
       private: { useQuery: privateQuery },
@@ -41,6 +43,7 @@ describe("apresentação do chat", () => {
     privateQuery.mockReset();
     privateThreadsQuery.mockReturnValue({ data: [], isLoading: false });
     supportRecipientQuery.mockReturnValue({ data: { id: 41, name: "Renato", isOnline: true, availabilityLabel: "Disponível agora" }, isLoading: false });
+    subscriptionQuery.mockReturnValue({ data: { isPro: true }, isLoading: false });
     markRead.mockReset();
     sendMessage.mockReset();
     selectTopic.mockReset();
@@ -73,8 +76,8 @@ describe("apresentação do chat", () => {
     render(<Chat />);
 
     expect(screen.getAllByText("Conversa privada").length).toBeGreaterThan(0);
-    expect(privateQuery).toHaveBeenCalledWith({ recipientUserId: 41 }, { refetchInterval: 5_000 });
-    expect(generalQuery).not.toHaveBeenCalled();
+    expect(privateQuery).toHaveBeenCalledWith({ recipientUserId: 41 }, { enabled: true, refetchInterval: 5_000 });
+    expect(generalQuery).toHaveBeenCalledWith(undefined, { enabled: false, refetchInterval: 5_000 });
     const input = screen.getByPlaceholderText("Digite uma mensagem…");
     fireEvent.change(input, { target: { value: "Mensagem restrita" } });
     fireEvent.submit(input.closest("form")!);
