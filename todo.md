@@ -278,3 +278,7 @@
 - [x] Aplicar a promoção configurada na tela Plano e no fluxo de cobrança, preservando o valor padrão quando não houver promoção ativa.
 - [x] Exibir uma mesma tela de recurso PRO para usuários Free nas áreas Matriz, Filiais, Históricos, Utilidades e Chat, com atalho direto para o Plano.
 - [x] Cobrir as regras de promoção e o bloqueio unificado de recursos PRO com testes automatizados.
+- [x] Criar em Utilidades a ferramenta Acionamento para importar planilhas de contatos e gerar uma lista de cobrança.
+- [x] Manter somente as colunas Vendedor, Atraso, Valor Vencido, CPF/CNPJ Cliente, Cliente e Telefone, com edição e exclusão de linhas.
+- [x] Permitir filtro por vendedor, ajustes de tamanho, grades de impressão e preparação da lista para imprimir.
+- [x] Cobrir a conversão de planilhas e os controles de Acionamento com testes automatizados.
