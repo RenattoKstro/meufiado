@@ -110,6 +110,21 @@ describe("contrato da navegação lateral", () => {
     expect(account).toContain("Em atendimento");
   });
 
+  it("exibe Atualizações abaixo de Ajuda para todos os usuários", async () => {
+    const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const updates = await readFile(resolve(process.cwd(), "client/src/pages/Updates.tsx"), "utf8");
+    const callingList = await readFile(resolve(process.cwd(), "client/src/components/CallingListTool.tsx"), "utf8");
+
+    expect(navigation).toContain('label: "Ajuda", path: "/ajuda", icon: CircleHelp');
+    expect(navigation).toContain('label: "Atualizações", path: "/atualizacoes", icon: BellRing');
+    expect(navigation.indexOf('label: "Ajuda"')).toBeLessThan(navigation.indexOf('label: "Atualizações"'));
+    expect(app).toContain('Route path="/atualizacoes" component={Updates}');
+    expect(updates).toContain("Este histórico é visível para todos os usuários.");
+    expect(updates).toContain("Aciona One: lista compacta para impressão");
+    expect(callingList).toContain("Envie a planilha exportada do Aciona, o sistema irá editar e deixará informações mais importantes para impressão.");
+  });
+
   it("mantém a ativação de Meta Perdido nos Ajustes das metas", async () => {
     const settings = await readFile(resolve(process.cwd(), "client/src/pages/Settings.tsx"), "utf8");
     const metrics = settings.slice(settings.indexOf("export function MetricsSettings()"), settings.indexOf("export function AppearanceSettings()"));

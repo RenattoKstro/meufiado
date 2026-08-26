@@ -27,7 +27,7 @@ import { useAppTexts } from "@/contexts/AppTextContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
-import { BarChart3, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
+import { BarChart3, BellRing, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
 import React from "react";
 import { Link, useLocation } from "wouter";
 
@@ -64,6 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: texts.navSettings, path: "/ajustes", icon: SlidersHorizontal },
     { label: texts.navPreferences, path: "/configuracoes", icon: Palette },
     { label: "Ajuda", path: "/ajuda", icon: CircleHelp },
+    { label: "Atualizações", path: "/atualizacoes", icon: BellRing },
   ];
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;

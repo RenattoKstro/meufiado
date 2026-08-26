@@ -288,3 +288,6 @@
 - [x] Exportar os telefones do Aciona One em colunas separadas, preservando múltiplos números por cliente.
 - [x] Formatar o Excel como lista compacta, com altura de linhas 15, autofiltro, cabeçalho destacado e configuração para impressão econômica.
 - [x] Cobrir o layout compacto do Excel e a separação de telefones com testes automatizados.
+- [x] Atualizar o texto de orientação da ferramenta Aciona One conforme solicitado.
+- [x] Adicionar uma área pública de Atualizações abaixo de Ajuda na navegação lateral, visível a todos os usuários.
+- [x] Cobrir a rota e a visibilidade do log de atualizações com testes automatizados.
