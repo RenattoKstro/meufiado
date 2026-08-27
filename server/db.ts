@@ -683,6 +683,11 @@ export type SubscriptionSettingsInput = {
   monthlyPrice: number;
   promotionOriginalPrice: number;
   promotionPrice: number;
+  promotionBadge: string;
+  promotionTitle: string;
+  promotionDescription: string;
+  promotionBackground: SubscriptionPlanInfoBackground;
+  promotionCtaLabel: string;
   planInfoTitle: string;
   planInfoDescription: string;
   planInfoBackground: SubscriptionPlanInfoBackground;
@@ -709,6 +714,11 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   monthlyPrice: 0,
   promotionOriginalPrice: 0,
   promotionPrice: 0,
+  promotionBadge: "Oferta especial",
+  promotionTitle: "Plano PRO em oferta",
+  promotionDescription: "Aproveite o valor promocional para liberar todos os recursos PRO.",
+  promotionBackground: "emerald",
+  promotionCtaLabel: "Assinar PRO com Mercado Pago",
   planInfoTitle: "Plano PRO do Meu Fiado",
   planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.",
   planInfoBackground: "sky",

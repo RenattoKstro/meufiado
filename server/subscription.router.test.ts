@@ -33,8 +33,8 @@ function contextFor(role: "user" | "admin"): TrpcContext {
 }
 
 const pagePlans = { overviewPlan: "free" as const, matrixPlan: "pro" as const, branchesPlan: "pro" as const, historyPlan: "pro" as const, utilitiesPlan: "free" as const, chatPlan: "pro" as const, metricsPlan: "free" as const, appearancePlan: "free" as const, helpPlan: "free" as const, updatesPlan: "free" as const };
-const settings = { id: 1, monthlyPrice: 19.9, promotionOriginalPrice: 0, promotionPrice: 0, planInfoTitle: "Plano PRO do Meu Fiado", planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.", planInfoBackground: "sky", planInfoCtaEnabled: false, planInfoCtaLabel: "", planInfoCtaUrl: "", pixKey: "pix@exemplo.com", pixCopyPaste: "0002012636...", pixQrCodeUrl: "https://example.com/qr.png", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", ...pagePlans, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
-const validSettingsInput = { monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, planInfoTitle: "Oferta especial", planInfoDescription: "Assine para acessar os recursos avançados.", planInfoBackground: "violet" as const, planInfoCtaEnabled: true, planInfoCtaLabel: "Conhecer os recursos", planInfoCtaUrl: "/ajuda", pixKey: "chave-pix", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", ...pagePlans };
+const settings = { id: 1, monthlyPrice: 19.9, promotionOriginalPrice: 0, promotionPrice: 0, promotionBadge: "Oferta especial", promotionTitle: "Plano PRO em oferta", promotionDescription: "Aproveite o valor promocional para liberar todos os recursos PRO.", promotionBackground: "emerald", promotionCtaLabel: "Assinar PRO com Mercado Pago", planInfoTitle: "Plano PRO do Meu Fiado", planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.", planInfoBackground: "sky", planInfoCtaEnabled: false, planInfoCtaLabel: "", planInfoCtaUrl: "", pixKey: "pix@exemplo.com", pixCopyPaste: "0002012636...", pixQrCodeUrl: "https://example.com/qr.png", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", ...pagePlans, updatedByUserId: 31, createdAt: new Date(), updatedAt: new Date() };
+const validSettingsInput = { monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, promotionBadge: "Condição especial", promotionTitle: "PRO com valor reduzido", promotionDescription: "Garanta acesso a todos os recursos com preço promocional.", promotionBackground: "violet" as const, promotionCtaLabel: "Assinar com desconto", planInfoTitle: "Oferta especial", planInfoDescription: "Assine para acessar os recursos avançados.", planInfoBackground: "violet" as const, planInfoCtaEnabled: true, planInfoCtaLabel: "Conhecer os recursos", planInfoCtaUrl: "/ajuda", pixKey: "chave-pix", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", ...pagePlans };
 
 describe("procedures de assinatura", () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -73,7 +73,7 @@ describe("procedures de assinatura", () => {
     await admin.subscriptionAdmin.uploadPixQrCode({ dataUrl: "data:image/png;base64,aGVsbG8gaXN0byBlIHVtIGNvbXByb3ZhbnRlIHZhbGlkbyE=" });
     await admin.subscriptionAdmin.setUserPlan({ userId: 42, plan: "pro" });
     await admin.subscriptionAdmin.reviewProof({ id: 7, status: "approved" });
-    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, planInfoTitle: "Oferta especial", planInfoDescription: "Assine para acessar os recursos avançados.", planInfoBackground: "violet", planInfoCtaEnabled: true, planInfoCtaLabel: "Conhecer os recursos", planInfoCtaUrl: "/ajuda", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free", metricsPlan: "pro" }), 31);
+    expect(dbMocks.updateSubscriptionSettings).toHaveBeenCalledWith(expect.objectContaining({ monthlyPrice: 29.9, promotionOriginalPrice: 39.9, promotionPrice: 24.9, promotionBadge: "Condição especial", promotionTitle: "PRO com valor reduzido", promotionDescription: "Garanta acesso a todos os recursos com preço promocional.", promotionBackground: "violet", promotionCtaLabel: "Assinar com desconto", planInfoTitle: "Oferta especial", planInfoDescription: "Assine para acessar os recursos avançados.", planInfoBackground: "violet", planInfoCtaEnabled: true, planInfoCtaLabel: "Conhecer os recursos", planInfoCtaUrl: "/ajuda", pixCopyPaste: "0002012636...", pixReceiverName: "MEU FIADO", pixReceiverBank: "Banco do Brasil", branchesPlan: "free", metricsPlan: "pro" }), 31);
     expect(dbMocks.uploadSubscriptionPixQrCode).toHaveBeenCalledWith(31, expect.stringContaining("data:image/png;base64,"));
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
@@ -104,6 +104,12 @@ describe("procedures de assinatura", () => {
   it("recusa promoção inválida para proteger o preço da assinatura", async () => {
     const admin = createAppRouter({ canAccessSubscriptionFeature: async () => true }).createCaller(contextFor("admin"));
     await expect(admin.subscriptionAdmin.updateSettings({ ...validSettingsInput, promotionOriginalPrice: 19.9, promotionPrice: 24.9 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("exige os textos essenciais da promoção personalizada", async () => {
+    const admin = createAppRouter({ canAccessSubscriptionFeature: async () => true }).createCaller(contextFor("admin"));
+    await expect(admin.subscriptionAdmin.updateSettings({ ...validSettingsInput, promotionTitle: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(admin.subscriptionAdmin.updateSettings({ ...validSettingsInput, promotionDescription: "" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("exige título e texto para o card exibido no Plano", async () => {

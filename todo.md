@@ -311,3 +311,5 @@
 - [x] Permitir configurar botão opcional de chamada para ação no card Plano.
 - [x] Exibir o limite e a contagem de caracteres no texto configurável do card Plano.
 - [x] Permitir ao administrador definir como Free ou PRO todas as abas navegáveis do sistema.
+- [x] Permitir personalizar título, destaque, texto e apresentação visual da promoção do Plano na Administração.
+- [x] Adicionar pré-visualização da promoção antes do salvamento e exibir a versão configurada na tela Plano.
