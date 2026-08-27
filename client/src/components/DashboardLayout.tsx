@@ -73,17 +73,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     lastUnreadChatCount.current = unread;
   }, [unreadChatQuery.data, messageNotificationsEnabled]);
   const navigation = [
-    { label: texts.navOverview, path: "/", icon: LayoutDashboard },
-    { label: "Matriz", path: "/matriz", icon: TableProperties, proOnly: true },
+    { label: texts.navOverview, path: "/", icon: LayoutDashboard, feature: "overview" as const },
+    { label: "Matriz", path: "/matriz", icon: TableProperties, feature: "matrix" as const },
     { label: texts.navBranches, path: "/filiais", icon: Building2, feature: "branches" as const },
     { label: texts.navHistory, path: "/historicos", icon: History, feature: "history" as const },
     { label: texts.navUtilities, path: "/utilidades", icon: FolderDown, feature: "utilities" as const },
     { label: texts.navChat, path: "/chat", icon: MessageCircle, feature: "chat" as const },
     { label: "Plano", path: "/plano", icon: Crown },
-    { label: texts.navSettings, path: "/ajustes", icon: SlidersHorizontal },
-    { label: texts.navPreferences, path: "/configuracoes", icon: Palette },
-    { label: "Ajuda", path: "/ajuda", icon: CircleHelp },
-    { label: "Atualizações", path: "/atualizacoes", icon: BellRing },
+    { label: texts.navSettings, path: "/ajustes", icon: SlidersHorizontal, feature: "metrics" as const },
+    { label: texts.navPreferences, path: "/configuracoes", icon: Palette, feature: "appearance" as const },
+    { label: "Ajuda", path: "/ajuda", icon: CircleHelp, feature: "help" as const },
+    { label: "Atualizações", path: "/atualizacoes", icon: BellRing, feature: "updates" as const },
   ];
   const administrativeNavigation = { label: "Administração", path: "/admin", icon: ShieldCheck };
   const menu = user?.role === "admin" ? [...navigation, administrativeNavigation] : navigation;
@@ -96,7 +96,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   function isLocked(item: typeof navigation[number]) {
     if (user?.role === "admin") return false;
     if (item.feature === "chat") return false;
-    if (item.proOnly) return !subscriptionQuery.data?.isPro;
     if (!item.feature) return false;
     const configuredPlan = subscriptionQuery.data?.settings[`${item.feature}Plan` as const] ?? "pro";
     return !subscriptionQuery.data?.isPro && configuredPlan === "pro";

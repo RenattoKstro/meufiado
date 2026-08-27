@@ -31,7 +31,21 @@ import { ArrowRight, Crown, ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
 
-const OverviewPage = (_props: unknown) => <Dashboard />;
+const subscriptionFeatureSettings = {
+  overview: "overviewPlan",
+  matrix: "matrixPlan",
+  branches: "branchesPlan",
+  history: "historyPlan",
+  utilities: "utilitiesPlan",
+  chat: "chatPlan",
+  metrics: "metricsPlan",
+  appearance: "appearancePlan",
+  help: "helpPlan",
+  updates: "updatesPlan",
+} as const;
+type SubscriptionFeatureKey = keyof typeof subscriptionFeatureSettings;
+
+const OverviewPage = (_props: unknown) => <SubscriptionFeature feature="overview"><Dashboard /></SubscriptionFeature>;
 const BranchesPage = (_props: unknown) => <Branches />;
 
 function LegacyMetaRedirect() {
@@ -53,16 +67,16 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz">{() => <SubscriptionFeature feature="matrix"><Matrix /></SubscriptionFeature>}</Route><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat" component={Chat} /><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes" component={MetricsSettings} /><Route path="/configuracoes" component={AppearanceSettings} /><Route path="/ajuda" component={Help} /><Route path="/atualizacoes" component={Updates} /><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
+  return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz">{() => <SubscriptionFeature feature="matrix"><Matrix /></SubscriptionFeature>}</Route><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat" component={Chat} /><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes">{() => <SubscriptionFeature feature="metrics"><MetricsSettings /></SubscriptionFeature>}</Route><Route path="/configuracoes">{() => <SubscriptionFeature feature="appearance"><AppearanceSettings /></SubscriptionFeature>}</Route><Route path="/ajuda">{() => <SubscriptionFeature feature="help"><Help /></SubscriptionFeature>}</Route><Route path="/atualizacoes">{() => <SubscriptionFeature feature="updates"><Updates /></SubscriptionFeature>}</Route><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
-function SubscriptionFeature({ feature, children }: { feature: "matrix" | "branches" | "history" | "utilities" | "chat"; children: React.ReactNode }) {
+function SubscriptionFeature({ feature, children }: { feature: SubscriptionFeatureKey; children: React.ReactNode }) {
   const { user } = useAuth();
   const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   if (user?.role === "admin") return <>{children}</>;
   if (subscriptionQuery.isLoading) return <LoadingScreen />;
   const settings = subscriptionQuery.data?.settings;
-  const requiredPlan = feature === "matrix" ? "pro" : settings?.[`${feature}Plan` as const] ?? "pro";
+  const requiredPlan = settings?.[subscriptionFeatureSettings[feature]] ?? "pro";
   if (subscriptionQuery.data?.isPro || requiredPlan === "free") return <>{children}</>;
   return <ProFeatureGate />;
 }

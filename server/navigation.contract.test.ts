@@ -74,8 +74,8 @@ describe("contrato da navegação lateral", () => {
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     expect(navigation).toContain("label: texts.navChat");
     expect(navigation).toContain("label: texts.navPreferences");
-    expect(app).toContain('path="/configuracoes" component={AppearanceSettings}');
-    expect(app).toContain('path="/ajustes" component={MetricsSettings}');
+    expect(app).toContain('Route path="/configuracoes">{() => <SubscriptionFeature feature="appearance"><AppearanceSettings /></SubscriptionFeature>}</Route>');
+    expect(app).toContain('Route path="/ajustes">{() => <SubscriptionFeature feature="metrics"><MetricsSettings /></SubscriptionFeature>}</Route>');
   });
 
   it("disponibiliza uma Ajuda com manual para os recursos principais do painel", async () => {
@@ -84,7 +84,7 @@ describe("contrato da navegação lateral", () => {
     const help = await readFile(resolve(process.cwd(), "client/src/pages/Help.tsx"), "utf8");
 
     expect(navigation).toContain('label: "Ajuda", path: "/ajuda", icon: CircleHelp');
-    expect(app).toContain('Route path="/ajuda" component={Help}');
+    expect(app).toContain('Route path="/ajuda">{() => <SubscriptionFeature feature="help"><Help /></SubscriptionFeature>}</Route>');
     ["Como usar o Meu Fiado", "Visão Geral e metas", "Históricos e recebimentos diários", "Filiais e Matriz", "Plano Free e PRO"].forEach(title => {
       expect(help).toContain(title);
     });
@@ -121,7 +121,7 @@ describe("contrato da navegação lateral", () => {
     expect(navigation).toContain('label: "Ajuda", path: "/ajuda", icon: CircleHelp');
     expect(navigation).toContain('label: "Atualizações", path: "/atualizacoes", icon: BellRing');
     expect(navigation.indexOf('label: "Ajuda"')).toBeLessThan(navigation.indexOf('label: "Atualizações"'));
-    expect(app).toContain('Route path="/atualizacoes" component={Updates}');
+    expect(app).toContain('Route path="/atualizacoes">{() => <SubscriptionFeature feature="updates"><Updates /></SubscriptionFeature>}</Route>');
     expect(updates).toContain("Este histórico é visível para todos os usuários.");
     expect(updates).toContain("trpc.updates.list.useQuery()");
     expect(updates).toContain("markRead.mutate()");
@@ -160,9 +160,16 @@ describe("contrato da navegação lateral", () => {
     const adminPanel = await readFile(resolve(process.cwd(), "client/src/components/SubscriptionAdminPanel.tsx"), "utf8");
     expect(subscription).toContain("settings.planInfoTitle");
     expect(subscription).toContain("settings.planInfoDescription");
+    expect(subscription).toContain("planInfoBackgroundClasses");
+    expect(subscription).toContain("settings.planInfoCtaEnabled");
+    expect(subscription).toContain("settings.planInfoCtaUrl");
     expect(adminPanel).toContain("Card informativo do Plano");
     expect(adminPanel).toContain('id="subscription-info-title"');
     expect(adminPanel).toContain('id="subscription-info-description"');
+    expect(adminPanel).toContain("Pré-visualização");
+    expect(adminPanel).toContain("Limite:");
+    expect(adminPanel).toContain("planInfoBackgroundOptions");
+    expect(adminPanel).toContain("Botão de chamada para ação");
   });
 
   it("registra Utilidades na navegação e disponibiliza Downloads e Relatórios", async () => {
@@ -207,6 +214,21 @@ describe("contrato da navegação lateral", () => {
     expect(app).toContain('FUNÇÃO DISPONÍVEL APENAS PARA USUÁRIOS PRO');
     expect(app).toContain('Ir para a tela de Plano');
     expect(navigation).toContain("refetchInterval: 15_000");
+  });
+
+  it("permite configurar como Free ou PRO todas as abas operacionais", async () => {
+    const panel = await readFile(resolve(process.cwd(), "client/src/components/SubscriptionAdminPanel.tsx"), "utf8");
+    const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
+    const chat = await readFile(resolve(process.cwd(), "client/src/pages/Chat.tsx"), "utf8");
+    ["overview", "matrix", "branches", "history", "utilities", "chat", "metrics", "appearance", "help", "updates"].forEach(feature => {
+      expect(panel).toContain(`${feature}Plan`);
+    });
+    ["overview", "matrix", "branches", "history", "utilities", "metrics", "appearance", "help", "updates"].forEach(feature => {
+      expect(app).toContain(`feature="${feature}"`);
+    });
+    expect(app).toContain('Route path="/chat" component={Chat}');
+    expect(chat).toContain('settings.chatPlan === "free"');
+    expect(panel).toContain("Plano e Conta ficam sempre acessíveis");
   });
 
   it("mantém a gestão de materiais e relatórios restrita às procedures administrativas", async () => {

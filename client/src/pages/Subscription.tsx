@@ -9,6 +9,14 @@ import { ChangeEvent, useRef } from "react";
 import { toast } from "sonner";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const planInfoBackgroundClasses = {
+  sky: "border-sky-500/25 bg-sky-500/[0.08]",
+  emerald: "border-emerald-500/25 bg-emerald-500/[0.08]",
+  violet: "border-violet-500/25 bg-violet-500/[0.08]",
+  amber: "border-amber-500/25 bg-amber-500/[0.08]",
+  rose: "border-rose-500/25 bg-rose-500/[0.08]",
+  slate: "border-slate-500/25 bg-slate-500/[0.08]",
+} as const;
 
 export default function Subscription() {
   const utils = trpc.useUtils();
@@ -69,10 +77,13 @@ export default function Subscription() {
   const paymentReady = Boolean(chargeAmount > 0 && (settings.pixQrCodeUrl || settings.pixCopyPaste || settings.pixKey));
   const waitingReview = latestProof?.status === "pending";
   const isGracePeriod = status === "grace";
+  const planInfoBackground = planInfoBackgroundClasses[settings.planInfoBackground as keyof typeof planInfoBackgroundClasses] ?? planInfoBackgroundClasses.sky;
+  const showPlanInfoCta = settings.planInfoCtaEnabled && settings.planInfoCtaLabel.trim().length >= 2 && /^(\/|https?:\/\/)/.test(settings.planInfoCtaUrl);
+  const isExternalPlanInfoCta = /^https?:\/\//.test(settings.planInfoCtaUrl);
 
   return <section className="mx-auto max-w-4xl">
     <header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Acesso da conta</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">{texts.subscriptionTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{texts.subscriptionDescription}</p></header>
-    <Card className="mb-5 rounded-[1.6rem] border-primary/20 bg-primary/[0.035] shadow-sm"><CardContent className="p-5 sm:p-6"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Crown className="h-5 w-5" /></span><div><h2 className="text-lg font-black tracking-[-0.02em]">{settings.planInfoTitle}</h2><p className="mt-1.5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{settings.planInfoDescription}</p></div></div></CardContent></Card>
+    <Card className={`mb-5 rounded-[1.6rem] shadow-sm ${planInfoBackground}`}><CardContent className="p-5 sm:p-6"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-background/70 text-primary shadow-sm"><Crown className="h-5 w-5" /></span><div><h2 className="text-lg font-black tracking-[-0.02em]">{settings.planInfoTitle}</h2><p className="mt-1.5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-foreground/70">{settings.planInfoDescription}</p>{showPlanInfoCta ? <a href={settings.planInfoCtaUrl} target={isExternalPlanInfoCta ? "_blank" : undefined} rel={isExternalPlanInfoCta ? "noreferrer" : undefined} className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-primary px-4 py-2 text-sm font-extrabold text-primary-foreground shadow-sm transition-transform duration-150 ease-out hover:bg-primary/90 active:scale-[0.97]">{settings.planInfoCtaLabel}</a> : null}</div></div></CardContent></Card>
     <div className="grid gap-5 lg:grid-cols-[.92fr_1.08fr]">
       <Card className={`lg:self-start rounded-[1.6rem] border-border/70 shadow-sm ${isPro ? "bg-primary/[0.03]" : ""}`}>
         <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />{isPro ? "Boas-vindas ao PRO" : "Plano Free"}</CardTitle><CardDescription className="mt-1">{isGracePeriod ? "Sua assinatura venceu, mas você ainda está no período de carência." : isPro ? "Seu acesso premium está ativo." : "Sua conta está no plano Free."}</CardDescription></div>{isGracePeriod ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-400">CARÊNCIA</span> : isPro ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">PRO</span> : <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-extrabold text-muted-foreground">FREE</span>}</div></CardHeader>

@@ -163,24 +163,37 @@ const historyEntryInput = z.object({
   receivedAmount: nonNegativeNumber,
 });
 const subscriptionPlan = z.enum(["free", "pro"]);
+const subscriptionPlanInfoBackground = z.enum(["sky", "emerald", "violet", "amber", "rose", "slate"]);
 const subscriptionSettingsInput = z.object({
   monthlyPrice: z.number().min(0).max(100_000).finite(),
   promotionOriginalPrice: z.number().min(0).max(100_000).finite(),
   promotionPrice: z.number().min(0).max(100_000).finite(),
   planInfoTitle: z.string().trim().min(2).max(180),
   planInfoDescription: z.string().trim().min(2).max(800),
+  planInfoBackground: subscriptionPlanInfoBackground,
+  planInfoCtaEnabled: z.boolean(),
+  planInfoCtaLabel: z.string().trim().max(80),
+  planInfoCtaUrl: z.string().trim().max(2048),
   pixKey: z.string().trim().max(255),
   pixCopyPaste: z.string().trim().max(2048),
   pixReceiverName: z.string().trim().min(2).max(25),
   pixReceiverBank: z.string().trim().max(80),
+  overviewPlan: subscriptionPlan,
+  matrixPlan: subscriptionPlan,
   branchesPlan: subscriptionPlan,
   historyPlan: subscriptionPlan,
   utilitiesPlan: subscriptionPlan,
   chatPlan: subscriptionPlan,
+  metricsPlan: subscriptionPlan,
+  appearancePlan: subscriptionPlan,
+  helpPlan: subscriptionPlan,
+  updatesPlan: subscriptionPlan,
 }).superRefine((value, context) => {
   const promotionIsCleared = value.promotionOriginalPrice === 0 && value.promotionPrice === 0;
   const promotionIsValid = value.promotionOriginalPrice > value.promotionPrice && value.promotionPrice > 0;
   if (!promotionIsCleared && !promotionIsValid) context.addIssue({ code: z.ZodIssueCode.custom, path: ["promotionPrice"], message: "Informe um preço promocional menor que o preço anterior ou deixe os dois campos zerados." });
+  if (value.planInfoCtaEnabled && value.planInfoCtaLabel.length < 2) context.addIssue({ code: z.ZodIssueCode.custom, path: ["planInfoCtaLabel"], message: "Informe o texto do botão de chamada para ação." });
+  if (value.planInfoCtaEnabled && !/^(\/|https?:\/\/)/.test(value.planInfoCtaUrl)) context.addIssue({ code: z.ZodIssueCode.custom, path: ["planInfoCtaUrl"], message: "Informe uma URL interna iniciada em / ou externa iniciada em http:// ou https://." });
 });
 const proofInput = z.object({ dataUrl: z.string().min(32).max(4_500_000) });
 const appTextSettingsInput = z.object({

@@ -675,23 +675,34 @@ export async function deleteReceiptHistoryEntry(userId: number, id: number, data
   await db.delete(receiptHistoryEntries).where(eq(receiptHistoryEntries.id, id));
 }
 
-export const subscriptionFeatureKeys = ["branches", "history", "utilities", "chat"] as const;
+export const subscriptionFeatureKeys = ["overview", "matrix", "branches", "history", "utilities", "chat", "metrics", "appearance", "help", "updates"] as const;
 export type SubscriptionFeatureKey = typeof subscriptionFeatureKeys[number];
 export type SubscriptionPlan = "free" | "pro";
+export type SubscriptionPlanInfoBackground = "sky" | "emerald" | "violet" | "amber" | "rose" | "slate";
 export type SubscriptionSettingsInput = {
   monthlyPrice: number;
   promotionOriginalPrice: number;
   promotionPrice: number;
   planInfoTitle: string;
   planInfoDescription: string;
+  planInfoBackground: SubscriptionPlanInfoBackground;
+  planInfoCtaEnabled: boolean;
+  planInfoCtaLabel: string;
+  planInfoCtaUrl: string;
   pixKey: string;
   pixCopyPaste: string;
   pixReceiverName: string;
   pixReceiverBank: string;
+  overviewPlan: SubscriptionPlan;
+  matrixPlan: SubscriptionPlan;
   branchesPlan: SubscriptionPlan;
   historyPlan: SubscriptionPlan;
   utilitiesPlan: SubscriptionPlan;
   chatPlan: SubscriptionPlan;
+  metricsPlan: SubscriptionPlan;
+  appearancePlan: SubscriptionPlan;
+  helpPlan: SubscriptionPlan;
+  updatesPlan: SubscriptionPlan;
 };
 
 const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: string } = {
@@ -700,15 +711,25 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   promotionPrice: 0,
   planInfoTitle: "Plano PRO do Meu Fiado",
   planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.",
+  planInfoBackground: "sky",
+  planInfoCtaEnabled: false,
+  planInfoCtaLabel: "",
+  planInfoCtaUrl: "",
   pixKey: "",
   pixCopyPaste: "",
   pixQrCodeUrl: "",
   pixReceiverName: "MEU FIADO",
   pixReceiverBank: "",
+  overviewPlan: "free",
+  matrixPlan: "pro",
   branchesPlan: "pro",
   historyPlan: "pro",
   utilitiesPlan: "pro",
   chatPlan: "pro",
+  metricsPlan: "free",
+  appearancePlan: "free",
+  helpPlan: "free",
+  updatesPlan: "free",
 };
 
 export function hasActiveSubscriptionPromotion(settings: Pick<SubscriptionSettingsInput, "promotionOriginalPrice" | "promotionPrice">) {

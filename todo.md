@@ -306,3 +306,8 @@
 - [x] Adicionar filtros de Valor Vencido mínimo e máximo no Aciona One, mantendo a revisão, a impressão e as exportações da lista filtrada.
 - [x] Ajustar no modo web a altura do card da tela Plano para acompanhar o conteúdo apresentado.
 - [x] Adicionar acima do Plano um card com título e texto configuráveis pela Administração.
+- [x] Adicionar pré-visualização do card Plano na Administração antes do salvamento.
+- [x] Permitir ao administrador escolher a cor de fundo do card Plano.
+- [x] Permitir configurar botão opcional de chamada para ação no card Plano.
+- [x] Exibir o limite e a contagem de caracteres no texto configurável do card Plano.
+- [x] Permitir ao administrador definir como Free ou PRO todas as abas navegáveis do sistema.
