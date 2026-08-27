@@ -313,3 +313,4 @@
 - [x] Permitir ao administrador definir como Free ou PRO todas as abas navegáveis do sistema.
 - [x] Permitir personalizar título, destaque, texto e apresentação visual da promoção do Plano na Administração.
 - [x] Adicionar pré-visualização da promoção antes do salvamento e exibir a versão configurada na tela Plano.
+- [x] Renomear os rótulos de preço da promoção para Preço normal e Preço promocional.

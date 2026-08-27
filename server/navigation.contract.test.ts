@@ -199,6 +199,7 @@ describe("contrato da navegação lateral", () => {
 
   it("interpreta o controle de página marcado como acesso exclusivo do plano PRO", async () => {
     const panel = await readFile(resolve(process.cwd(), "client/src/components/SubscriptionAdminPanel.tsx"), "utf8");
+    const subscription = await readFile(resolve(process.cwd(), "client/src/pages/Subscription.tsx"), "utf8");
     const app = await readFile(resolve(process.cwd(), "client/src/App.tsx"), "utf8");
     const navigation = await readFile(resolve(process.cwd(), "client/src/components/DashboardLayout.tsx"), "utf8");
 
@@ -207,8 +208,10 @@ describe("contrato da navegação lateral", () => {
     expect(panel).toContain('[settingKey]: checked ? "pro" : "free"');
     expect(panel).toContain('exclusiva para PRO');
     expect(panel).toContain('Promoção de assinatura');
-    expect(panel).toContain('Preço antigo (R$)');
-    expect(panel).toContain('Por: preço novo (R$)');
+    expect(panel).toContain('Preço normal (R$)');
+    expect(panel).toContain('Preço promocional (R$)');
+    expect(subscription).toContain('Preço normal');
+    expect(subscription).toContain('Preço promocional');
     expect(app).toContain("refetchInterval: 15_000");
     expect(app).toContain('feature="matrix"');
     expect(app).toContain('FUNÇÃO DISPONÍVEL APENAS PARA USUÁRIOS PRO');
