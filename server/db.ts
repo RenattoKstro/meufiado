@@ -682,6 +682,8 @@ export type SubscriptionSettingsInput = {
   monthlyPrice: number;
   promotionOriginalPrice: number;
   promotionPrice: number;
+  planInfoTitle: string;
+  planInfoDescription: string;
   pixKey: string;
   pixCopyPaste: string;
   pixReceiverName: string;
@@ -696,6 +698,8 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   monthlyPrice: 0,
   promotionOriginalPrice: 0,
   promotionPrice: 0,
+  planInfoTitle: "Plano PRO do Meu Fiado",
+  planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.",
   pixKey: "",
   pixCopyPaste: "",
   pixQrCodeUrl: "",

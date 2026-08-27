@@ -305,3 +305,4 @@
 - [x] Cobrir a preferência de notificações e a orientação de atendimento Free com testes automatizados.
 - [x] Adicionar filtros de Valor Vencido mínimo e máximo no Aciona One, mantendo a revisão, a impressão e as exportações da lista filtrada.
 - [x] Ajustar no modo web a altura do card da tela Plano para acompanhar o conteúdo apresentado.
+- [x] Adicionar acima do Plano um card com título e texto configuráveis pela Administração.

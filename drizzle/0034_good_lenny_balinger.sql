@@ -1,0 +1,2 @@
+ALTER TABLE `subscriptionSettings` ADD `planInfoTitle` varchar(180) DEFAULT 'Plano PRO do Meu Fiado' NOT NULL;--> statement-breakpoint
+ALTER TABLE `subscriptionSettings` ADD `planInfoDescription` varchar(800) DEFAULT 'Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.' NOT NULL;

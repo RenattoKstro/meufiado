@@ -431,6 +431,8 @@ export const subscriptionSettings = mysqlTable("subscriptionSettings", {
   monthlyPrice: double("monthlyPrice").default(0).notNull(),
   promotionOriginalPrice: double("promotionOriginalPrice").default(0).notNull(),
   promotionPrice: double("promotionPrice").default(0).notNull(),
+  planInfoTitle: varchar("planInfoTitle", { length: 180 }).default("Plano PRO do Meu Fiado").notNull(),
+  planInfoDescription: varchar("planInfoDescription", { length: 800 }).default("Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.").notNull(),
   pixKey: varchar("pixKey", { length: 255 }).default("").notNull(),
   pixCopyPaste: varchar("pixCopyPaste", { length: 2048 }).default("").notNull(),
   pixQrCodeUrl: varchar("pixQrCodeUrl", { length: 2048 }).default("").notNull(),

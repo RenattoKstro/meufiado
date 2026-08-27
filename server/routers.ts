@@ -167,6 +167,8 @@ const subscriptionSettingsInput = z.object({
   monthlyPrice: z.number().min(0).max(100_000).finite(),
   promotionOriginalPrice: z.number().min(0).max(100_000).finite(),
   promotionPrice: z.number().min(0).max(100_000).finite(),
+  planInfoTitle: z.string().trim().min(2).max(180),
+  planInfoDescription: z.string().trim().min(2).max(800),
   pixKey: z.string().trim().max(255),
   pixCopyPaste: z.string().trim().max(2048),
   pixReceiverName: z.string().trim().min(2).max(25),
