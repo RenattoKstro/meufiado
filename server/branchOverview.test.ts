@@ -40,7 +40,7 @@ describe("resumo de filiais", () => {
       lostGoal: 1000,
       lostReceived: 1050,
       ticketWorkingDaysRemaining: 2,
-    }, new Date("2026-08-18T12:00:00Z")));
+    }), new Date("2026-08-18T12:00:00Z"));
 
     expect(performance.receipts).toEqual({ accumulated: 5000, today: 1000 });
     expect(performance.fiado).toMatchObject({ progress: 96, reward: 115.5, nextTarget: 98, missingForNext: 200, missingFor100: 400 });

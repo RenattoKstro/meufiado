@@ -32,6 +32,24 @@ describe("contrato da navegação lateral", () => {
     expect(source).toContain(">Cadastrar<");
   });
 
+  it("mantém os metadados e o cabeçalho SEO da página inicial dentro dos limites", async () => {
+    const index = await readFile(resolve(process.cwd(), "client/index.html"), "utf8");
+    const welcome = await readFile(resolve(process.cwd(), "client/src/pages/Welcome.tsx"), "utf8");
+    const title = index.match(/<title>([^<]+)<\/title>/)?.[1] ?? "";
+    const description = index.match(/<meta name="description" content="([^"]+)"/i)?.[1] ?? "";
+    const keywords = index.match(/<meta name="keywords" content="([^"]+)"/i)?.[1].split(",").map(item => item.trim()).filter(Boolean) ?? [];
+    const heading = "Gestão de recebimentos e metas de inadimplência";
+
+    expect(title.length).toBeGreaterThanOrEqual(30);
+    expect(title.length).toBeLessThanOrEqual(60);
+    expect(description.length).toBeGreaterThanOrEqual(50);
+    expect(description.length).toBeLessThanOrEqual(160);
+    expect(keywords).toHaveLength(5);
+    expect(welcome).toContain("document.title = SEO_TITLE");
+    expect(welcome).toContain(`<h2 className="mt-4 max-w-xl text-lg font-bold tracking-tight text-foreground sm:text-xl">${heading}</h2>`);
+    expect(heading.length).toBeLessThanOrEqual(80);
+  });
+
   it("mostra a conexão Google de cadastro somente depois da escolha de cadastrar", async () => {
     const login = await readFile(resolve(process.cwd(), "client/src/pages/UserLogin.tsx"), "utf8");
     const registration = await readFile(resolve(process.cwd(), "client/src/pages/UserRegistration.tsx"), "utf8");

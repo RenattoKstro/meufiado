@@ -314,3 +314,4 @@
 - [x] Permitir personalizar título, destaque, texto e apresentação visual da promoção do Plano na Administração.
 - [x] Adicionar pré-visualização da promoção antes do salvamento e exibir a versão configurada na tela Plano.
 - [x] Renomear os rótulos de preço da promoção para Preço normal e Preço promocional.
+- [x] Adicionar título, meta description, meta keywords e H2 SEO à página inicial dentro dos limites solicitados.
