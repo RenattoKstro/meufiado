@@ -323,3 +323,5 @@
 - [x] Adicionar em Ajustes o preenchimento automático dos dados da filial a partir da Matriz para usuários PRO.
 - [x] Exibir orientação de upgrade ao usuário Free que tentar usar o preenchimento automático da Matriz.
 - [x] Cobrir em testes o cálculo corrigido da Matriz e a regra de acesso do preenchimento automático.
+- [x] Normalizar os códigos cadastrados de filial com prefixos 01, 14 e 24 para o formato compatível com a Matriz, sem perder vínculos ou gerar duplicidades.
+- [x] Validar o preenchimento automático de Ajustes após a normalização dos códigos de filial.

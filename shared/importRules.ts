@@ -55,7 +55,12 @@ export type ReceiptDailyImportRow = {
 };
 
 export function normalizeBranchCode(value: unknown) {
-  const digits = String(value ?? "").trim().replace(/\D/g, "");
+  const raw = String(value ?? "").trim();
+  const firstRegionalBranch = raw.match(/^01\.(\d+)$/);
+  if (firstRegionalBranch) {
+    return String(Number.parseInt(firstRegionalBranch[1], 10));
+  }
+  const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
   return String(Number.parseInt(digits, 10));
 }
