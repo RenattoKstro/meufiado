@@ -6,8 +6,11 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
+import { retireLegacyPwa } from "./lib/retireLegacyPwa";
 import { fetchTrpcResponse } from "./lib/trpcFetch";
 import "./index.css";
+
+void retireLegacyPwa();
 
 const queryClient = new QueryClient();
 

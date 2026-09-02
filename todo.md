@@ -315,3 +315,7 @@
 - [x] Adicionar pré-visualização da promoção antes do salvamento e exibir a versão configurada na tela Plano.
 - [x] Renomear os rótulos de preço da promoção para Preço normal e Preço promocional.
 - [x] Adicionar título, meta description, meta keywords e H2 SEO à página inicial dentro dos limites solicitados.
+- [x] Detectar e remover Service Workers antigos do MeuFiado no acesso ao aplicativo.
+- [x] Limpar caches PWA legados com segurança, sem afetar dados ou autenticação.
+- [x] Versionar ativos e adicionar proteção contra carregamento de arquivos obsoletos.
+- [x] Cobrir a migração de Service Worker e cache com testes automatizados.
