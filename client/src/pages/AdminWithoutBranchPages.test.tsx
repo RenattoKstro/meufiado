@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const profileMine = vi.hoisted(() => vi.fn());
 const metricsMine = vi.hoisted(() => vi.fn());
+const subscriptionMine = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
@@ -16,7 +17,9 @@ vi.mock("@/lib/trpc", () => ({
     metrics: {
       mine: { useQuery: metricsMine },
       save: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
+      autofillFromMatrix: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },
     },
+    subscription: { mine: { useQuery: subscriptionMine } },
   },
 }));
 
@@ -50,6 +53,7 @@ describe("páginas operacionais para administrador sem filial", () => {
   it("exibe um estado seguro em Ajustes sem tentar salvar métricas", () => {
     profileMine.mockReturnValue(emptyQuery);
     metricsMine.mockReturnValue(emptyQuery);
+    subscriptionMine.mockReturnValue(emptyQuery);
 
     render(<MetricsSettings />);
 

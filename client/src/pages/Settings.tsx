@@ -7,7 +7,7 @@ import { useTheme, type Palette } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { automaticWorkingDays } from "@shared/workingDays";
-import { CalendarClock, Check, Loader2, Moon, Palette as PaletteIcon, Save, Sun } from "lucide-react";
+import { CalendarClock, Check, Database, Loader2, Moon, Palette as PaletteIcon, Save, Sun } from "lucide-react";
 import React, { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -42,7 +42,9 @@ export function MetricsSettings() {
   const { user } = useAuth();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const profileQuery = trpc.profile.mine.useQuery();
+  const subscriptionQuery = trpc.subscription.mine.useQuery();
   const save = trpc.metrics.save.useMutation();
+  const autofillFromMatrix = trpc.metrics.autofillFromMatrix.useMutation();
   const preferences = trpc.profile.preferences.useMutation();
   const [form, setForm] = useState(initialMetrics);
 
@@ -72,6 +74,28 @@ export function MetricsSettings() {
       toast.success("Ajustes salvos. O painel foi atualizado.");
     } catch {
       toast.error("Não foi possível salvar os ajustes.");
+    }
+  }
+
+  async function loadFromMatrix() {
+    if (subscriptionQuery.isLoading) {
+      toast.message("Verificando o acesso à importação automática.");
+      return;
+    }
+    const hasProAccess = user?.role === "admin" || subscriptionQuery.data?.isPro;
+    if (!hasProAccess) {
+      toast.message("O preenchimento automático da Matriz está disponível para usuários PRO.", {
+        action: { label: "Ver plano", onClick: () => { window.location.assign("/plano"); } },
+      });
+      return;
+    }
+    try {
+      const importedMetrics = await autofillFromMatrix.mutateAsync();
+      setForm(current => ({ ...current, ...importedMetrics }));
+      toast.success("Dados da Matriz carregados. Confirme em Salvar ajustes para aplicar.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível carregar os dados da Matriz.";
+      toast.error(message);
     }
   }
 
@@ -116,8 +140,15 @@ export function MetricsSettings() {
       <form onSubmit={submit} className="space-y-5">
         <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-lg">Indicadores de cobrança</CardTitle>
-            <CardDescription>Atualize estes campos sempre que precisar revisar sua projeção.</CardDescription>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="text-lg">Indicadores de cobrança</CardTitle>
+                <CardDescription className="mt-1.5">Atualize estes campos sempre que precisar revisar sua projeção.</CardDescription>
+              </div>
+              <Button type="button" variant="outline" onClick={loadFromMatrix} disabled={autofillFromMatrix.isPending} className="h-10 shrink-0 rounded-xl border-primary/25 bg-primary/5 font-extrabold text-primary hover:bg-primary/10 hover:text-primary">
+                {autofillFromMatrix.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}Preencher com a Matriz
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {fields.map(field => (

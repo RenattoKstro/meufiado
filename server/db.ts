@@ -42,7 +42,7 @@ import {
   type DataImportRow,
   type ReceiptDailyImportRow,
 } from "../shared/importRules";
-import { amountReceivable, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
+import { amountReceivable, matrixReceivedAmount, receiptAmounts, ticketGoalAmount } from "../shared/goalRules";
 import { latestOverviewUpdate, resolveBranchOverviewMetrics } from "../shared/branchOverview";
 import { resolveMetricStorageScope } from "../shared/branchMetricScope";
 import { applyWorkingDaysMode, type WorkingDaysMode } from "../shared/workingDays";
@@ -214,7 +214,14 @@ export async function listMatrixOverviews() {
 
   return Array.from(uniqueByCode.values()).map(({ branch, metrics }) => ({
     branch,
-    metrics,
+    metrics: {
+      ...metrics,
+      // `received` foi historicamente preenchido com a coluna I (Vencido
+      // Atual). Mantemos a origem bruta explícita e corrigimos a leitura para
+      // que a interface sempre receba o Recebido calculado.
+      currentOverdue: metrics.received,
+      received: matrixReceivedAmount(metrics.received, metrics.creditGoal),
+    },
     updatedAt: metrics.updatedAt,
   }));
 }
@@ -541,6 +548,31 @@ export async function getMyMetrics(userId: number, database?: ApplicationDatabas
   }
   const legacyMetrics = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
   return applyWorkingDaysMode(legacyMetrics[0] ?? emptyMetrics);
+}
+
+export async function getMatrixAutofillForUser(userId: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+
+  const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  const branchId = profile[0]?.branchId;
+  if (!branchId) throw new Error("Seu perfil não possui uma filial vinculada para carregar dados da Matriz.");
+
+  const matrix = await db.select().from(matrixMetrics).where(eq(matrixMetrics.branchId, branchId)).limit(1);
+  const metrics = matrix[0];
+  if (!metrics) throw new Error("Não há dados da Matriz importados para a sua filial.");
+
+  // Campos sem uma origem confiável na Matriz (abertura do dia e calendário)
+  // não são retornados, preservando a edição local do operador.
+  return {
+    portfolioTotal: metrics.portfolioTotal,
+    monthOpening: metrics.overdueOpening,
+    currentOverdue: metrics.received,
+    creditGoal: metrics.creditGoal,
+    challengeGoal: metrics.challengeGoal,
+    lostGoal: metrics.lostGoal,
+    lostReceived: metrics.lostReceived,
+  };
 }
 
 export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, database?: ApplicationDatabase) {

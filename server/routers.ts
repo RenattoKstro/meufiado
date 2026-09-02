@@ -28,6 +28,7 @@ import {
   importMatrixWorkbook,
   importBranches,
   getAnalyticImportStatus,
+  getMatrixAutofillForUser,
   getMyMetrics,
   getMyProfile,
   getReceiptDailyStatus,
@@ -252,6 +253,7 @@ type RouterDependencies = {
   listActiveBranchesWithSlots?: typeof listActiveBranchesWithSlots;
   completeMyProfile?: typeof completeMyProfile;
   getMyMetrics?: typeof getMyMetrics;
+  getMatrixAutofillForUser?: typeof getMatrixAutofillForUser;
   saveMyMetrics?: typeof saveMyMetrics;
   listReceiptHistory?: typeof listReceiptHistory;
   getReceiptDailyStatus?: typeof getReceiptDailyStatus;
@@ -270,6 +272,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveBranchesWithSlots = dependencies.listActiveBranchesWithSlots ?? listActiveBranchesWithSlots;
   const resolveProfileCompletion = dependencies.completeMyProfile ?? completeMyProfile;
   const resolveMetrics = dependencies.getMyMetrics ?? getMyMetrics;
+  const resolveMatrixAutofill = dependencies.getMatrixAutofillForUser ?? getMatrixAutofillForUser;
   const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
   const resolveHistoryList = dependencies.listReceiptHistory ?? listReceiptHistory;
   const resolveDailyReceiptStatus = dependencies.getReceiptDailyStatus ?? getReceiptDailyStatus;
@@ -379,6 +382,14 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Administradores sem filial não podem alterar métricas operacionais." });
       }
       return resolveMetricsSave(ctx.user.id, input);
+    }),
+    autofillFromMatrix: protectedProcedure.mutation(async ({ ctx }) => {
+      await requireMatrixProAccess(ctx.user.id, ctx.user.role);
+      const profile = await resolveMyProfile(ctx.user.id);
+      if (ctx.user.role === "admin" && !profile?.profile?.branchId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Administradores sem filial não podem carregar métricas operacionais da Matriz." });
+      }
+      return resolveMatrixAutofill(ctx.user.id);
     }),
   }),
   branches: router({

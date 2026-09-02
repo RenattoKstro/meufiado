@@ -46,6 +46,19 @@ describe("procedures de assinatura", () => {
     expect(historyList).not.toHaveBeenCalled();
   });
 
+  it("permite o preenchimento da Matriz apenas para contas PRO e mantém os dados no servidor", async () => {
+    const autofill = vi.fn().mockResolvedValue({ portfolioTotal: 500_000, monthOpening: 120_000, currentOverdue: 90_000, creditGoal: 75_000, challengeGoal: 80_000, lostGoal: 4_000, lostReceived: 2_500 });
+    const router = createAppRouter({ getMatrixAutofillForUser: autofill });
+
+    dbMocks.getMySubscription.mockResolvedValue({ plan: "free", isPro: false });
+    await expect(router.createCaller(contextFor("user")).metrics.autofillFromMatrix()).rejects.toMatchObject({ code: "FORBIDDEN", message: "A Matriz está disponível somente no plano PRO." });
+    expect(autofill).not.toHaveBeenCalled();
+
+    dbMocks.getMySubscription.mockResolvedValue({ plan: "pro", isPro: true });
+    await expect(router.createCaller(contextFor("user")).metrics.autofillFromMatrix()).resolves.toEqual({ portfolioTotal: 500_000, monthOpening: 120_000, currentOverdue: 90_000, creditGoal: 75_000, challengeGoal: 80_000, lostGoal: 4_000, lostReceived: 2_500 });
+    expect(autofill).toHaveBeenCalledWith(31);
+  });
+
   it("mantém uma página configurada como Free disponível ao operador", async () => {
     const router = createAppRouter({ canAccessSubscriptionFeature: async (_userId, _role, feature) => feature === "utilities" });
     (dbMocks as { [key: string]: ReturnType<typeof vi.fn> }).listUtilityDownloads.mockResolvedValue([]);

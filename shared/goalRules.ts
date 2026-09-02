@@ -77,6 +77,13 @@ export function receiptAmounts(monthOpening: number, dayOpening: number, current
   };
 }
 
+// Na planilha Analítico, a coluna I contém o Vencido Atual. A Matriz mantém
+// esse número bruto para integrações, mas apresenta Recebido como a diferença
+// entre o Vencido Atual e a Meta Fiado.
+export function matrixReceivedAmount(currentOverdue: number, creditGoal: number) {
+  return currentOverdue - creditGoal;
+}
+
 export function amountReceivable(monthOpening: number, creditGoal: number) {
   return Math.max(monthOpening - creditGoal, 0);
 }

@@ -319,3 +319,7 @@
 - [x] Limpar caches PWA legados com segurança, sem afetar dados ou autenticação.
 - [x] Versionar ativos e adicionar proteção contra carregamento de arquivos obsoletos.
 - [x] Cobrir a migração de Service Worker e cache com testes automatizados.
+- [x] Corrigir o indicador Recebido da Matriz para calcular Vencido Atual menos Meta Fiado.
+- [x] Adicionar em Ajustes o preenchimento automático dos dados da filial a partir da Matriz para usuários PRO.
+- [x] Exibir orientação de upgrade ao usuário Free que tentar usar o preenchimento automático da Matriz.
+- [x] Cobrir em testes o cálculo corrigido da Matriz e a regra de acesso do preenchimento automático.
