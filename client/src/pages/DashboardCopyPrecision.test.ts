@@ -53,6 +53,11 @@ describe("textos e precisão da Visão Geral", () => {
     expect(dashboardSource).toContain("<Settings2");
   });
 
+  it("calcula a Meta diária do Desafio com a meta própria, sem repetir a de Fiado", () => {
+    expect(dashboardSource).toContain("const challengeDailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.challengeGoal, workingDaysRemaining);");
+    expect(dashboardSource).toContain("referenceGoal={metrics.challengeGoal} dailyGoal={challengeDailyGoal}");
+  });
+
   it("usa a frase de apresentação revisada", () => {
     expect(welcomeSource).toContain("texts.slogan");
     expect(appTextContextSource).toContain("Acompanhando de perto suas metas todos dias.");

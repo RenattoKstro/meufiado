@@ -330,3 +330,6 @@
 - [x] Marcar as bolhas de faixas já atingidas com um check visual.
 - [x] Adicionar atalho para Ajustes ao lado de Dias úteis na Visão Geral.
 - [x] Cobrir as novas regras de cor, bolhas e atalho com testes de regressão.
+- [x] Aumentar e reorganizar os cards da aba Filiais para evitar texto comprimido ou sobreposto.
+- [x] Corrigir a Meta diária do Desafio para usar o saldo e a meta próprios, sem repetir a Meta diária do Fiado.
+- [x] Cobrir a diferença entre as metas diárias e validar a responsividade dos cards de Filiais.

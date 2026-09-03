@@ -3,6 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 
 const overviewQuery = vi.hoisted(() => vi.fn());
 
@@ -11,6 +13,8 @@ vi.mock("@/lib/trpc", () => ({
 }));
 
 import Branches from "./Branches";
+
+const branchesSource = fs.readFileSync(path.resolve(process.cwd(), "client/src/pages/Branches.tsx"), "utf8");
 
 const metrics = {
   portfolioTotal: 100000,
@@ -110,5 +114,11 @@ describe("botão de pesquisa de Filiais", () => {
     expect(screen.getByText("@ana.recebe")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chat privado" })).toHaveAttribute("href", "/chat?perfil=77");
     expect(screen.getByRole("button", { name: /Ana Souza/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("mantém os indicadores com espaço ampliado e quebra responsiva para evitar sobreposição", () => {
+    expect(branchesSource).toContain('className="mt-6 grid gap-4 md:grid-cols-2"');
+    expect(branchesSource).toContain('className="min-h-[108px] rounded-2xl bg-muted/50 p-5"');
+    expect(branchesSource).toContain("break-words text-base font-black leading-snug");
   });
 });

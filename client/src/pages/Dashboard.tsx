@@ -96,6 +96,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const challengeRemaining = remainingToGoal(metrics.currentOverdue, metrics.challengeGoal);
   const workingDaysRemaining = Math.max(metrics.workingDaysTotal - metrics.workingDaysElapsed, 0);
   const dailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.creditGoal, workingDaysRemaining);
+  const challengeDailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.challengeGoal, workingDaysRemaining);
   const projection = receiptProjection({
     historyTotalReceived: historyQuery?.data?.totalReceived ?? 0,
     historyDaysRecorded: historyQuery?.data?.daysRecorded ?? 0,
@@ -115,7 +116,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const pendingSetup = metrics.creditGoal <= 0 || metrics.challengeGoal <= 0 || metrics.currentOverdue <= 0;
 
   const fiado = <GoalCard title="Meta Fiado" description="Premiação acumulativa por percentual atingindo." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} dailyGoal={dailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Fiado" remainingValue={fiadoRemaining} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} />;
-  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} dailyGoal={dailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Desafio" remainingValue={challengeRemaining} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} />;
+  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} daysTotal={metrics.workingDaysTotal} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} dailyGoal={challengeDailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Desafio" remainingValue={challengeRemaining} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} />;
   const delinquencyTone: StatTone = metrics.portfolioTotal > 0 ? delinquency < 7 ? "success" : "danger" : "default";
 
   return <section className="mx-auto max-w-7xl animate-in fade-in duration-500">
