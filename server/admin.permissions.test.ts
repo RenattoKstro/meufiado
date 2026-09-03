@@ -46,8 +46,8 @@ describe("permissões administrativas", () => {
   });
 
   it("entrega a Matriz somente a administradores e usuários PRO, sem procedimento de edição", async () => {
-    const proRouter = createAppRouter({ getMySubscription: async () => ({ isPro: true } as never) });
-    const freeRouter = createAppRouter({ getMySubscription: async () => ({ isPro: false } as never) });
+    const proRouter = createAppRouter({ canAccessSubscriptionFeature: async (_userId, role, feature) => role === "admin" || feature === "matrix" });
+    const freeRouter = createAppRouter({ canAccessSubscriptionFeature: async (_userId, role) => role === "admin" });
     const operatorCaller = proRouter.createCaller(contextFor("user"));
     const matrix = await operatorCaller.matrix.overview();
     expect(matrix).toEqual(expect.any(Array));

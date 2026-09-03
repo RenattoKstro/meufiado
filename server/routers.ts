@@ -77,6 +77,7 @@ import {
   getMercadoPagoSubscription,
   saveMercadoPagoSubscription,
   touchUserPresence,
+  type SubscriptionFeatureKey,
 } from "./db";
 import { createRecurringPreapproval } from "./mercadoPago";
 import { randomUUID } from "crypto";
@@ -122,6 +123,7 @@ const metricsInput = z.object({
   workingDaysTotal: z.number().int().min(0).max(31),
   workingDaysElapsed: z.number().int().min(0).max(31),
   ticketWorkingDaysRemaining: z.number().int().min(0).max(31),
+  manualHolidayDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(31).default([]),
   fiadoAtDay15: z.boolean(),
 });
 const spreadsheetRow = z.array(z.union([z.string(), z.number(), z.null(), z.undefined()]));
@@ -284,7 +286,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveAppTexts = dependencies.getAppTextSettings ?? getAppTextSettings;
   const resolveAppTextsUpdate = dependencies.updateAppTextSettings ?? updateAppTextSettings;
 
-  async function requireFeatureAccess(userId: number, role: "admin" | "user", feature: "branches" | "history" | "utilities" | "chat") {
+  async function requireFeatureAccess(userId: number, role: "admin" | "user", feature: SubscriptionFeatureKey) {
     if (await resolveFeatureAccess(userId, role, feature)) return;
     throw new TRPCError({ code: "FORBIDDEN", message: "Esta página está disponível no plano PRO." });
   }
@@ -400,11 +402,11 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   matrix: router({
     overview: protectedProcedure.query(async ({ ctx }) => {
-      await requireMatrixProAccess(ctx.user.id, ctx.user.role);
+      await requireFeatureAccess(ctx.user.id, ctx.user.role, "matrix");
       return listMatrixOverviews();
     }),
     importStatus: protectedProcedure.query(async ({ ctx }) => {
-      await requireMatrixProAccess(ctx.user.id, ctx.user.role);
+      await requireFeatureAccess(ctx.user.id, ctx.user.role, "matrix");
       return getAnalyticImportStatus();
     }),
   }),

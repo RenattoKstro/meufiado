@@ -521,7 +521,24 @@ export async function uploadMyAvatar(userId: number, dataUrl: string) {
   return { avatarUrl: uploaded.url };
 }
 
-const emptyMetrics = {
+type MetricsInput = {
+  portfolioTotal: number;
+  monthOpening: number;
+  dayOpening: number;
+  currentOverdue: number;
+  creditGoal: number;
+  challengeGoal: number;
+  lostGoal: number;
+  lostReceived: number;
+  workingDaysMode: WorkingDaysMode;
+  workingDaysTotal: number;
+  workingDaysElapsed: number;
+  ticketWorkingDaysRemaining: number;
+  manualHolidayDates: string[];
+  fiadoAtDay15: boolean;
+};
+
+const emptyMetrics: MetricsInput = {
   portfolioTotal: 0,
   monthOpening: 0,
   dayOpening: 0,
@@ -534,8 +551,44 @@ const emptyMetrics = {
   workingDaysTotal: 0,
   workingDaysElapsed: 0,
   ticketWorkingDaysRemaining: 0,
+  manualHolidayDates: [] as string[],
   fiadoAtDay15: false,
 };
+
+type PersistedMetrics = Omit<MetricsInput, "manualHolidayDates" | "workingDaysMode"> & {
+  workingDaysMode: string;
+  manualHolidayDatesJson?: unknown;
+};
+
+function manualHolidayDatesFromStoredValue(value: unknown) {
+  if (typeof value !== "string") return [] as string[];
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [] as string[];
+    return Array.from(new Set(parsed.filter((date): date is string => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)))).slice(0, 31);
+  } catch {
+    return [] as string[];
+  }
+}
+
+function metricsForClient(values: PersistedMetrics): MetricsInput {
+  return applyWorkingDaysMode({
+    portfolioTotal: values.portfolioTotal,
+    monthOpening: values.monthOpening,
+    dayOpening: values.dayOpening,
+    currentOverdue: values.currentOverdue,
+    creditGoal: values.creditGoal,
+    challengeGoal: values.challengeGoal,
+    lostGoal: values.lostGoal,
+    lostReceived: values.lostReceived,
+    workingDaysMode: values.workingDaysMode === "manual" ? "manual" : "automatic",
+    workingDaysTotal: values.workingDaysTotal,
+    workingDaysElapsed: values.workingDaysElapsed,
+    ticketWorkingDaysRemaining: values.ticketWorkingDaysRemaining,
+    manualHolidayDates: manualHolidayDatesFromStoredValue(values.manualHolidayDatesJson),
+    fiadoAtDay15: values.fiadoAtDay15,
+  });
+}
 
 export async function getMyMetrics(userId: number, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
@@ -544,10 +597,10 @@ export async function getMyMetrics(userId: number, database?: ApplicationDatabas
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
     const sharedMetrics = await db.select().from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    return applyWorkingDaysMode(sharedMetrics[0] ?? emptyMetrics);
+    return metricsForClient(sharedMetrics[0] ?? emptyMetrics);
   }
   const legacyMetrics = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  return applyWorkingDaysMode(legacyMetrics[0] ?? emptyMetrics);
+  return metricsForClient(legacyMetrics[0] ?? emptyMetrics);
 }
 
 export async function getMatrixAutofillForUser(userId: number, database?: ApplicationDatabase) {
@@ -575,10 +628,12 @@ export async function getMatrixAutofillForUser(userId: number, database?: Applic
   };
 }
 
-export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, database?: ApplicationDatabase) {
+export async function saveMyMetrics(userId: number, input: MetricsInput, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  const normalizedInput = applyWorkingDaysMode(input);
+  const normalizedInput = applyWorkingDaysMode({ ...input, manualHolidayDates: Array.from(new Set(input.manualHolidayDates ?? [])).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)).slice(0, 31) });
+  const { manualHolidayDates, ...metricValues } = normalizedInput;
+  const persistenceValues = { ...metricValues, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) };
   const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
   const dayInBrazil = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "numeric" }).format(new Date()));
   const received = receiptAmounts(normalizedInput.monthOpening, normalizedInput.dayOpening, normalizedInput.currentOverdue).accumulated;
@@ -586,12 +641,12 @@ export async function saveMyMetrics(userId: number, input: typeof emptyMetrics, 
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
     const existing = await db.select({ fiadoAtDay15: branchMetrics.fiadoAtDay15 }).from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    const values = { ...normalizedInput, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+    const values = { ...persistenceValues, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
     await db.insert(branchMetrics).values({ branchId: storageScope.branchId, ...values }).onDuplicateKeyUpdate({ set: values });
     return;
   }
   const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  const values = { ...normalizedInput, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
+  const values = { ...persistenceValues, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
   await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
 }
 

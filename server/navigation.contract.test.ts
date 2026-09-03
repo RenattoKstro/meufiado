@@ -273,7 +273,7 @@ describe("contrato da navegação lateral", () => {
     expect(matrix).toContain('<MatrixDetail label="Vendas" value={money(data.sales)} tone="emerald" />');
   });
 
-  it("permite comparar até quatro filiais na sequência digitada e alinha Vendas com Recebido", async () => {
+  it("permite comparar até quatro filiais na sequência digitada e alinha Vendas com o saldo restante", async () => {
     const matrix = await readFile(resolve(process.cwd(), "client/src/pages/Matrix.tsx"), "utf8");
 
     expect(matrix).toContain("Acompanhe todas as filiais aqui.");
@@ -281,7 +281,7 @@ describe("contrato da navegação lateral", () => {
     expect(matrix).toContain("sortMatrixItemsByComparisonCodes(items, comparisonCodes)");
     expect(matrix).toContain("Digite até quatro códigos separados por vírgula");
     expect(matrix).toContain('<div className="mt-4 grid grid-cols-2 gap-2"><SummaryAmount label="Vendas"');
-    expect(matrix).toContain('<SummaryAmount label="Recebido"');
+    expect(matrix).toContain('<SummaryAmount label="Restante Fiado"');
     expect(matrix).toContain("comparisonEffectivenessHighlights(visibleItems)");
     expect(matrix).toContain("Melhor efetividade");
     expect(matrix).toContain("Menor efetividade");

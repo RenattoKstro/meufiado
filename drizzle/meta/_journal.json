@@ -267,6 +267,13 @@
       "when": 1787864935006,
       "tag": "0037_unusual_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1788451789267,
+      "tag": "0038_low_makkari",
+      "breakpoints": true
     }
   ]
 }

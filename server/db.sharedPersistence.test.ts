@@ -13,6 +13,7 @@ const updatedMetrics = {
   workingDaysTotal: 22,
   workingDaysElapsed: 9,
   ticketWorkingDaysRemaining: 2,
+  manualHolidayDates: ["2026-09-07"],
   fiadoAtDay15: false,
 };
 
@@ -108,7 +109,7 @@ describe("helpers reais de métricas compartilhadas", () => {
     await saveMyMetrics(100, updatedMetrics, database as never);
     const assistantMetrics = await getMyMetrics(101, database as never);
 
-    expect(inserted).toEqual([expect.objectContaining({ branchId: 77, currentOverdue: 58000, lostReceived: 680 })]);
-    expect(assistantMetrics).toEqual(expect.objectContaining({ branchId: 77, currentOverdue: 58000, lostReceived: 680 }));
+    expect(inserted).toEqual([expect.objectContaining({ branchId: 77, currentOverdue: 58000, lostReceived: 680, manualHolidayDatesJson: '["2026-09-07"]' })]);
+    expect(assistantMetrics).toEqual(expect.objectContaining({ currentOverdue: 58000, lostReceived: 680, manualHolidayDates: ["2026-09-07"] }));
   });
 });

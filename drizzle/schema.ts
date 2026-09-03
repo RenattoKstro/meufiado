@@ -319,7 +319,7 @@ export const userCredentials = mysqlTable("userCredentials", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export const metricSettings = mysqlTable("metricSettings", {
+export const metricSettings = mysqlTable("metricSettings", { // Escopo de métricas pessoais legadas
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id),
   portfolioTotal: double("portfolioTotal").default(0).notNull(),
@@ -334,11 +334,12 @@ export const metricSettings = mysqlTable("metricSettings", {
   workingDaysTotal: int("workingDaysTotal").default(0).notNull(),
   workingDaysElapsed: int("workingDaysElapsed").default(0).notNull(),
   ticketWorkingDaysRemaining: int("ticketWorkingDaysRemaining").default(0).notNull(),
+  manualHolidayDatesJson: text("manualHolidayDatesJson").notNull(),
   fiadoAtDay15: boolean("fiadoAtDay15").default(false).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export const branchMetrics = mysqlTable("branchMetrics", {
+export const branchMetrics = mysqlTable("branchMetrics", { // Escopo de métricas compartilhadas por filial
   id: int("id").autoincrement().primaryKey(),
   branchId: int("branchId").notNull().unique().references(() => branches.id),
   portfolioTotal: double("portfolioTotal").default(0).notNull(),
@@ -355,6 +356,7 @@ export const branchMetrics = mysqlTable("branchMetrics", {
   workingDaysTotal: int("workingDaysTotal").default(0).notNull(),
   workingDaysElapsed: int("workingDaysElapsed").default(0).notNull(),
   ticketWorkingDaysRemaining: int("ticketWorkingDaysRemaining").default(0).notNull(),
+  manualHolidayDatesJson: text("manualHolidayDatesJson").notNull(),
   fiadoAtDay15: boolean("fiadoAtDay15").default(false).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
