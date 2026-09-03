@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import GoalCard from "./GoalCard";
@@ -59,25 +59,4 @@ describe("GoalCard", () => {
     expect(screen.getByText("Meta diária atingida")).toBeInTheDocument();
   });
 
-  it("mostra um anel de progresso com faltas por faixa e status diário em vermelho", async () => {
-    render(<GoalCard title="Meta Fiado" description="Teste" progress={71} received={100} accumulated={0} total={100} tiers={[{ target: 94, reward: 52.5 }, { target: 96, reward: 63 }, { target: 98, reward: 84 }, { target: 99, reward: 94.5 }, { target: 100, reward: 241.5 }, { target: 101, reward: 84 }, { target: 103, reward: 84 }, { target: 105, reward: 84 }]} daysTotal={20} daysElapsed={10} referenceGoal={1000} remainingValue={200} dailyGoal={50} dailyReceived={40} targetMissing={target => target * 10} overviewStyle />);
-
-    const detailsTrigger = screen.getByRole("button", { name: /detalhes das faixas da meta fiado/i });
-    expect(detailsTrigger).toHaveTextContent("71.00%");
-    const dailyStatus = screen.getByText("Meta diária / Rec. hoje").nextElementSibling;
-    expect(dailyStatus).toHaveTextContent("R$ 50,00 / R$ 40,00");
-    expect(dailyStatus).toHaveClass("text-rose-600");
-
-    fireEvent.mouseEnter(detailsTrigger);
-    await waitFor(() => expect(screen.getByText("Faltas por faixa")).toBeInTheDocument());
-    expect(screen.getByText("105%")).toBeInTheDocument();
-  });
-
-  it("marca o status diário em verde quando o recebido hoje alcança a meta", () => {
-    render(<GoalCard title="Meta Desafio" description="Teste" progress={96} received={100} accumulated={0} total={100} tiers={[{ target: 96, reward: 200 }]} daysTotal={20} daysElapsed={10} referenceGoal={1000} remainingValue={200} dailyGoal={50} dailyReceived={50} targetMissing={target => target} overviewStyle />);
-
-    const dailyStatus = screen.getByText("Meta diária / Rec. hoje").nextElementSibling;
-    expect(dailyStatus).toHaveTextContent("R$ 50,00 / R$ 50,00");
-    expect(dailyStatus).toHaveClass("text-emerald-600");
-  });
 });

@@ -27,7 +27,7 @@ import {
   dailyCollectionGoal,
   remainingToGoal,
 } from "../../../shared/goalRules";
-import { AlertTriangle, ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, Settings2, TicketCheck, TrendingUp, Trophy } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, Settings2, TicketCheck, TrendingUp, Trophy, X } from "lucide-react";
 import { Link } from "wouter";
 
 type View = "overview" | "fiado" | "challenge";
@@ -58,9 +58,24 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const profile = profileQuery.data?.profile;
   const branch = profileQuery.data?.branch;
   const metrics = metricsQuery.data;
+  const [dailyReminderDismissed, setDailyReminderDismissed] = React.useState(false);
   const canViewProjection = user?.role === "admin" || Boolean(subscriptionQuery?.data?.isPro);
   const historyQuery = trpc.history?.list.useQuery({ month: projectionMonth }, { enabled: canViewProjection && Boolean(profile?.branchId) });
   const dailyStatusQuery = trpc.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
+
+  React.useEffect(() => {
+    if (!branch?.id) {
+      setDailyReminderDismissed(false);
+      return;
+    }
+    const storageKey = `meufiado:lembrete-diario-fechado:${branch.id}:${today}`;
+    setDailyReminderDismissed(window.localStorage.getItem(storageKey) === "1");
+  }, [branch?.id, today]);
+
+  const dismissDailyReminder = () => {
+    if (branch?.id) window.localStorage.setItem(`meufiado:lembrete-diario-fechado:${branch.id}:${today}`, "1");
+    setDailyReminderDismissed(true);
+  };
 
   if (profileQuery.isLoading || metricsQuery.isLoading) return <DashboardLoading />;
   if (user?.role === "admin" && (!profile || !branch)) return <AdminDashboardNotice view={view} />;
@@ -114,7 +129,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
       <div className="flex items-center gap-2"><div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-4 py-3 shadow-sm"><CalendarDays className="h-4 w-4 text-primary" /><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Dias úteis</p><p className="text-sm font-black">{metrics.workingDaysElapsed} de {metrics.workingDaysTotal || "–"}</p></div></div><Link href="/ajustes" aria-label="Abrir Ajustes" className="inline-flex h-[52px] items-center gap-2 rounded-2xl border border-border/70 bg-card px-3 text-xs font-extrabold shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4"><Settings2 className="h-4 w-4 text-primary" /><span className="hidden sm:inline">Ajustes</span></Link></div>
     </header>
     {pendingSetup && <div className="mb-7 flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4"><CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><p className="text-xs leading-relaxed text-muted-foreground">Configure os valores iniciais em <Link href="/ajustes" className="font-extrabold text-primary underline-offset-2 hover:underline">Ajustes</Link> para ativar os cálculos e projeções do painel.</p></div>}
-    {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><Link href="/historicos" className="shrink-0 text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link></div>}
+    {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && !dailyReminderDismissed && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><div className="flex shrink-0 items-center gap-3"><Link href="/historicos" className="text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link><button type="button" onClick={dismissDailyReminder} aria-label="Fechar lembrete diário" className="grid h-7 w-7 place-items-center rounded-lg text-amber-800 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 dark:text-amber-200"><X className="h-4 w-4" /></button></div></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
       {canShowForecast && <><ReceiptProjectionCard projection={projection} canView isLoading={Boolean(historyQuery?.isLoading)} />
