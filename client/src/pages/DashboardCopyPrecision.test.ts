@@ -27,7 +27,8 @@ describe("textos e precisão da Visão Geral", () => {
   it("exibe os percentuais principais com duas casas decimais", () => {
     expect(dashboardSource).toContain("progress.toFixed(2)");
     expect(goalCardSource).toContain("progress.toFixed(2)");
-    expect(goalCardSource).toContain("tierProgress.toFixed(2)");
+    expect(goalCardSource).toContain("visualProgress.toFixed(2)");
+    expect(goalCardSource).toContain("data-progress-tone={tone.key}");
   });
 
   it("destaca os valores restantes de Fiado e Desafio na Visão Geral e nos cartões principais", () => {
@@ -44,6 +45,12 @@ describe("textos e precisão da Visão Geral", () => {
   it("exibe o vencido atual como indicador separado na Visão Geral", () => {
     expect(dashboardSource).toContain('label="Vencido atual"');
     expect(dashboardSource).toContain("value={currency(metrics.currentOverdue)}");
+  });
+
+  it("oferece um atalho acessível para Ajustes ao lado do resumo de dias úteis", () => {
+    expect(dashboardSource).toContain('href="/ajustes"');
+    expect(dashboardSource).toContain('aria-label="Abrir Ajustes"');
+    expect(dashboardSource).toContain("<Settings2");
   });
 
   it("usa a frase de apresentação revisada", () => {

@@ -1,7 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { ChevronDown, CircleCheck, LockKeyhole, Sparkles } from "lucide-react";
+import { Check, CircleCheck, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 import type { RewardTier } from "../../../shared/goalRules";
 
@@ -20,6 +18,8 @@ type GoalCardProps = {
   daysTotal: number;
   daysElapsed: number;
   referenceGoal: number;
+  dailyGoal: number;
+  dailyReceived: number;
   remainingLabel?: string;
   remainingValue?: number;
   targetMissing?: (target: number) => number;
@@ -27,60 +27,86 @@ type GoalCardProps = {
   accent?: "primary" | "violet";
 };
 
-const tierPalette = [
-  { bar: "bg-cyan-500", text: "text-cyan-700", soft: "bg-cyan-500/10" },
-  { bar: "bg-sky-500", text: "text-sky-700", soft: "bg-sky-500/10" },
-  { bar: "bg-blue-500", text: "text-blue-700", soft: "bg-blue-500/10" },
-  { bar: "bg-indigo-500", text: "text-indigo-700", soft: "bg-indigo-500/10" },
-  { bar: "bg-violet-500", text: "text-violet-700", soft: "bg-violet-500/10" },
-  { bar: "bg-fuchsia-500", text: "text-fuchsia-700", soft: "bg-fuchsia-500/10" },
-  { bar: "bg-pink-500", text: "text-pink-700", soft: "bg-pink-500/10" },
-  { bar: "bg-amber-500", text: "text-amber-700", soft: "bg-amber-500/10" },
-];
+type ProgressTone = {
+  key: "red" | "yellow" | "blue" | "green";
+  label: string;
+  color: string;
+  textClass: string;
+  softClass: string;
+  bubbleClass: string;
+};
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, remainingLabel, remainingValue, targetMissing, projectionTargets, accent = "primary" }: GoalCardProps) {
-  const [open, setOpen] = useState(false);
-  const visualProgress = Math.min(progress, 105);
+function progressTone(progress: number): ProgressTone {
+  if (progress < 50) return { key: "red", label: "Abaixo de 50%", color: "#ef4444", textClass: "text-red-600 dark:text-red-400", softClass: "bg-red-500/10", bubbleClass: "border-red-500/45 bg-red-500/10 text-red-700 dark:text-red-300" };
+  if (progress < 94) return { key: "yellow", label: "De 50% a 93,99%", color: "#eab308", textClass: "text-yellow-700 dark:text-yellow-300", softClass: "bg-yellow-500/10", bubbleClass: "border-yellow-500/45 bg-yellow-500/10 text-yellow-800 dark:text-yellow-200" };
+  if (progress < 100) return { key: "blue", label: "De 94% a 99,99%", color: "#3b82f6", textClass: "text-blue-600 dark:text-blue-400", softClass: "bg-blue-500/10", bubbleClass: "border-blue-500/45 bg-blue-500/10 text-blue-700 dark:text-blue-300" };
+  return { key: "green", label: "100% ou mais", color: "#10b981", textClass: "text-emerald-600 dark:text-emerald-400", softClass: "bg-emerald-500/10", bubbleClass: "border-emerald-500/45 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
+}
+
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, dailyGoal, dailyReceived, remainingLabel, remainingValue, targetMissing, projectionTargets }: GoalCardProps) {
+  const [activeTarget, setActiveTarget] = useState<number | null>(null);
+  const visualProgress = Math.min(Math.max(progress, 0), 105);
   const displayedTargets = Array.from(new Set(projectionTargets ?? tiers.map(tier => tier.target)));
   const missing = (target: number) => targetMissing ? targetMissing(target) : Math.max(0, (referenceGoal * target) / 100 - received);
   const daily = (target: number) => {
     const days = Math.max(daysTotal - daysElapsed, 0);
     return days > 0 ? missing(target) / days : 0;
   };
+  const tone = progressTone(progress);
+  const reachedDailyGoal = dailyGoal > 0 && dailyReceived >= dailyGoal;
+  const activeMissing = activeTarget === null ? null : missing(activeTarget);
+  const activeDaily = activeTarget === null ? null : daily(activeTarget);
+  const bubblePosition = (index: number) => {
+    const angle = ((index / displayedTargets.length) * 360 - 90) * (Math.PI / 180);
+    return { left: `${50 + Math.cos(angle) * 42}%`, top: `${50 + Math.sin(angle) * 42}%` };
+  };
 
   return (
-    <article className={cn("overflow-hidden rounded-[1.6rem] border border-border/70 bg-card shadow-[0_14px_38px_-24px_color-mix(in_oklab,var(--primary)_45%,transparent)] transition-shadow hover:shadow-[0_18px_42px_-24px_color-mix(in_oklab,var(--primary)_65%,transparent)]", accent === "violet" && "[--primary:oklch(0.52_0.22_292)]")}>
-      <button onClick={() => setOpen(current => !current)} className="block w-full p-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-2 flex items-center gap-2"><span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span><p className="text-sm font-extrabold tracking-tight">{title}</p></div>
-            <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
+    <article className="overflow-hidden rounded-[1.6rem] border border-border/70 bg-card shadow-[0_14px_38px_-24px_color-mix(in_oklab,var(--primary)_45%,transparent)] transition-shadow hover:shadow-[0_18px_42px_-24px_color-mix(in_oklab,var(--primary)_65%,transparent)]">
+      <div className="p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className={cn("inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", tone.softClass, tone.textClass)}><Sparkles className="h-4 w-4" /></span>
+          <div className="min-w-0"><p className="text-sm font-extrabold tracking-tight">{title}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p></div>
+        </div>
+
+        <div className="mx-auto mt-5 w-full max-w-[23rem]" onMouseLeave={() => setActiveTarget(null)}>
+          <div className="relative mx-auto h-[19rem] w-full max-w-[22rem]" aria-label={`Faixas da ${title}`}>
+            {displayedTargets.map((target, index) => {
+              const hit = progress >= target;
+              return <button
+                type="button"
+                key={target}
+                className={cn("absolute z-10 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border text-[11px] font-black shadow-sm transition-[transform,box-shadow,background-color] duration-200 hover:scale-110 focus:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-14 sm:w-14 sm:text-xs", hit ? tone.bubbleClass : "border-border bg-background text-muted-foreground hover:border-primary/50")}
+                style={bubblePosition(index)}
+                aria-label={`Faixa de ${target}% ${hit ? "atingida" : "a atingir"}. Faltam ${currency(missing(target))}.`}
+                aria-pressed={activeTarget === target}
+                onMouseEnter={() => setActiveTarget(target)}
+                onFocus={() => setActiveTarget(target)}
+                onClick={() => setActiveTarget(current => current === target ? null : target)}
+              >
+                <span className="flex items-center gap-0.5">{hit && <Check className="h-3 w-3 stroke-[3]" aria-hidden="true" />}{target}%</span>
+              </button>;
+            })}
+            <div className="absolute left-1/2 top-1/2 grid h-40 w-40 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full p-[9px] shadow-inner sm:h-44 sm:w-44" role="progressbar" aria-label={`Progresso circular ${title}`} aria-valuemin={0} aria-valuemax={105} aria-valuenow={Number(visualProgress.toFixed(2))} aria-valuetext={`${progress.toFixed(2)}% — ${tone.label}`} data-progress-tone={tone.key} style={{ background: `conic-gradient(${tone.color} ${(visualProgress / 105) * 360}deg, var(--muted) 0deg)` }}>
+              <div className="grid h-full w-full place-items-center rounded-full bg-card text-center shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--border)_70%,transparent)]">
+                <div><p className={cn("text-4xl font-black tracking-[-0.06em]", tone.textClass)}>{progress.toFixed(2)}%</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{tone.label}</p></div>
+              </div>
+            </div>
           </div>
-          <Badge variant="secondary" className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-extrabold text-primary">{progress.toFixed(2)}%</Badge>
+          <p className="mt-1 text-center text-[11px] font-semibold text-muted-foreground">Passe o cursor, use o foco ou toque em uma bolha para ver a faixa.</p>
+          <div className="mt-3 min-h-[5.25rem] rounded-2xl border border-border/70 bg-muted/35 p-3 text-center" aria-live="polite">
+            {activeTarget === null ? <p className="pt-2 text-xs text-muted-foreground">As bolhas com check já foram atingidas.</p> : <><p className="text-xs font-black">Falta para {activeTarget}%: <span className={tone.textClass}>{currency(activeMissing ?? 0)}</span></p><p className="mt-1 text-[11px] text-muted-foreground">Saldo por dia para esta faixa: <span className="font-extrabold text-foreground">{currency(activeDaily ?? 0)}</span></p></>}
+          </div>
         </div>
-        <div className="mt-6">
-          <div className="mb-2 flex items-end justify-between gap-4"><div><p className="text-2xl font-black tracking-tight">{currency(accumulated)}</p><p className="text-[11px] font-medium text-muted-foreground">de {currency(total)} possíveis</p></div><div className="space-y-2 text-right text-[11px] font-semibold text-muted-foreground"><p>Recebido acumulado<br /><span className="text-foreground">{currency(received)}</span></p>{remainingLabel && typeof remainingValue === "number" && <p>{remainingLabel}<br /><span className="text-foreground">{currency(remainingValue)}</span></p>}</div></div>
-          <Progress value={Math.min((progress / 105) * 100, 100)} className="h-2.5 bg-muted [&>div]:bg-primary" />
+
+        <div className="mt-5 grid gap-3 border-t border-border/60 pt-5 sm:grid-cols-2">
+          <div className="rounded-2xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Recebido acumulado</p><p className="mt-1 text-sm font-black">{currency(received)}</p><p className="mt-0.5 text-[11px] text-muted-foreground">Premiação: {currency(accumulated)} de {currency(total)}</p></div>
+          {remainingLabel && typeof remainingValue === "number" && <div className="rounded-2xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{remainingLabel}</p><p className="mt-1 text-sm font-black">{currency(remainingValue)}</p></div>}
+          <div className={cn("rounded-2xl border p-3 sm:col-span-2", dailyGoal > 0 ? reachedDailyGoal ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10" : "border-border/70 bg-muted/45")}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta diária / Rec. hoje</p><p className={cn("mt-1 text-sm font-black", dailyGoal > 0 && (reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"))}>{currency(dailyGoal)} / {currency(dailyReceived)}</p><p className={cn("mt-0.5 text-[11px] font-semibold", dailyGoal > 0 ? reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300" : "text-muted-foreground")}>{dailyGoal > 0 ? reachedDailyGoal ? "Meta diária atingida" : "Meta diária ainda não atingida" : "Informe as metas para acompanhar"}</p>
+          </div>
         </div>
-        <div className="mt-5 flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-muted-foreground"><span>{open ? "Ocultar projeções" : "Ver faixas e projeções"}</span><ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} /></div>
-      </button>
-      {open && <div className="border-t border-border/70 bg-muted/35 p-5">
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          {displayedTargets.map(target => <div key={target} className="rounded-2xl bg-background p-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Falta para {target}%</p><p className="mt-2 text-sm font-black">{currency(missing(target))}</p><p className="mt-1 text-[11px] leading-snug text-muted-foreground">Saldo a receber · {currency(daily(target))}/dia</p></div>)}
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Faixas de premiação</p><p className="text-[10px] font-semibold text-muted-foreground">Progresso por faixa</p></div>
-          {tiers.map((tier, index) => {
-            const hit = progress >= tier.target;
-            const palette = tierPalette[index % tierPalette.length];
-            const tierProgress = Math.min(Math.max((progress / tier.target) * 100, 0), 100);
-            return <div key={tier.target} className={cn("rounded-2xl border border-border/60 p-3 transition-colors", hit ? palette.soft : "bg-background/70")}>
-              <div className="flex items-center justify-between gap-3 text-xs"><div className="flex items-center gap-2">{hit ? <CircleCheck className={cn("h-4 w-4", palette.text)} /> : <LockKeyhole className="h-3.5 w-3.5 text-muted-foreground" />}<span className={hit ? "font-extrabold text-foreground" : "font-semibold text-muted-foreground"}>{tier.target}%</span><span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold", hit ? `${palette.soft} ${palette.text}` : "bg-muted text-muted-foreground")}>{hit ? "Atingida" : "Em andamento"}</span></div><span className={hit ? cn("font-extrabold", palette.text) : "font-semibold text-muted-foreground"}>{currency(tier.reward)}</span></div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={`Progresso da faixa ${tier.target}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Number(tierProgress.toFixed(2))} aria-valuetext={`${tierProgress.toFixed(2)}% rumo à faixa de ${tier.target}%`}><div className={cn("h-full rounded-full transition-[width] duration-500", palette.bar)} style={{ width: `${tierProgress}%` }} /></div>
-            </div>;
-          })}
-        </div>
-      </div>}
+      </div>
     </article>
   );
 }

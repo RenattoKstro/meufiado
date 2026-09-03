@@ -325,3 +325,8 @@
 - [x] Cobrir em testes o cálculo corrigido da Matriz e a regra de acesso do preenchimento automático.
 - [x] Normalizar os códigos cadastrados de filial com prefixos 01, 14 e 24 para o formato compatível com a Matriz, sem perder vínculos ou gerar duplicidades.
 - [x] Validar o preenchimento automático de Ajustes após a normalização dos códigos de filial.
+- [x] Exibir as faixas das metas Fiado e Desafio como bolhas ao redor do progresso circular.
+- [x] Aplicar cores de progresso por percentual: vermelho, amarelo, azul e verde nos dois cards.
+- [x] Marcar as bolhas de faixas já atingidas com um check visual.
+- [x] Adicionar atalho para Ajustes ao lado de Dias úteis na Visão Geral.
+- [x] Cobrir as novas regras de cor, bolhas e atalho com testes de regressão.
