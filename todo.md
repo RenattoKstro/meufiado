@@ -330,3 +330,8 @@
 - [x] Corrigir os cálculos de dias úteis e permitir excluir dias específicos como feriados no modo manual.
 - [x] Redesenhar os cards de Meta Fiado e Meta Desafio da Visão Geral lado a lado conforme a referência fornecida.
 - [x] Cobrir os acessos, dias úteis e apresentação das metas com testes de regressão.
+- [x] Permitir fechar o lembrete diário da Visão Geral sem alterar os dados de cobrança.
+- [x] Reforçar os anéis de progresso circular das metas Fiado e Desafio.
+- [x] Exibir Meta diária e Recebido hoje nos dois cards de metas, com status vermelho ou verde conforme o atingimento.
+- [x] Exibir ao passar o cursor os valores faltantes de cada faixa das metas Fiado e Desafio.
+- [x] Cobrir os novos indicadores e interações da Visão Geral com testes de regressão.

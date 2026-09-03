@@ -22,6 +22,8 @@ type GoalCardProps = {
   referenceGoal: number;
   remainingLabel?: string;
   remainingValue?: number;
+  dailyGoal?: number;
+  dailyReceived?: number;
   targetMissing?: (target: number) => number;
   projectionTargets?: number[];
   accent?: "primary" | "violet" | "emerald";
@@ -39,8 +41,9 @@ const tierPalette = [
   { bar: "bg-amber-500", text: "text-amber-700", soft: "bg-amber-500/10" },
 ];
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, remainingLabel, remainingValue, targetMissing, projectionTargets, accent = "primary", overviewStyle = false }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, remainingLabel, remainingValue, dailyGoal, dailyReceived, targetMissing, projectionTargets, accent = "primary", overviewStyle = false }: GoalCardProps) {
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const visualProgress = Math.min(progress, 105);
   const displayedTargets = Array.from(new Set(projectionTargets ?? tiers.map(tier => tier.target)));
   const missing = (target: number) => targetMissing ? targetMissing(target) : Math.max(0, (referenceGoal * target) / 100 - received);
@@ -50,6 +53,9 @@ export default function GoalCard({ title, description, progress, received, accum
   };
   const daysRemaining = Math.max(daysTotal - daysElapsed, 0);
   const dailyNeeded = daysRemaining > 0 && typeof remainingValue === "number" ? remainingValue / daysRemaining : 0;
+  const displayedDailyGoal = dailyGoal ?? dailyNeeded;
+  const displayedDailyReceived = dailyReceived ?? 0;
+  const dailyGoalReached = displayedDailyGoal <= 0 || displayedDailyReceived >= displayedDailyGoal;
   const ringPercentage = Math.min(Math.max(progress, 0), 105) / 105 * 100;
   const accentVariables = accent === "violet" ? "[--primary:oklch(0.52_0.22_292)]" : accent === "emerald" ? "[--primary:oklch(0.72_0.16_160)]" : "";
 
@@ -73,13 +79,24 @@ export default function GoalCard({ title, description, progress, received, accum
 
   if (overviewStyle) {
     return <article className={cn("overflow-hidden rounded-2xl border border-border/70 bg-card shadow-[0_14px_38px_-24px_color-mix(in_oklab,var(--primary)_45%,transparent)] transition-shadow hover:shadow-[0_18px_42px_-24px_color-mix(in_oklab,var(--primary)_65%,transparent)]", accentVariables)}>
-      <button onClick={() => setOpen(current => !current)} className="block w-full p-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:p-7">
+      <div className="p-5 text-left sm:p-7">
         <div className="flex items-center justify-center gap-2 text-sm font-extrabold"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary"><Sparkles className="h-3.5 w-3.5" /></span>{title}</div>
-        <div className="mx-auto mt-5 grid h-32 w-32 place-items-center rounded-full p-2" style={{ background: `conic-gradient(var(--primary) ${ringPercentage}%, hsl(var(--muted)) ${ringPercentage}% 100%)` }}><div className="grid h-full w-full place-items-center rounded-full bg-card text-center"><span className="text-2xl font-black tracking-[-0.05em]">{progress.toFixed(2)}%</span></div></div>
+        <div className="relative mx-auto mt-5 w-fit" onMouseEnter={() => setDetailsOpen(true)} onMouseLeave={() => setDetailsOpen(false)}>
+            <button type="button" aria-label={`Detalhes das faixas da ${title}`} aria-expanded={detailsOpen} onFocus={() => setDetailsOpen(true)} onBlur={() => setDetailsOpen(false)} onClick={() => setDetailsOpen(current => !current)} className="grid h-36 w-36 place-items-center rounded-full border border-primary/20 p-2 shadow-[0_0_0_6px_color-mix(in_oklab,var(--primary)_7%,transparent)] transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" style={{ background: `conic-gradient(var(--primary) ${ringPercentage}%, hsl(var(--muted)) ${ringPercentage}% 100%)` }}>
+              <span className="grid h-full w-full place-items-center rounded-full bg-card text-center"><span className="text-2xl font-black tracking-[-0.05em]">{progress.toFixed(2)}%</span><span className="sr-only">Passe o cursor para ver os valores faltantes por faixa.</span></span>
+            </button>
+            {detailsOpen && <div role="tooltip" className="absolute left-1/2 z-30 mt-3 w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border border-border/70 bg-popover p-4 text-popover-foreground shadow-xl">
+              <p className="font-extrabold">Faltas por faixa</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Valor restante para cada percentual da {title}.</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {displayedTargets.map(target => <div key={target} className="rounded-lg border border-border/70 bg-muted/50 px-2.5 py-2"><p className="text-[10px] font-bold text-muted-foreground">{target}%</p><p className="mt-0.5 text-xs font-black">{currency(missing(target))}</p></div>)}
+              </div>
+            </div>}
+        </div>
         <div className="mt-5 text-center"><p className="text-lg font-black tracking-tight">{currency(referenceGoal)}</p><p className="text-[11px] font-semibold text-muted-foreground">{title}</p></div>
-        <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border/70 pt-4 text-xs"><GoalSummary label="Recebido" value={currency(received)} /><GoalSummary label={remainingLabel ?? "Restante"} value={currency(remainingValue ?? 0)} /><GoalSummary label="Premiação atual" value={currency(accumulated)} /><GoalSummary label="Meta diária" value={currency(dailyNeeded)} tone="accent" /></div>
-        <div className="mt-5 flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-muted-foreground"><span>{open ? "Ocultar faixas" : "Ver faixas e projeções"}</span><ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} /></div>
-      </button>
+        <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border/70 pt-4 text-xs"><GoalSummary label="Recebido" value={currency(received)} /><GoalSummary label={remainingLabel ?? "Restante"} value={currency(remainingValue ?? 0)} /><GoalSummary label="Premiação atual" value={currency(accumulated)} /><GoalSummary label="Meta diária / Rec. hoje" value={`${currency(displayedDailyGoal)} / ${currency(displayedDailyReceived)}`} tone={dailyGoalReached ? "success" : "danger"} /></div>
+        <button type="button" onClick={() => setOpen(current => !current)} aria-expanded={open} className="mt-5 flex w-full items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span>{open ? "Ocultar faixas" : "Ver faixas e projeções"}</span><ChevronDown className={cn("h-4 w-4 transition-transform", open && "rotate-180")} /></button>
+      </div>
       {expandedContent}
     </article>;
   }
@@ -105,6 +122,6 @@ export default function GoalCard({ title, description, progress, received, accum
   );
 }
 
-function GoalSummary({ label, value, tone }: { label: string; value: string; tone?: "accent" }) {
-  return <div><p className="text-muted-foreground">{label}</p><p className={cn("mt-1 font-extrabold", tone === "accent" && "text-primary")}>{value}</p></div>;
+function GoalSummary({ label, value, tone }: { label: string; value: string; tone?: "accent" | "success" | "danger" }) {
+  return <div><p className="text-muted-foreground">{label}</p><p className={cn("mt-1 font-extrabold", tone === "accent" && "text-primary", tone === "success" && "text-emerald-600 dark:text-emerald-400", tone === "danger" && "text-rose-600 dark:text-rose-400")}>{value}</p></div>;
 }
