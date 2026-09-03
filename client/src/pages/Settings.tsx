@@ -7,7 +7,7 @@ import { useTheme, type Palette } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { automaticWorkingDays } from "@shared/workingDays";
-import { CalendarClock, Check, Database, Loader2, Moon, Palette as PaletteIcon, Save, Sun } from "lucide-react";
+import { CalendarClock, CalendarPlus, Check, Database, Loader2, Moon, Palette as PaletteIcon, Save, Sun, Trash2 } from "lucide-react";
 import React, { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -35,8 +35,21 @@ const initialMetrics = {
   workingDaysTotal: 0,
   workingDaysElapsed: 0,
   ticketWorkingDaysRemaining: 0,
+  manualHolidayDates: [] as string[],
   fiadoAtDay15: false,
 };
+
+function brazilCalendarDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const value = (kind: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === kind)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+function isCurrentWorkingDay(date: string) {
+  const today = brazilCalendarDate();
+  const candidate = new Date(`${date}T12:00:00`);
+  return date.slice(0, 7) === today.slice(0, 7) && candidate.getDay() !== 0;
+}
 
 export function MetricsSettings() {
   const { user } = useAuth();
@@ -47,12 +60,14 @@ export function MetricsSettings() {
   const autofillFromMatrix = trpc.metrics.autofillFromMatrix.useMutation();
   const preferences = trpc.profile.preferences.useMutation();
   const [form, setForm] = useState(initialMetrics);
+  const [holidayDate, setHolidayDate] = useState("");
 
   useEffect(() => {
     if (metricsQuery.data) {
       setForm({
         ...metricsQuery.data,
         workingDaysMode: metricsQuery.data.workingDaysMode === "manual" ? "manual" : "automatic",
+        manualHolidayDates: metricsQuery.data.manualHolidayDates ?? [],
       });
     }
   }, [metricsQuery.data]);
@@ -65,6 +80,31 @@ export function MetricsSettings() {
     }
     const automatic = automaticWorkingDays();
     setForm(current => ({ ...current, workingDaysMode, ...automatic }));
+  };
+
+  const adjustHoliday = (date: string, operation: "add" | "remove") => {
+    if (!isCurrentWorkingDay(date)) {
+      toast.message("Selecione um dia útil do mês atual para marcar como feriado.");
+      return;
+    }
+    const today = brazilCalendarDate();
+    const holidayDay = Number(date.slice(-2));
+    const todayDay = Number(today.slice(-2));
+    const affectsElapsed = holidayDay <= todayDay;
+    const affectsTicket = holidayDay > todayDay && holidayDay <= 15;
+    const direction = operation === "add" ? -1 : 1;
+    setForm(current => {
+      const exists = current.manualHolidayDates.includes(date);
+      if ((operation === "add" && exists) || (operation === "remove" && !exists)) return current;
+      return {
+        ...current,
+        manualHolidayDates: operation === "add" ? [...current.manualHolidayDates, date].sort() : current.manualHolidayDates.filter(value => value !== date),
+        workingDaysTotal: Math.max(0, current.workingDaysTotal + direction),
+        workingDaysElapsed: Math.max(0, current.workingDaysElapsed + (affectsElapsed ? direction : 0)),
+        ticketWorkingDaysRemaining: Math.max(0, current.ticketWorkingDaysRemaining + (affectsTicket ? direction : 0)),
+      };
+    });
+    if (operation === "add") setHolidayDate("");
   };
 
   async function submit(event: FormEvent) {
@@ -184,18 +224,19 @@ export function MetricsSettings() {
           <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg"><CalendarClock className="h-5 w-5 text-primary" />Calendário e Meta 80%</CardTitle>
-              <CardDescription>A Meta 80% considera o período de 1º a 15 e exclui somente os domingos na contagem automática.</CardDescription>
+              <CardDescription>A Meta 80% considera o período de 1º a 15. No modo manual, você também pode excluir feriados.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">
-                <button type="button" role="radio" aria-checked={isAutomatic} onClick={() => selectWorkingDaysMode("automatic")} className={`rounded-xl border p-3 text-left transition-colors ${isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Automático</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Calcula o mês atual e remove domingos.</p></button>
-                <button type="button" role="radio" aria-checked={!isAutomatic} onClick={() => selectWorkingDaysMode("manual")} className={`rounded-xl border p-3 text-left transition-colors ${!isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Manual</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Você informa os dias trabalhados e restantes.</p></button>
+                <button type="button" role="radio" aria-checked={isAutomatic} onClick={() => selectWorkingDaysMode("automatic")} className={`rounded-xl border p-3 text-left transition-colors ${isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Automático</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Calcula o mês atual e exclui domingos.</p></button>
+                <button type="button" role="radio" aria-checked={!isAutomatic} onClick={() => selectWorkingDaysMode("manual")} className={`rounded-xl border p-3 text-left transition-colors ${!isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Manual</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Você informa os dias e pode excluir feriados.</p></button>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Dias úteis do mês</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysTotal} onChange={event => updateNumber("workingDaysTotal", event.target.value)} /></div>
                 <div className="space-y-2"><Label>Dias úteis trabalhados</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysElapsed} onChange={event => updateNumber("workingDaysElapsed", event.target.value)} /></div>
               </div>
-              <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual: do dia 1º até o dia 15, sem domingos." : "Informe manualmente os dias restantes e os dias trabalhados de acordo com o calendário da filial."}</p></div>
+              <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual: próximos dias úteis até o dia 15, sem domingos." : "Informe os dias da filial; os feriados abaixo ajustam os totais automaticamente."}</p></div>
+              {!isAutomatic && <div className="rounded-2xl border border-border/70 bg-muted/25 p-4"><Label htmlFor="manual-holiday">Excluir dia como feriado</Label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><Input id="manual-holiday" type="date" value={holidayDate} onChange={event => setHolidayDate(event.target.value)} /><Button type="button" variant="outline" onClick={() => adjustHoliday(holidayDate, "add")} disabled={!holidayDate} className="shrink-0 rounded-xl font-bold"><CalendarPlus className="mr-2 h-4 w-4" />Excluir dia</Button></div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">O dia excluído reduz os totais e, quando aplicável, o prazo da Meta 80%.</p>{form.manualHolidayDates.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{form.manualHolidayDates.map(date => <span key={date} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-bold"><span>{new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR")}</span><button type="button" aria-label={`Remover feriado ${date}`} onClick={() => adjustHoliday(date, "remove")} className="rounded-full text-muted-foreground transition-colors hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></span>)}</div>}</div>}
               <div className="rounded-xl bg-muted/60 px-3 py-3"><p className="text-xs font-extrabold">Validação automática</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Até o dia 15, o sistema acompanha 80% do valor a receber. Após o prazo, sem atingimento registrado, a Meta Ticket fica não atingida.</p></div>
             </CardContent>
           </Card>

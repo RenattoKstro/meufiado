@@ -325,3 +325,8 @@
 - [x] Cobrir em testes o cálculo corrigido da Matriz e a regra de acesso do preenchimento automático.
 - [x] Normalizar os códigos cadastrados de filial com prefixos 01, 14 e 24 para o formato compatível com a Matriz, sem perder vínculos ou gerar duplicidades.
 - [x] Validar o preenchimento automático de Ajustes após a normalização dos códigos de filial.
+- [x] Corrigir o carregamento da Matriz para usuários elegíveis sem reduzir a proteção por plano.
+- [x] Renomear os indicadores da Matriz para Restante quando representarem saldo a receber.
+- [x] Corrigir os cálculos de dias úteis e permitir excluir dias específicos como feriados no modo manual.
+- [x] Redesenhar os cards de Meta Fiado e Meta Desafio da Visão Geral lado a lado conforme a referência fornecida.
+- [x] Cobrir os acessos, dias úteis e apresentação das metas com testes de regressão.

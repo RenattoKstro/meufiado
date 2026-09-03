@@ -14,6 +14,7 @@ const sharedMetrics = {
   workingDaysTotal: 22,
   workingDaysElapsed: 8,
   ticketWorkingDaysRemaining: 3,
+  manualHolidayDates: [] as string[],
   fiadoAtDay15: false,
 };
 

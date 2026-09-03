@@ -36,6 +36,8 @@ export function automaticWorkingDays(referenceDate = new Date()) {
   const workingDaysTotal = countWorkingDays(year, monthIndex, 1, daysInMonth);
   const workingDaysElapsed = countWorkingDays(year, monthIndex, 1, day);
   const workingDaysRemaining = countWorkingDays(year, monthIndex, day + 1, daysInMonth);
+  // O dia corrente já integra os dias trabalhados, mas continua disponível para
+  // cumprir a Meta 80%; por isso é contado no prazo específico até o dia 15.
   const ticketWorkingDaysRemaining = day <= 15 ? countWorkingDays(year, monthIndex, day, 15) : 0;
 
   return {
