@@ -1,5 +1,12 @@
 export type WorkingDaysMode = "automatic" | "manual";
 
+export type WorkingDayOptions = {
+  countToday?: boolean;
+  includeSaturday?: boolean;
+  includeSunday?: boolean;
+  manualHolidayDates?: string[];
+};
+
 type CalendarReference = {
   year: number;
   month: number;
@@ -17,40 +24,50 @@ function brazilReferenceDate(referenceDate = new Date()): CalendarReference {
   return { year: pick("year"), month: pick("month"), day: pick("day") };
 }
 
-function isWorkingDay(year: number, monthIndex: number, day: number) {
-  return new Date(Date.UTC(year, monthIndex, day)).getUTCDay() !== 0;
+function dateKey(year: number, monthIndex: number, day: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function countWorkingDays(year: number, monthIndex: number, startDay: number, endDay: number) {
+function isWorkingDay(year: number, monthIndex: number, day: number, options: Required<WorkingDayOptions>) {
+  const weekday = new Date(Date.UTC(year, monthIndex, day)).getUTCDay();
+  if (weekday === 0 && !options.includeSunday) return false;
+  if (weekday === 6 && !options.includeSaturday) return false;
+  return !options.manualHolidayDates.includes(dateKey(year, monthIndex, day));
+}
+
+function countWorkingDays(year: number, monthIndex: number, startDay: number, endDay: number, options: Required<WorkingDayOptions>) {
   let total = 0;
-  for (let day = startDay; day <= endDay; day += 1) {
-    if (isWorkingDay(year, monthIndex, day)) total += 1;
+  for (let day = Math.max(1, startDay); day <= endDay; day += 1) {
+    if (isWorkingDay(year, monthIndex, day, options)) total += 1;
   }
   return total;
 }
 
-export function automaticWorkingDays(referenceDate = new Date()) {
+export function automaticWorkingDays(referenceDate = new Date(), inputOptions: WorkingDayOptions = {}) {
   const { year, month, day } = brazilReferenceDate(referenceDate);
+  const options: Required<WorkingDayOptions> = {
+    countToday: inputOptions.countToday ?? true,
+    includeSaturday: inputOptions.includeSaturday ?? true,
+    includeSunday: inputOptions.includeSunday ?? false,
+    manualHolidayDates: Array.from(new Set(inputOptions.manualHolidayDates ?? [])).filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value)),
+  };
   const monthIndex = month - 1;
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const workingDaysTotal = countWorkingDays(year, monthIndex, 1, daysInMonth);
-  const workingDaysElapsed = countWorkingDays(year, monthIndex, 1, day);
-  const workingDaysRemaining = countWorkingDays(year, monthIndex, day + 1, daysInMonth);
-  // O dia corrente já integra os dias trabalhados, mas continua disponível para
-  // cumprir a Meta 80%; por isso é contado no prazo específico até o dia 15.
-  const ticketWorkingDaysRemaining = day <= 15 ? countWorkingDays(year, monthIndex, day, 15) : 0;
+  const elapsedEnd = options.countToday ? day : day - 1;
+  const remainingStart = options.countToday ? day + 1 : day;
+  const ticketStart = options.countToday ? day : day + 1;
 
   return {
-    workingDaysTotal,
-    workingDaysElapsed,
-    workingDaysRemaining,
-    ticketWorkingDaysRemaining,
+    workingDaysTotal: countWorkingDays(year, monthIndex, 1, daysInMonth, options),
+    workingDaysElapsed: countWorkingDays(year, monthIndex, 1, elapsedEnd, options),
+    workingDaysRemaining: countWorkingDays(year, monthIndex, remainingStart, daysInMonth, options),
+    ticketWorkingDaysRemaining: day <= 15 ? countWorkingDays(year, monthIndex, ticketStart, 15, options) : 0,
   };
 }
 
-export function applyWorkingDaysMode<T extends { workingDaysMode: string; workingDaysTotal: number; workingDaysElapsed: number; ticketWorkingDaysRemaining: number }>(values: T, referenceDate = new Date()): T {
+export function applyWorkingDaysMode<T extends { workingDaysMode: string; workingDaysTotal: number; workingDaysElapsed: number; ticketWorkingDaysRemaining: number; countToday?: boolean; includeSaturday?: boolean; includeSunday?: boolean; manualHolidayDates?: string[] }>(values: T, referenceDate = new Date()): T {
   if (values.workingDaysMode === "manual") return values;
-  const automatic = automaticWorkingDays(referenceDate);
+  const automatic = automaticWorkingDays(referenceDate, values);
   return {
     ...values,
     workingDaysTotal: automatic.workingDaysTotal,

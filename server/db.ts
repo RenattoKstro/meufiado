@@ -531,6 +531,9 @@ type MetricsInput = {
   lostGoal: number;
   lostReceived: number;
   workingDaysMode: WorkingDaysMode;
+  countToday: boolean;
+  includeSaturday: boolean;
+  includeSunday: boolean;
   workingDaysTotal: number;
   workingDaysElapsed: number;
   ticketWorkingDaysRemaining: number;
@@ -548,6 +551,9 @@ const emptyMetrics: MetricsInput = {
   lostGoal: 0,
   lostReceived: 0,
   workingDaysMode: "automatic" as WorkingDaysMode,
+  countToday: true,
+  includeSaturday: true,
+  includeSunday: false,
   workingDaysTotal: 0,
   workingDaysElapsed: 0,
   ticketWorkingDaysRemaining: 0,
@@ -582,6 +588,9 @@ function metricsForClient(values: PersistedMetrics): MetricsInput {
     lostGoal: values.lostGoal,
     lostReceived: values.lostReceived,
     workingDaysMode: values.workingDaysMode === "manual" ? "manual" : "automatic",
+    countToday: values.countToday ?? true,
+    includeSaturday: values.includeSaturday ?? true,
+    includeSunday: values.includeSunday ?? false,
     workingDaysTotal: values.workingDaysTotal,
     workingDaysElapsed: values.workingDaysElapsed,
     ticketWorkingDaysRemaining: values.ticketWorkingDaysRemaining,

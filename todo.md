@@ -333,3 +333,7 @@
 - [x] Aumentar e reorganizar os cards da aba Filiais para evitar texto comprimido ou sobreposto.
 - [x] Corrigir a Meta diária do Desafio para usar o saldo e a meta próprios, sem repetir a Meta diária do Fiado.
 - [x] Cobrir a diferença entre as metas diárias e validar a responsividade dos cards de Filiais.
+- [x] Reorganizar os indicadores detalhados de Filiais em blocos verticais, evitando que valores fiquem divididos ou sobrepostos.
+- [x] Distribuir a Meta 80% em três colunas por duas linhas e a Meta Perdido em duas colunas por duas linhas.
+- [x] Permitir configurar a contagem de hoje, sábado, domingo e feriados nos dias úteis.
+- [x] Cobrir os cálculos configuráveis de dias úteis e validar a reorganização responsiva dos detalhes de Filiais.

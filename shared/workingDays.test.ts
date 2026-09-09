@@ -18,4 +18,37 @@ describe("calendário de dias úteis", () => {
 
     expect(manual).toEqual({ workingDaysMode: "manual", workingDaysTotal: 20, workingDaysElapsed: 7, ticketWorkingDaysRemaining: 4 });
   });
+
+  it("não conta hoje quando a opção está desativada", () => {
+    const calendar = automaticWorkingDays(new Date("2026-08-10T15:00:00.000Z"), { countToday: false });
+
+    expect(calendar).toEqual({
+      workingDaysTotal: 26,
+      workingDaysElapsed: 7,
+      workingDaysRemaining: 19,
+      ticketWorkingDaysRemaining: 5,
+    });
+  });
+
+  it("permite retirar sábado e incluir domingo na mesma configuração", () => {
+    const calendar = automaticWorkingDays(new Date("2026-08-10T15:00:00.000Z"), { includeSaturday: false, includeSunday: true });
+
+    expect(calendar).toEqual({
+      workingDaysTotal: 26,
+      workingDaysElapsed: 8,
+      workingDaysRemaining: 18,
+      ticketWorkingDaysRemaining: 5,
+    });
+  });
+
+  it("remove feriados da contagem automática e do prazo da Meta 80%", () => {
+    const calendar = automaticWorkingDays(new Date("2026-08-10T15:00:00.000Z"), { manualHolidayDates: ["2026-08-10"] });
+
+    expect(calendar).toEqual({
+      workingDaysTotal: 25,
+      workingDaysElapsed: 7,
+      workingDaysRemaining: 18,
+      ticketWorkingDaysRemaining: 5,
+    });
+  });
 });
