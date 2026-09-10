@@ -794,6 +794,9 @@ export type SubscriptionSettingsInput = {
   pixCopyPaste: string;
   pixReceiverName: string;
   pixReceiverBank: string;
+  subscriberGoalMinimum: number;
+  subscriberGoalCurrent: number;
+  subscriberGoalContext: string;
   overviewPlan: SubscriptionPlan;
   matrixPlan: SubscriptionPlan;
   branchesPlan: SubscriptionPlan;
@@ -826,6 +829,9 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   pixQrCodeUrl: "",
   pixReceiverName: "MEU FIADO",
   pixReceiverBank: "",
+  subscriberGoalMinimum: 0,
+  subscriberGoalCurrent: 0,
+  subscriberGoalContext: "",
   overviewPlan: "free",
   matrixPlan: "pro",
   branchesPlan: "pro",

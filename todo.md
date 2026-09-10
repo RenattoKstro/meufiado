@@ -337,3 +337,8 @@
 - [x] Distribuir a Meta 80% em três colunas por duas linhas e a Meta Perdido em duas colunas por duas linhas.
 - [x] Permitir configurar a contagem de hoje, sábado, domingo e feriados nos dias úteis.
 - [x] Cobrir os cálculos configuráveis de dias úteis e validar a reorganização responsiva dos detalhes de Filiais.
+
+- [x] Adicionar configuração administrativa manual da Meta assinantes com mínimo, quantidade atual e contexto explicativo.
+- [x] Persistir e validar os campos da Meta assinantes no banco e na API.
+- [x] Exibir no topo direito da Visão Geral alerta quando abaixo da meta e check verde quando atingida.
+- [x] Cobrir a Meta assinantes com testes e validar a responsividade da apresentação.
