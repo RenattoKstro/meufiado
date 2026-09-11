@@ -7,10 +7,12 @@ import superjson from "superjson";
 import App from "./App";
 import { startLogin } from "./const";
 import { retireLegacyPwa } from "./lib/retireLegacyPwa";
+import { startPublishedReleasePolling } from "./lib/autoUpdateRelease";
 import { fetchTrpcResponse } from "./lib/trpcFetch";
 import "./index.css";
 
 void retireLegacyPwa();
+startPublishedReleasePolling();
 
 const queryClient = new QueryClient();
 
