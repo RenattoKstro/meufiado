@@ -74,13 +74,9 @@ import {
   submitSubscriptionProof,
   uploadSubscriptionPixQrCode,
   updateSubscriptionSettings,
-  getMercadoPagoSubscription,
-  saveMercadoPagoSubscription,
   touchUserPresence,
   type SubscriptionFeatureKey,
 } from "./db";
-import { createRecurringPreapproval } from "./mercadoPago";
-import { randomUUID } from "crypto";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { ADMIN_SESSION_COOKIE, createAdminSession, createUserSession, USER_SESSION_COOKIE } from "./localAdminAuth";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -548,45 +544,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     sign: publicProcedure.input(z.object({ token: z.string().regex(/^[a-f0-9]{32}$/), signer: z.enum(["origin", "destination"]), signatureDataUrl: z.string().min(32).max(1_500_000), signatureStyle: z.enum(["classica", "manuscrita", "elegante", "simples", "manual"]) })).mutation(({ input }) => signSharedRomaneioDocument(input.token, input.signer, input.signatureDataUrl, input.signatureStyle)),
   }),
   subscription: router({
-    mine: protectedProcedure.query(async ({ ctx }) => ({
-      ...(await getMySubscription(ctx.user.id)),
-      mercadoPagoSubscription: await getMercadoPagoSubscription(ctx.user.id),
-    })),
-    mercadoPagoCheckout: protectedProcedure.mutation(async ({ ctx }) => {
-      const existing = await getMercadoPagoSubscription(ctx.user.id);
-      if (existing?.checkoutUrl && ["pending", "authorized"].includes(existing.providerStatus)) {
-        return { checkoutUrl: existing.checkoutUrl, providerStatus: existing.providerStatus, reused: true };
-      }
-      const settings = await getSubscriptionSettings();
-      const chargeAmount = getSubscriptionChargeAmount(settings);
-      if (!chargeAmount || chargeAmount <= 0) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A mensalidade PRO ainda não foi configurada pela administração." });
-      if (!ctx.user.email) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Seu cadastro precisa ter um e-mail para iniciar o pagamento." });
-      const forwardedHost = ctx.req.header("x-forwarded-host")?.split(",")[0]?.trim();
-      const host = forwardedHost || ctx.req.header("host");
-      if (!host) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível preparar o retorno do pagamento." });
-      const protocol = ctx.req.header("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
-      const appUrl = `${protocol}://${host}`;
-      const externalReference = `mf-pro-${ctx.user.id}-${randomUUID()}`;
-      const preapproval = await createRecurringPreapproval({
-        payerEmail: ctx.user.email,
-        externalReference,
-        monthlyPrice: chargeAmount,
-        notificationUrl: `${appUrl}/api/mercadopago/webhook?source_news=webhooks`,
-        backUrl: `${appUrl}/plano?checkout=mercadopago`,
-      });
-      const checkoutUrl = preapproval.init_point ?? preapproval.sandbox_init_point ?? null;
-      if (!checkoutUrl) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "O Mercado Pago não retornou o link de pagamento." });
-      await saveMercadoPagoSubscription({
-        userId: ctx.user.id,
-        externalReference,
-        preapprovalId: preapproval.id,
-        checkoutUrl,
-        providerStatus: preapproval.status,
-        amount: chargeAmount,
-        nextPaymentDate: preapproval.next_payment_date ? new Date(preapproval.next_payment_date) : null,
-      });
-      return { checkoutUrl, providerStatus: preapproval.status, reused: false };
-    }),
+    mine: protectedProcedure.query(({ ctx }) => getMySubscription(ctx.user.id)),
     submitProof: protectedProcedure.input(proofInput).mutation(async ({ ctx, input }) => {
       const proof = await submitSubscriptionProof(ctx.user.id, input.dataUrl);
       await notifyOwner({

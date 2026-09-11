@@ -342,3 +342,10 @@
 - [x] Persistir e validar os campos da Meta assinantes no banco e na API.
 - [x] Exibir no topo direito da Visão Geral alerta quando abaixo da meta e check verde quando atingida.
 - [x] Cobrir a Meta assinantes com testes e validar a responsividade da apresentação.
+
+- [ ] Detectar automaticamente novas publicações e atualizar a aplicação sem recarga manual.
+- [ ] Personalizar a página 404 com logo, título da aba e identidade do Meu Fiado.
+- [ ] Testar atualização automática, metadados e página 404 em desktop e mobile.
+
+- [x] Desconectar completamente o Mercado Pago, removendo pagamentos, webhooks, credenciais e referências da aplicação.
+- [x] Validar que o plano e os demais fluxos continuam funcionando sem Mercado Pago.

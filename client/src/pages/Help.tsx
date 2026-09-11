@@ -76,7 +76,7 @@ const sections: HelpSection[] = [
     points: [
       "O perfil identifica seu plano como Free, PRO ou PRO em período de carência.",
       "O PRO libera os recursos definidos pela Administração, incluindo a consulta da Matriz quando configurada como exclusiva.",
-      "O pagamento pode ser feito pelo checkout recorrente do Mercado Pago ou pelo fluxo manual disponível na tela Plano.",
+      "O pagamento é feito pelo PIX configurado pela administração; depois, envie o comprovante na tela Plano para análise e liberação manual.",
       "Após cada renovação confirmada, o PRO vale por 30 dias e possui cinco dias de carência antes de retornar ao Free.",
     ],
     link: { label: "Ver meu plano", href: "/plano" },

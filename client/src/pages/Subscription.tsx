@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
-import { CheckCircle2, Clipboard, CreditCard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
+import { CheckCircle2, Clipboard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
 import { ChangeEvent, useRef } from "react";
 import { toast } from "sonner";
 
@@ -23,7 +23,6 @@ export default function Subscription() {
   const texts = useAppTexts();
   const subscriptionQuery = trpc.subscription.mine.useQuery();
   const submitProof = trpc.subscription.submitProof.useMutation();
-  const mercadoPagoCheckout = trpc.subscription.mercadoPagoCheckout.useMutation();
   const pickerRef = useRef<HTMLInputElement>(null);
   const subscription = subscriptionQuery.data;
 
@@ -59,19 +58,10 @@ export default function Subscription() {
     reader.readAsDataURL(file);
   }
 
-  async function handleMercadoPagoCheckout() {
-    try {
-      const checkout = await mercadoPagoCheckout.mutateAsync();
-      window.location.assign(checkout.checkoutUrl);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível abrir o Mercado Pago agora.");
-    }
-  }
-
   if (subscriptionQuery.isLoading) return <section className="mx-auto max-w-4xl"><div className="h-9 w-52 animate-pulse rounded-lg bg-muted" /><div className="mt-7 h-80 animate-pulse rounded-[1.6rem] bg-muted" /></section>;
   if (subscriptionQuery.isError || !subscription) return <section className="mx-auto max-w-3xl"><Card className="rounded-[1.6rem]"><CardContent className="p-7 text-sm text-muted-foreground">Não foi possível carregar sua assinatura agora. Atualize a página e tente novamente.</CardContent></Card></section>;
 
-  const { settings, latestProof, isPro, proExpiresAt, status, graceEndsAt, mercadoPagoSubscription } = subscription;
+  const { settings, latestProof, isPro, proExpiresAt, status, graceEndsAt } = subscription;
   const promotionIsActive = settings.promotionOriginalPrice > settings.promotionPrice && settings.promotionPrice > 0;
   const chargeAmount = promotionIsActive ? settings.promotionPrice : settings.monthlyPrice;
   const paymentReady = Boolean(chargeAmount > 0 && (settings.pixQrCodeUrl || settings.pixCopyPaste || settings.pixKey));
@@ -91,12 +81,8 @@ export default function Subscription() {
         <CardContent className="space-y-4"><div className={`rounded-2xl p-4 ${promotionIsActive ? `border ${promotionBackground}` : "bg-muted/55"}`}>{promotionIsActive ? <><span className="inline-flex rounded-full border border-border/70 bg-background/75 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{settings.promotionBadge}</span><p className="mt-3 text-base font-extrabold tracking-tight">{settings.promotionTitle}</p><p className="mt-1 text-xs leading-relaxed text-foreground/75">{settings.promotionDescription}</p><div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2"><span className="flex flex-col gap-0.5"><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Preço normal</span><span className="text-sm font-bold text-muted-foreground line-through">{money.format(settings.promotionOriginalPrice)}</span></span><span className="flex flex-col gap-0.5"><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary">Preço promocional</span><span className="text-2xl font-black text-primary">{money.format(chargeAmount)}</span></span></div></> : <><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Mensalidade PRO</p><p className="mt-1 text-2xl font-black">{chargeAmount > 0 ? money.format(chargeAmount) : "A definir"}</p></>}<p className="mt-2 text-xs text-muted-foreground">Após o pagamento o admin será notificado e irá liberar o acesso.</p></div>{isGracePeriod && graceEndsAt ? <p className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><Crown className="mt-0.5 h-4 w-4 shrink-0" />Renove até {new Date(graceEndsAt).toLocaleDateString("pt-BR")}. Depois dessa data, sua conta passará para o plano Free.</p> : isPro && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{proExpiresAt ? `Sua assinatura é válida até ${new Date(proExpiresAt).toLocaleDateString("pt-BR")}. Após o vencimento, há cinco dias de carência.` : "Acesso liberado pela administração."}</p>}{latestProof && (!isPro || isGracePeriod) && <ProofStatus status={latestProof.status} note={latestProof.reviewNote} />}</CardContent>
       </Card>
       <div className="space-y-5">
-        <Card className="rounded-[1.6rem] border-primary/20 bg-primary/[0.025] shadow-sm">
-          <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><CreditCard className="h-5 w-5 text-primary" />Pagamento automático</CardTitle><CardDescription>Assine pelo Mercado Pago. A confirmação renova seu acesso PRO automaticamente a cada pagamento aprovado.</CardDescription></CardHeader>
-          <CardContent className="space-y-3"><div className="rounded-xl bg-background/70 p-3 text-sm"><p className="font-extrabold">{chargeAmount > 0 ? `${money.format(chargeAmount)} por mês` : "Mensalidade ainda não configurada"}</p>{promotionIsActive && <p className="mt-1 text-xs font-bold text-primary">Oferta ativa: preço normal {money.format(settings.promotionOriginalPrice)} · preço promocional {money.format(chargeAmount)}.</p>}<p className="mt-1 text-xs leading-relaxed text-muted-foreground">O pagamento é concluído no ambiente seguro do Mercado Pago. Você pode acompanhar ou cancelar a assinatura diretamente por lá.</p></div>{mercadoPagoSubscription && <p className="text-xs font-semibold text-muted-foreground">Assinatura Mercado Pago: {mercadoPagoSubscription.providerStatus === "authorized" ? "autorizada" : mercadoPagoSubscription.providerStatus === "pending" ? "aguardando pagamento" : mercadoPagoSubscription.providerStatus}.</p>}<Button type="button" className="h-11 w-full rounded-xl font-extrabold" disabled={mercadoPagoCheckout.isPending || chargeAmount <= 0} onClick={handleMercadoPagoCheckout}>{mercadoPagoCheckout.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}{mercadoPagoSubscription?.providerStatus === "pending" ? "Continuar no Mercado Pago" : isPro && !isGracePeriod ? "Ativar renovação automática" : promotionIsActive ? settings.promotionCtaLabel : "Assinar PRO com Mercado Pago"}</Button></CardContent>
-        </Card>
         <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
-        <CardHeader><CardTitle className="text-lg">Pagamento manual via PIX</CardTitle><CardDescription>Se preferir, faça o pagamento e envie o comprovante para conferência da administração.</CardDescription></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Pagamento via PIX</CardTitle><CardDescription>Se preferir, faça o pagamento e envie o comprovante para conferência da administração.</CardDescription></CardHeader>
         <CardContent className="space-y-5">{!paymentReady ? <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">A mensalidade ou os dados de pagamento ainda não foram configurados pela administração.</div> : <>
           <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
             <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-white p-3">{settings.pixQrCodeUrl ? <img src={settings.pixQrCodeUrl} alt={`QR Code PIX de ${money.format(settings.monthlyPrice)}`} className="h-40 w-40 object-contain" /> : <div className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-3 text-center text-xs text-muted-foreground"><ImageIcon className="h-8 w-8" />QR Code não anexado</div>}</div>

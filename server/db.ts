@@ -817,7 +817,7 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   promotionTitle: "Plano PRO em oferta",
   promotionDescription: "Aproveite o valor promocional para liberar todos os recursos PRO.",
   promotionBackground: "emerald",
-  promotionCtaLabel: "Assinar PRO com Mercado Pago",
+  promotionCtaLabel: "Enviar comprovante para assinar PRO",
   planInfoTitle: "Plano PRO do Meu Fiado",
   planInfoDescription: "Tenha acesso aos recursos avançados e acompanhe sua assinatura por aqui.",
   planInfoBackground: "sky",
