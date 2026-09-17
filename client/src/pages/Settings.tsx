@@ -150,6 +150,26 @@ export function MetricsSettings() {
     }
   }
 
+  async function setTicketVisibility(showTicketGoal: boolean) {
+    try {
+      await preferences.mutateAsync({ showTicketGoal });
+      await profileQuery.refetch();
+      toast.success(showTicketGoal ? "Cards da Meta Alimentação exibidos." : "Cards da Meta Alimentação ocultados.");
+    } catch {
+      toast.error("Não foi possível atualizar a visibilidade da Meta Alimentação.");
+    }
+  }
+
+  async function setPossibleRewardsVisibility(showPossibleRewards: boolean) {
+    try {
+      await preferences.mutateAsync({ showPossibleRewards });
+      await profileQuery.refetch();
+      toast.success(showPossibleRewards ? "Valores possíveis exibidos." : "Valores possíveis ocultados.");
+    } catch {
+      toast.error("Não foi possível atualizar a visibilidade dos valores possíveis.");
+    }
+  }
+
   async function toggleVacation(isOnVacation: boolean) {
     await preferences.mutateAsync({ isOnVacation });
     await profileQuery.refetch();
@@ -238,6 +258,10 @@ export function MetricsSettings() {
               <CardDescription>A Meta 80% considera o período de 1º a 15. No modo manual, você também pode excluir feriados.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
+              <div className="grid gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 sm:grid-cols-2">
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar Meta Alimentação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os cards, a meta, o recebido hoje e o ritmo até o dia 15.</p></div><Switch checked={profileQuery.data.profile.showTicketGoal ?? true} onCheckedChange={setTicketVisibility} disabled={preferences.isPending} /></div>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar valores possíveis</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os valores máximos de premiação nos cards.</p></div><Switch checked={profileQuery.data.profile.showPossibleRewards ?? true} onCheckedChange={setPossibleRewardsVisibility} disabled={preferences.isPending} /></div>
+              </div>
               <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">
                 <button type="button" role="radio" aria-checked={isAutomatic} onClick={() => selectWorkingDaysMode("automatic")} className={`rounded-xl border p-3 text-left transition-colors ${isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Automático</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Calcula o mês atual conforme as opções de calendário abaixo.</p></button>
                 <button type="button" role="radio" aria-checked={!isAutomatic} onClick={() => selectWorkingDaysMode("manual")} className={`rounded-xl border p-3 text-left transition-colors ${!isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Manual</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Você informa os dias e pode excluir feriados.</p></button>

@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, ne, or } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 import {
   adminCredentials,
   appTextSettings,
@@ -51,11 +52,14 @@ import { resolveSubscriptionAccess, SUBSCRIPTION_GRACE_DAYS } from "../shared/su
 import { storagePut } from "./storage";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: Pool | null = null;
 
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  const connectionString = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+  if (!_db && connectionString) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
+      _db = drizzle(_pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -86,7 +90,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     values.role = "admin";
     updateSet.role = "admin";
   }
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  await db.insert(users).values(values).onConflictDoUpdate({ target: users.openId, set: updateSet });
 }
 
 export async function touchUserPresence(userId: number) {
@@ -338,7 +342,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
       sales: dailyReceipts?.sales ?? previous?.sales ?? 0,
       receiptDailyJson: dailyReceipts?.dailyReceived ? JSON.stringify(dailyReceipts.dailyReceived) : previous?.receiptDailyJson ?? null,
     };
-    await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onDuplicateKeyUpdate({ set: values });
+    await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onConflictDoUpdate({ target: matrixMetrics.branchId, set: values });
     const analyticRegional = analytic?.regional.trim();
     if (analyticRegional && normalizeRegional(branch.regional) !== normalizeRegional(analyticRegional)) {
       await db.update(branches).set({ regional: analyticRegional }).where(eq(branches.id, branch.id));
@@ -349,14 +353,14 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     let branch = byCode.get(code);
     if (!branch) {
       const analyticRegional = analytics.get(code)?.regional.trim() || null;
-      const result = await db.insert(branches).values({
+      const [createdBranch] = await db.insert(branches).values({
         code,
         name: `Filial ${code}`,
         regional: analyticRegional,
         isActive: true,
-      });
+      }).returning({ id: branches.id });
       branch = {
-        id: Number(result[0].insertId),
+        id: createdBranch.id,
         code,
         name: `Filial ${code}`,
         regional: analyticRegional,
@@ -375,7 +379,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     .filter((entry): entry is readonly ["analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily", { receivedRows: number; validRows: number }] => Boolean(entry[1]?.receivedRows));
   for (const [source, summary] of sourceEntries) {
     await db.insert(matrixImportSources).values({ source, importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows })
-      .onDuplicateKeyUpdate({ set: { importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows } });
+      .onConflictDoUpdate({ target: matrixImportSources.source, set: { importedAt, receivedRows: summary.receivedRows, validRows: summary.validRows } });
   }
   return { imported, unmatched, regionalMismatch, createdBranches };
 }
@@ -539,6 +543,7 @@ type MetricsInput = {
   ticketWorkingDaysRemaining: number;
   manualHolidayDates: string[];
   fiadoAtDay15: boolean;
+  fiadoAtDay15Month?: string | null;
 };
 
 const emptyMetrics: MetricsInput = {
@@ -559,6 +564,7 @@ const emptyMetrics: MetricsInput = {
   ticketWorkingDaysRemaining: 0,
   manualHolidayDates: [] as string[],
   fiadoAtDay15: false,
+  fiadoAtDay15Month: null,
 };
 
 type PersistedMetrics = Omit<MetricsInput, "manualHolidayDates" | "workingDaysMode"> & {
@@ -575,6 +581,11 @@ function manualHolidayDatesFromStoredValue(value: unknown) {
   } catch {
     return [] as string[];
   }
+}
+
+function currentBrazilMonth() {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" }).formatToParts(new Date());
+  return `${parts.find(part => part.type === "year")?.value ?? ""}-${parts.find(part => part.type === "month")?.value ?? ""}`;
 }
 
 function metricsForClient(values: PersistedMetrics): MetricsInput {
@@ -595,7 +606,8 @@ function metricsForClient(values: PersistedMetrics): MetricsInput {
     workingDaysElapsed: values.workingDaysElapsed,
     ticketWorkingDaysRemaining: values.ticketWorkingDaysRemaining,
     manualHolidayDates: manualHolidayDatesFromStoredValue(values.manualHolidayDatesJson),
-    fiadoAtDay15: values.fiadoAtDay15,
+    fiadoAtDay15: Boolean(values.fiadoAtDay15 && values.fiadoAtDay15Month === currentBrazilMonth()),
+    fiadoAtDay15Month: values.fiadoAtDay15Month ?? null,
   });
 }
 
@@ -644,19 +656,26 @@ export async function saveMyMetrics(userId: number, input: MetricsInput, databas
   const { manualHolidayDates, ...metricValues } = normalizedInput;
   const persistenceValues = { ...metricValues, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) };
   const profile = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
-  const dayInBrazil = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "numeric" }).format(new Date()));
+  const now = new Date();
+  const brazilParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "numeric" }).formatToParts(now);
+  const brazilYear = brazilParts.find(part => part.type === "year")?.value ?? "";
+  const brazilMonth = brazilParts.find(part => part.type === "month")?.value ?? "";
+  const brazilDay = brazilParts.find(part => part.type === "day")?.value ?? "";
+  const currentMonth = `${brazilYear}-${brazilMonth}`;
+  const dayInBrazil = Number(brazilDay);
   const received = receiptAmounts(normalizedInput.monthOpening, normalizedInput.dayOpening, normalizedInput.currentOverdue).accumulated;
   const reachedBeforeDeadline = dayInBrazil <= 15 && received >= ticketGoalAmount(amountReceivable(normalizedInput.monthOpening, normalizedInput.creditGoal));
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
-    const existing = await db.select({ fiadoAtDay15: branchMetrics.fiadoAtDay15 }).from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    const values = { ...persistenceValues, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
-    await db.insert(branchMetrics).values({ branchId: storageScope.branchId, ...values }).onDuplicateKeyUpdate({ set: values });
+    const existing = await db.select({ fiadoAtDay15: branchMetrics.fiadoAtDay15, fiadoAtDay15Month: branchMetrics.fiadoAtDay15Month }).from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
+    const preserved = Boolean(existing[0]?.fiadoAtDay15 && existing[0]?.fiadoAtDay15Month === currentMonth);
+    const values = { ...persistenceValues, fiadoAtDay15: Boolean(preserved || reachedBeforeDeadline), fiadoAtDay15Month: (preserved || reachedBeforeDeadline) ? currentMonth : null };
+    await db.insert(branchMetrics).values({ branchId: storageScope.branchId, ...values }).onConflictDoUpdate({ target: branchMetrics.branchId, set: values });
     return;
   }
   const existing = await db.select({ fiadoAtDay15: metricSettings.fiadoAtDay15 }).from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
   const values = { ...persistenceValues, fiadoAtDay15: Boolean(existing[0]?.fiadoAtDay15 || reachedBeforeDeadline) };
-  await db.insert(metricSettings).values({ userId, ...values }).onDuplicateKeyUpdate({ set: values });
+  await db.insert(metricSettings).values({ userId, ...values }).onConflictDoUpdate({ target: metricSettings.userId, set: values });
 }
 
 export type ReceiptHistoryInput = {
@@ -943,7 +962,7 @@ export async function saveMercadoPagoSubscription(input: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  await db.insert(mercadoPagoSubscriptions).values(input).onDuplicateKeyUpdate({
+  await db.insert(mercadoPagoSubscriptions).values(input).onConflictDoUpdate({ target: mercadoPagoSubscriptions.userId,
     set: {
       externalReference: input.externalReference,
       preapprovalId: input.preapprovalId,
@@ -1223,7 +1242,7 @@ export async function recordSupportConversationTopic(input: { requesterUserId: n
   await db
     .insert(supportConversations)
     .values({ requesterUserId: input.requesterUserId, adminUserId: input.adminUserId, topic })
-    .onDuplicateKeyUpdate({ set: { topic, updatedAt: new Date() } });
+    .onConflictDoUpdate({ target: [supportConversations.requesterUserId, supportConversations.adminUserId], set: { topic, updatedAt: new Date() } });
   return { topic };
 }
 
@@ -1244,7 +1263,7 @@ export async function deleteExpiredChatMessages() {
   const db = await getDb();
   if (!db) return { deleted: 0 };
   const result = await db.delete(chatMessages).where(lt(chatMessages.expiresAt, new Date()));
-  return { deleted: result[0]?.affectedRows ?? 0 };
+  return { deleted: result.rowCount ?? 0 };
 }
 
 export async function markChatMessagesRead(userId: number) {
@@ -1252,7 +1271,7 @@ export async function markChatMessagesRead(userId: number) {
   if (!db) return;
   const [latestMessage] = await db.select({ id: chatMessages.id }).from(chatMessages).orderBy(desc(chatMessages.id)).limit(1);
   const lastReadMessageId = latestMessage?.id ?? 0;
-  await db.insert(chatReadStates).values({ userId, lastReadMessageId }).onDuplicateKeyUpdate({ set: { lastReadMessageId } });
+  await db.insert(chatReadStates).values({ userId, lastReadMessageId }).onConflictDoUpdate({ target: chatReadStates.userId, set: { lastReadMessageId } });
 }
 
 export async function isAdministratorUser(userId: number) {
@@ -1352,7 +1371,7 @@ export async function markUpdateNotesRead(userId: number) {
   await db
     .insert(updateReadStates)
     .values({ userId, lastReadUpdateId: latest.id })
-    .onDuplicateKeyUpdate({ set: { lastReadUpdateId: latest.id, updatedAt: new Date() } });
+    .onConflictDoUpdate({ target: updateReadStates.userId, set: { lastReadUpdateId: latest.id, updatedAt: new Date() } });
 }
 
 export async function listUtilityDownloads(includeHidden = false) {
@@ -1482,7 +1501,8 @@ async function persistRomaneioCatalogs(db: ApplicationDatabase, input: RomaneioD
       normalizedBranch: normalizeRomaneioCatalogValue(branch),
       address: compactRomaneioText(party.address),
       neighborhood: compactRomaneioText(party.neighborhood),
-    }).onDuplicateKeyUpdate({
+    }).onConflictDoUpdate({
+      target: [romaneioParties.normalizedName, romaneioParties.normalizedBranch],
       set: {
         name,
         branch,
@@ -1502,7 +1522,8 @@ async function persistRomaneioCatalogs(db: ApplicationDatabase, input: RomaneioD
       normalizedCode: normalizeRomaneioCatalogValue(code),
       description,
       unit: compactRomaneioText(item.unit)?.toUpperCase() ?? "UN",
-    }).onDuplicateKeyUpdate({
+    }).onConflictDoUpdate({
+      target: romaneioProducts.normalizedCode,
       set: {
         code,
         description,
@@ -1530,7 +1551,7 @@ export async function createRomaneioDocument(createdByUserId: number, input: Rom
   if (!db) throw new Error("Banco de dados indisponível");
   const shareToken = randomUUID().replace(/-/g, "");
   await persistRomaneioCatalogs(db, input);
-  const result = await db.insert(romaneios).values({
+  const [createdRomaneio] = await db.insert(romaneios).values({
     createdByUserId,
     shareToken,
     status: "shared",
@@ -1546,8 +1567,9 @@ export async function createRomaneioDocument(createdByUserId: number, input: Rom
     destinationAddress: compactRomaneioText(input.requesting.address),
     destinationNeighborhood: compactRomaneioText(input.requesting.neighborhood),
     destinationManagerName: input.requesting.name.trim(),
-  });
-  const romaneioId = Number(result[0].insertId);
+  }).returning({ id: romaneios.id });
+  const romaneioId = createdRomaneio?.id;
+  if (!romaneioId) throw new Error("Não foi possível criar o romaneio.");
   await db.insert(romaneioItems).values(input.items.map((item, index) => ({
     romaneioId,
     position: index + 1,
@@ -1616,7 +1638,7 @@ export async function signSharedRomaneioDocument(shareToken: string, signer: "or
     address: compactRomaneioText(signerParty.address),
     neighborhood: compactRomaneioText(signerParty.neighborhood),
     preferredSignatureStyle,
-  }).onDuplicateKeyUpdate({ set: { ...(preferredSignatureStyle ? { preferredSignatureStyle } : {}), updatedAt: signedAt } });
+  }).onConflictDoUpdate({ target: [romaneioParties.normalizedName, romaneioParties.normalizedBranch], set: { ...(preferredSignatureStyle ? { preferredSignatureStyle } : {}), updatedAt: signedAt } });
   await db.update(romaneios).set({
     ...(signer === "origin" ? { originSignatureUrl: uploaded.url, originSignedAt: signedAt } : { destinationSignatureUrl: uploaded.url, destinationSignedAt: signedAt }),
     status: getRomaneioStatus(originSignedAt, destinationSignedAt),

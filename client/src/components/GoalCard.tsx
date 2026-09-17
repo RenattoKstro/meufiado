@@ -25,6 +25,7 @@ type GoalCardProps = {
   targetMissing?: (target: number) => number;
   projectionTargets?: number[];
   accent?: "primary" | "violet";
+  showPossibleRewards?: boolean;
 };
 
 type ProgressTone = {
@@ -43,7 +44,7 @@ function progressTone(progress: number): ProgressTone {
   return { key: "green", label: "100% ou mais", color: "#10b981", textClass: "text-emerald-600 dark:text-emerald-400", softClass: "bg-emerald-500/10", bubbleClass: "border-emerald-500/45 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
 }
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, dailyGoal, dailyReceived, remainingLabel, remainingValue, targetMissing, projectionTargets }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, dailyGoal, dailyReceived, remainingLabel, remainingValue, targetMissing, projectionTargets, showPossibleRewards = true }: GoalCardProps) {
   const [activeTarget, setActiveTarget] = useState<number | null>(null);
   const visualProgress = Math.min(Math.max(progress, 0), 105);
   const displayedTargets = Array.from(new Set(projectionTargets ?? tiers.map(tier => tier.target)));
@@ -100,7 +101,7 @@ export default function GoalCard({ title, description, progress, received, accum
         </div>
 
         <div className="mt-5 grid gap-3 border-t border-border/60 pt-5 sm:grid-cols-2">
-          <div className="rounded-2xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Recebido acumulado</p><p className="mt-1 text-sm font-black">{currency(received)}</p><p className="mt-0.5 text-[11px] text-muted-foreground">Premiação: {currency(accumulated)} de {currency(total)}</p></div>
+          <div className="rounded-2xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Recebido acumulado</p><p className="mt-1 text-sm font-black">{currency(received)}</p><p className="mt-0.5 text-[11px] text-muted-foreground">Premiação: {currency(accumulated)}{showPossibleRewards ? ` de ${currency(total)}` : ""}</p></div>
           {remainingLabel && typeof remainingValue === "number" && <div className="rounded-2xl bg-muted/45 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{remainingLabel}</p><p className="mt-1 text-sm font-black">{currency(remainingValue)}</p></div>}
           <div className={cn("rounded-2xl border p-3 sm:col-span-2", dailyGoal > 0 ? reachedDailyGoal ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10" : "border-border/70 bg-muted/45")}>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta diária / Rec. hoje</p><p className={cn("mt-1 text-sm font-black", dailyGoal > 0 && (reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"))}>{currency(dailyGoal)} / {currency(dailyReceived)}</p><p className={cn("mt-0.5 text-[11px] font-semibold", dailyGoal > 0 ? reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300" : "text-muted-foreground")}>{dailyGoal > 0 ? reachedDailyGoal ? "Meta diária atingida" : "Meta diária ainda não atingida" : "Informe as metas para acompanhar"}</p>

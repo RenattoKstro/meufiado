@@ -1,0 +1,13 @@
+from pathlib import Path
+p = Path('/home/ubuntu/painel-recebimentos/client/src/pages/Settings.tsx')
+s = p.read_text()
+needle = '  async function toggleVacation(isOnVacation: boolean) {'
+insert = '''  async function setTicketVisibility(showTicketGoal: boolean) {\n    try {\n      await preferences.mutateAsync({ showTicketGoal });\n      await profileQuery.refetch();\n      toast.success(showTicketGoal ? "Cards da Meta Alimentação exibidos." : "Cards da Meta Alimentação ocultados.");\n    } catch {\n      toast.error("Não foi possível atualizar a visibilidade da Meta Alimentação.");\n    }\n  }\n\n  async function setPossibleRewardsVisibility(showPossibleRewards: boolean) {\n    try {\n      await preferences.mutateAsync({ showPossibleRewards });\n      await profileQuery.refetch();\n      toast.success(showPossibleRewards ? "Valores possíveis exibidos." : "Valores possíveis ocultados.");\n    } catch {\n      toast.error("Não foi possível atualizar a visibilidade dos valores possíveis.");\n    }\n  }\n\n'''
+if needle not in s: raise SystemExit('function insertion point missing')
+s = s.replace(needle, insert + needle, 1)
+needle2 = '            <CardContent className="space-y-5">\n              <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">'
+insert2 = '''            <CardContent className="space-y-5">\n              <div className="grid gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 sm:grid-cols-2">\n                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar Meta Alimentação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os cards, a meta, o recebido hoje e o ritmo até o dia 15.</p></div><Switch checked={profileQuery.data.profile.showTicketGoal ?? true} onCheckedChange={setTicketVisibility} disabled={preferences.isPending} /></div>\n                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar valores possíveis</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os valores máximos de premiação nos cards.</p></div><Switch checked={profileQuery.data.profile.showPossibleRewards ?? true} onCheckedChange={setPossibleRewardsVisibility} disabled={preferences.isPending} /></div>\n              </div>\n              <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">'''
+if needle2 not in s: raise SystemExit('card insertion point missing')
+s = s.replace(needle2, insert2, 1)
+p.write_text(s)
+print('settings patched')

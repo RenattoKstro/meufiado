@@ -349,3 +349,14 @@
 
 - [x] Desconectar completamente o Mercado Pago, removendo pagamentos, webhooks, credenciais e referências da aplicação.
 - [x] Validar que o plano e os demais fluxos continuam funcionando sem Mercado Pago.
+
+- [ ] Validar o projeto Supabase de destino e suas credenciais seguras.
+- [ ] Inventariar schema, tabelas, volume e integridade do banco atual.
+- [ ] Criar e aplicar no Supabase o schema compatível com o Meu Fiado.
+- [ ] Migrar os dados e atualizar a aplicação para o novo banco.
+- [ ] Validar o cutover, os testes e a integridade dos dados migrados.
+
+- [ ] Converter o schema Drizzle e o driver do runtime para PostgreSQL/Supabase.
+- [ ] Adaptar enums, conflitos de inserção e testes do banco para PostgreSQL.
+- [ ] Criar políticas RLS seguras para as tabelas migradas sem bloquear o servidor.
+- [ ] Ativar o Supabase no runtime, validar fluxos e comparar a integridade dos dados.
