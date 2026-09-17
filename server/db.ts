@@ -50,12 +50,13 @@ import { applyWorkingDaysMode, type WorkingDaysMode } from "../shared/workingDay
 import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type OperatorRole } from "../shared/branchSlots";
 import { resolveSubscriptionAccess, SUBSCRIPTION_GRACE_DAYS } from "../shared/subscriptionAccess";
 import { storagePut } from "./storage";
+import { resolveSupabaseConnectionString } from "./dbConnection";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
 
 export async function getDb() {
-  const connectionString = process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+  const connectionString = resolveSupabaseConnectionString();
   if (!_db && connectionString) {
     try {
       _pool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });

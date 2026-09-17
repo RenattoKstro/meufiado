@@ -102,6 +102,10 @@ describe("helpers reais de métricas compartilhadas", () => {
             inserted.push(values);
             state.metrics = { ...state.metrics, ...values, ...set };
           },
+          onConflictDoUpdate: async ({ set }: { set: Record<string, unknown> }) => {
+            inserted.push(values);
+            state.metrics = { ...state.metrics, ...values, ...set };
+          },
         }),
       })),
     };

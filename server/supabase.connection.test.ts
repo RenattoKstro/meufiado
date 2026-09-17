@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import pg from "pg";
+import { resolveSupabaseConnectionString } from "./dbConnection";
 
 const { Client } = pg;
 
 describe("conexão do banco Supabase", () => {
   it("aceita a conexão configurada e responde ao health check", async () => {
-    const connectionString = process.env.SUPABASE_DATABASE_URL;
-    expect(connectionString, "SUPABASE_DATABASE_URL deve estar configurada").toBeTruthy();
+    const connectionString = resolveSupabaseConnectionString();
+    expect(connectionString, "SUPABASE_DATABASE_URL ou DATABASE_URL deve estar configurada").toBeTruthy();
 
     const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10_000 });
     await client.connect();

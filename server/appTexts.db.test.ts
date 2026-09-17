@@ -5,7 +5,7 @@ const dbMock = vi.hoisted(() => ({
   insert: vi.fn(),
 }));
 
-vi.mock("drizzle-orm/mysql2", () => ({ drizzle: vi.fn(() => dbMock) }));
+vi.mock("drizzle-orm/node-postgres", () => ({ drizzle: vi.fn(() => dbMock) }));
 
 import { DEFAULT_APP_TEXT_SETTINGS, getAppTextSettings } from "./db";
 
