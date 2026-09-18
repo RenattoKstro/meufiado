@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertCallingListRows, filterCallingListRows, listCallingVendors, parseCallingListOverdueValue } from "./callingList";
+import { convertCallingListRows, filterCallingListRows, listCallingVendors, parseCallingListOverdueValue, sortCallingListRows } from "./callingList";
 
 describe("convertCallingListRows", () => {
   it("preserva somente os campos necessários e reúne os telefones móveis", () => {
@@ -53,5 +53,16 @@ describe("convertCallingListRows", () => {
       "Dentro da faixa",
       "Também na faixa",
     ]);
+  });
+
+  it("ordena o Valor Vencido do menor para o maior e do maior para o menor", () => {
+    const rows = convertCallingListRows([
+      { Cliente: "Médio", "Valor Vencido": "500,00" },
+      { Cliente: "Baixo", "Valor Vencido": "100,00" },
+      { Cliente: "Alto", "Valor Vencido": "1.000,00" },
+    ]);
+
+    expect(sortCallingListRows(rows, "overdueAsc").map(row => row.customer)).toEqual(["Baixo", "Médio", "Alto"]);
+    expect(sortCallingListRows(rows, "overdueDesc").map(row => row.customer)).toEqual(["Alto", "Médio", "Baixo"]);
   });
 });

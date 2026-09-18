@@ -451,7 +451,7 @@ export async function completeMyProfile(userId: number, input: ProfileInput, dat
 
 export async function updateMyPreferences(
   userId: number,
-  input: { colorMode?: "light" | "dark"; colorPalette?: "ocean" | "violet" | "forest" | "sunset" | "rose" | "midnight" | "citrus" | "slate"; showLostGoal?: boolean; isOnVacation?: boolean; messageNotificationsEnabled?: boolean },
+  input: { colorMode?: "light" | "dark"; colorPalette?: "ocean" | "violet" | "forest" | "sunset" | "rose" | "midnight" | "citrus" | "slate"; showLostGoal?: boolean; showTicketGoal?: boolean; showPossibleRewards?: boolean; showRewardAmounts?: boolean; isOnVacation?: boolean; messageNotificationsEnabled?: boolean },
 ) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");

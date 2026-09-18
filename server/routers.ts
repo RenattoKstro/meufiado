@@ -371,7 +371,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     account: protectedProcedure.input(accountInput).mutation(({ ctx, input }) => updateMyAccount(ctx.user.id, input)),
     uploadAvatar: protectedProcedure.input(avatarInput).mutation(({ ctx, input }) => uploadMyAvatar(ctx.user.id, input.dataUrl)),
     preferences: protectedProcedure
-      .input(z.object({ colorMode: z.enum(["light", "dark"]).optional(), colorPalette: palette.optional(), showLostGoal: z.boolean().optional(), showTicketGoal: z.boolean().optional(), showPossibleRewards: z.boolean().optional(), isOnVacation: z.boolean().optional(), messageNotificationsEnabled: z.boolean().optional() }))
+      .input(z.object({ colorMode: z.enum(["light", "dark"]).optional(), colorPalette: palette.optional(), showLostGoal: z.boolean().optional(), showTicketGoal: z.boolean().optional(), showPossibleRewards: z.boolean().optional(), showRewardAmounts: z.boolean().optional(), isOnVacation: z.boolean().optional(), messageNotificationsEnabled: z.boolean().optional() }))
       .mutation(({ ctx, input }) => updateMyPreferences(ctx.user.id, input)),
   }),
   metrics: router({

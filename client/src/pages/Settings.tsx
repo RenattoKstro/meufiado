@@ -110,7 +110,7 @@ export function MetricsSettings() {
       const direction = operation === "add" ? -1 : 1;
       return {
         ...next,
-        workingDaysTotal: Math.max(0, next.workingDaysTotal + direction),
+        workingDaysTotal: Math.max(0, next.workingDaysTotal + (holidayDay > todayDay ? direction : 0)),
         workingDaysElapsed: Math.max(0, next.workingDaysElapsed + (holidayDay <= todayDay ? direction : 0)),
         ticketWorkingDaysRemaining: Math.max(0, next.ticketWorkingDaysRemaining + (holidayDay > todayDay && holidayDay <= 15 ? direction : 0)),
       };
@@ -167,6 +167,16 @@ export function MetricsSettings() {
       toast.success(showPossibleRewards ? "Valores possíveis exibidos." : "Valores possíveis ocultados.");
     } catch {
       toast.error("Não foi possível atualizar a visibilidade dos valores possíveis.");
+    }
+  }
+
+  async function setRewardAmountsVisibility(showRewardAmounts: boolean) {
+    try {
+      await preferences.mutateAsync({ showRewardAmounts });
+      await profileQuery.refetch();
+      toast.success(showRewardAmounts ? "Premiações exibidas nos cards." : "Premiações ocultadas nos cards.");
+    } catch {
+      toast.error("Não foi possível atualizar a visibilidade das premiações.");
     }
   }
 
@@ -261,6 +271,7 @@ export function MetricsSettings() {
               <div className="grid gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 sm:grid-cols-2">
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar Meta Alimentação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os cards, a meta, o recebido hoje e o ritmo até o dia 15.</p></div><Switch checked={profileQuery.data.profile.showTicketGoal ?? true} onCheckedChange={setTicketVisibility} disabled={preferences.isPending} /></div>
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar valores possíveis</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os valores máximos de premiação nos cards.</p></div><Switch checked={profileQuery.data.profile.showPossibleRewards ?? true} onCheckedChange={setPossibleRewardsVisibility} disabled={preferences.isPending} /></div>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar premiação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe o valor já ganho em Fiado, Desafio, Alimentação e Perdido.</p></div><Switch checked={profileQuery.data.profile.showRewardAmounts ?? true} onCheckedChange={setRewardAmountsVisibility} disabled={preferences.isPending} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Modo de dias úteis">
                 <button type="button" role="radio" aria-checked={isAutomatic} onClick={() => selectWorkingDaysMode("automatic")} className={`rounded-xl border p-3 text-left transition-colors ${isAutomatic ? "border-primary bg-primary/5 ring-2 ring-primary/15" : "border-border hover:bg-muted/50"}`}><p className="text-sm font-extrabold">Automático</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Calcula o mês atual conforme as opções de calendário abaixo.</p></button>
@@ -272,7 +283,7 @@ export function MetricsSettings() {
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Incluir domingo</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Domingos entram na contagem.</p></div><Switch checked={form.includeSunday} onCheckedChange={checked => updateCalendarOption("includeSunday", checked)} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Dias úteis do mês</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysTotal} onChange={event => updateNumber("workingDaysTotal", event.target.value)} /></div>
+                <div className="space-y-2"><Label>Dias úteis restantes</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysTotal} onChange={event => updateNumber("workingDaysTotal", event.target.value)} /></div>
                 <div className="space-y-2"><Label>Dias úteis trabalhados</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysElapsed} onChange={event => updateNumber("workingDaysElapsed", event.target.value)} /></div>
               </div>
               <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual e pelas opções de hoje, sábado, domingo e feriados." : "Informe os dias da filial; os feriados abaixo ajustam os totais automaticamente."}</p></div>

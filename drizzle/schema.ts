@@ -93,6 +93,7 @@ export const userProfiles = pgTable(
     showLostGoal: boolean("showLostGoal").default(false).notNull(),
     showTicketGoal: boolean("showTicketGoal").default(true).notNull(),
     showPossibleRewards: boolean("showPossibleRewards").default(true).notNull(),
+    showRewardAmounts: boolean("showRewardAmounts").default(true).notNull(),
     messageNotificationsEnabled: boolean("messageNotificationsEnabled").default(true).notNull(),
     colorMode: colorModeEnum("colorMode").default("light").notNull(),
     colorPalette: colorPaletteEnum("colorPalette").default("ocean").notNull(),

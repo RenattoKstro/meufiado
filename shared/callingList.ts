@@ -10,6 +10,8 @@ export type CallingListFilters = {
   maxOverdueValue?: string;
 };
 
+export type CallingListSort = "none" | "overdueAsc" | "overdueDesc";
+
 export const CALLING_LIST_LABELS: Record<CallingListColumn, string> = {
   vendor: "Vendedor",
   delay: "Atraso",
@@ -99,5 +101,16 @@ export function filterCallingListRows(rows: CallingListRow[], filters: CallingLi
     const matchesMinimum = minimum === null || (overdueValue !== null && overdueValue >= minimum);
     const matchesMaximum = maximum === null || (overdueValue !== null && overdueValue <= maximum);
     return matchesVendor && searchable.includes(query) && matchesMinimum && matchesMaximum;
+  });
+}
+
+export function sortCallingListRows(rows: CallingListRow[], sort: CallingListSort) {
+  if (sort === "none") return rows;
+  return [...rows].sort((first, second) => {
+    const firstValue = parseCallingListOverdueValue(first.overdueValue);
+    const secondValue = parseCallingListOverdueValue(second.overdueValue);
+    const firstComparable = firstValue ?? (sort === "overdueAsc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
+    const secondComparable = secondValue ?? (sort === "overdueAsc" ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY);
+    return sort === "overdueAsc" ? firstComparable - secondComparable : secondComparable - firstComparable;
   });
 }
