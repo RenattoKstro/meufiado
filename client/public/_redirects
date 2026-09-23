@@ -1,3 +1,2 @@
-# Rotas da API continuam sendo tratadas pelo backend; demais URLs retornam o shell SPA.
-/api/*  /api/:splat  200
-/*      /index.html   200
+# Fallback para o roteamento SPA do React.
+/*    /index.html   200
