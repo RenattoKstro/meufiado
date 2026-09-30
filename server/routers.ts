@@ -428,7 +428,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const rows = uniqueRowsByBranchCode(parsedRows);
       return importBranches(rows).then(result => ({ ...result, received: input.rows.length, valid: parsedRows.length, skipped: input.rows.length - rows.length }));
     }),
-    importAnalytics: adminProcedure.input(matrixWorkbookInput).mutation(({ input }) => {
+    importAnalytics: adminProcedure.input(matrixWorkbookInput).mutation(async ({ ctx, input }) => {
       const parseRows = <T extends { code: string }>(rows: (string | number | null | undefined)[][], parser: (row: unknown[]) => T | null) => {
         const parsed = rows.map(parser).filter((row): row is T => row !== null);
         return uniqueRowsByBranchCode(parsed);
@@ -438,7 +438,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const dailyTracking = parseRows(input.dailyTracking, dailyTrackingRowFromSpreadsheet);
       const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
       const receiptDaily = parseRows(input.receiptDaily, receiptDailyRowFromSpreadsheet);
-      return importMatrixWorkbook({
+      const result = await importMatrixWorkbook({
         analytic,
         data,
         dailyTracking,
@@ -451,11 +451,18 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
           challengeDaily: { receivedRows: input.challengeDaily.length, validRows: challengeDaily.length },
           receiptDaily: { receivedRows: input.receiptDaily.length, validRows: receiptDaily.length },
         },
-      }).then(result => ({
+      });
+      await createUpdateNote({
+        title: "Matriz atualizada",
+        description: `A Administração importou novos dados da Matriz. ${result.imported} filial${result.imported === 1 ? " foi atualizada" : " foram atualizadas"}. Consulte a aba Filiais para acompanhar os indicadores mais recentes.`,
+        category: "Matriz",
+        isVisible: true,
+      }, ctx.user.id);
+      return {
         ...result,
         received: input.analytic.length + input.data.length + input.dailyTracking.length + input.challengeDaily.length + input.receiptDaily.length,
         valid: analytic.length + data.length + dailyTracking.length + challengeDaily.length + receiptDaily.length,
-      }));
+      };
     }),
     importStatus: adminProcedure.query(() => getAnalyticImportStatus()),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),

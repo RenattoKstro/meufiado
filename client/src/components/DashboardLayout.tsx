@@ -170,9 +170,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="min-w-0 bg-background">
-        {isMobile && <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl"><SidebarTrigger className="h-9 w-9 rounded-xl border border-border bg-card shadow-sm" /><p className="text-sm font-extrabold tracking-tight">{active}</p></header>}
+        {isMobile ? <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl"><SidebarTrigger className="h-9 w-9 rounded-xl border border-border bg-card shadow-sm" /><p className="min-w-0 flex-1 truncate text-sm font-extrabold tracking-tight">{active}</p><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} /></header> : <div className="flex h-14 items-center justify-end border-b border-border/70 bg-background/90 px-6 backdrop-blur-xl"><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} /></div>}
         <main className="min-h-screen p-4 sm:p-6 lg:p-9">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+function GlobalNotificationBell({ unread }: { unread: number }) {
+  const [, navigate] = useLocation();
+  return <DropdownMenu>
+    <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={unread > 0 ? `${unread} notificações novas` : "Notificações"} className="relative h-10 w-10 rounded-xl border border-border/70 bg-card shadow-sm"><BellRing className="h-4 w-4" />{unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-black text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}</Button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end" className="w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-2">
+      <DropdownMenuLabel className="flex items-center justify-between px-3 py-2"><span>Notificações</span>{unread > 0 && <Badge className="rounded-full text-[10px]">{unread} nova{unread === 1 ? "" : "s"}</Badge>}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem className="items-start gap-3 rounded-xl p-3" onSelect={() => navigate("/atualizacoes")}><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><BellRing className="h-3.5 w-3.5" /></span><span className="min-w-0 text-xs leading-relaxed">{unread > 0 ? "Há novas atualizações, incluindo alterações recentes da Matriz." : "Você está em dia. Abra Atualizações para consultar o histórico."}</span></DropdownMenuItem>
+      <DropdownMenuSeparator /><DropdownMenuItem className="justify-center rounded-xl text-xs font-bold text-primary" onSelect={() => navigate("/atualizacoes")}>Ver todas as atualizações</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>;
 }

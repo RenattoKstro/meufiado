@@ -7,6 +7,7 @@ import { useTheme, type Palette } from "@/contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { automaticWorkingDays } from "@shared/workingDays";
+import { parsePastedCurrency } from "@shared/currencyInput";
 import { CalendarClock, CalendarPlus, Check, Database, Loader2, Moon, Palette as PaletteIcon, Save, Sun, Trash2 } from "lucide-react";
 import React, { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -52,6 +53,19 @@ function isCurrentCalendarDate(date: string) {
   const today = brazilCalendarDate();
   const candidate = new Date(`${date}T12:00:00`);
   return /^\d{4}-\d{2}-\d{2}$/.test(date) && date.slice(0, 7) === today.slice(0, 7) && !Number.isNaN(candidate.getTime());
+}
+
+function formatMoneyInput(value: number) {
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number.isFinite(value) ? value : 0);
+}
+
+function CurrencyInput({ id, label, value, onChange }: { id: string; label: string; value: number; onChange: (value: number) => void }) {
+  const [draft, setDraft] = useState(() => formatMoneyInput(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setDraft(formatMoneyInput(value));
+  }, [focused, value]);
+  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label><Input id={id} type="text" inputMode="decimal" value={draft} onFocus={() => { setFocused(true); setDraft(value ? String(value).replace(".", ",") : ""); }} onChange={event => setDraft(event.target.value)} onBlur={() => { const parsed = Math.round(parsePastedCurrency(draft) * 100) / 100; onChange(parsed); setDraft(formatMoneyInput(parsed)); setFocused(false); }} /></div>;
 }
 
 export function MetricsSettings() {
@@ -256,8 +270,8 @@ export function MetricsSettings() {
                 <Switch checked={profileQuery.data.profile.showLostGoal ?? false} onCheckedChange={setLostGoal} disabled={preferences.isPending} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Meta Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostGoal} onChange={event => updateNumber("lostGoal", event.target.value)} /></div>
-                <div className="space-y-2"><Label>Recebido Perdido</Label><Input type="number" min="0" step="0.01" value={form.lostReceived} onChange={event => updateNumber("lostReceived", event.target.value)} /></div>
+                <CurrencyInput id="lost-goal" label="Meta Perdido" value={form.lostGoal} onChange={value => setForm(current => ({ ...current, lostGoal: value }))} />
+                <CurrencyInput id="lost-received" label="Recebido Perdido" value={form.lostReceived} onChange={value => setForm(current => ({ ...current, lostReceived: value }))} />
               </div>
             </CardContent>
           </Card>

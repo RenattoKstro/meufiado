@@ -175,6 +175,8 @@ export async function listBranchOverviews() {
     .where(eq(branches.isActive, true))
     .orderBy(branches.name, userProfiles.fullName);
 
+  const matrixUpdates = await db.select({ branchId: matrixMetrics.branchId, updatedAt: matrixMetrics.updatedAt }).from(matrixMetrics);
+  const matrixUpdatedAtByBranch = new Map(matrixUpdates.map(item => [item.branchId, item.updatedAt]));
   return rows.map(({ branch, profile, account, branchMetrics: metrics }) => ({
     branch,
     operator: profile
@@ -190,7 +192,7 @@ export async function listBranchOverviews() {
         }
       : null,
     metrics: resolveBranchOverviewMetrics(metrics),
-    updatedAt: latestOverviewUpdate(metrics?.updatedAt, profile?.updatedAt, branch.updatedAt),
+    updatedAt: latestOverviewUpdate(metrics?.updatedAt, matrixUpdatedAtByBranch.get(branch.id), profile?.updatedAt, branch.updatedAt),
   }));
 }
 
@@ -304,6 +306,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
   ])).filter(code => !analyticCodes.has(code)).length;
   let regionalMismatch = 0;
   let createdBranches = 0;
+  const importedAt = new Date();
   const importForBranch = async (branch: typeof allBranches[number], code: string) => {
     const analytic = analytics.get(code);
     const data = dataRows.get(code);
@@ -342,6 +345,7 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
       challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge.dailyReceived) : previous?.challengeDailyReceivedJson ?? null,
       sales: dailyReceipts?.sales ?? previous?.sales ?? 0,
       receiptDailyJson: dailyReceipts?.dailyReceived ? JSON.stringify(dailyReceipts.dailyReceived) : previous?.receiptDailyJson ?? null,
+      updatedAt: importedAt,
     };
     await db.insert(matrixMetrics).values({ branchId: branch.id, ...values }).onConflictDoUpdate({ target: matrixMetrics.branchId, set: values });
     const analyticRegional = analytic?.regional.trim();
@@ -374,7 +378,6 @@ export async function importMatrixWorkbook(sources: MatrixWorkbookRows) {
     }
     await importForBranch(branch, code);
   }
-  const importedAt = new Date();
   const sourceEntries = (Object.keys(sources.sourceRows ?? {}) as Array<"analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily">)
     .map(source => [source, sources.sourceRows?.[source]] as const)
     .filter((entry): entry is readonly ["analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily", { receivedRows: number; validRows: number }] => Boolean(entry[1]?.receivedRows));
