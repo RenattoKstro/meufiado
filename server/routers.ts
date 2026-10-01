@@ -188,6 +188,7 @@ const subscriptionSettingsInput = z.object({
   subscriberGoalMinimum: z.number().int().min(0).max(10_000_000).default(0),
   subscriberGoalCurrent: z.number().int().min(0).max(10_000_000).default(0),
   subscriberGoalContext: z.string().trim().max(800).default(""),
+  customPlansJson: z.string().max(20_000).default("[]"),
   overviewPlan: subscriptionPlan,
   matrixPlan: subscriptionPlan,
   branchesPlan: subscriptionPlan,

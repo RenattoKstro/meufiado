@@ -467,6 +467,7 @@ export const subscriptionSettings = pgTable("subscriptionSettings", {
   subscriberGoalMinimum: integer("subscriberGoalMinimum").default(0).notNull(),
   subscriberGoalCurrent: integer("subscriberGoalCurrent").default(0).notNull(),
   subscriberGoalContext: varchar("subscriberGoalContext", { length: 800 }).default("").notNull(),
+  customPlansJson: text("customPlansJson").default("[]").notNull(),
   overviewPlan: userPlanEnum("overviewPlan").default("free").notNull(),
   matrixPlan: userPlanEnum("matrixPlan").default("pro").notNull(),
   branchesPlan: userPlanEnum("branchesPlan").default("pro").notNull(),

@@ -132,6 +132,22 @@ export function MetricsSettings() {
     if (operation === "add") setHolidayDate("");
   };
 
+  const removeHoliday = (date: string) => {
+    setForm(current => {
+      if (!current.manualHolidayDates.includes(date)) return current;
+      const next = { ...current, manualHolidayDates: current.manualHolidayDates.filter(value => value !== date) };
+      if (next.workingDaysMode === "automatic") return { ...next, ...automaticWorkingDays(new Date(), next) };
+      const todayDay = Number(brazilCalendarDate().slice(-2));
+      const holidayDay = Number(date.slice(-2));
+      return {
+        ...next,
+        workingDaysTotal: Math.max(0, next.workingDaysTotal + (holidayDay > todayDay ? 1 : 0)),
+        workingDaysElapsed: Math.max(0, next.workingDaysElapsed + (holidayDay <= todayDay ? 1 : 0)),
+        ticketWorkingDaysRemaining: Math.max(0, next.ticketWorkingDaysRemaining + (holidayDay > todayDay && holidayDay <= 15 ? 1 : 0)),
+      };
+    });
+  };
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     try {
@@ -301,7 +317,7 @@ export function MetricsSettings() {
                 <div className="space-y-2"><Label>Dias úteis trabalhados</Label><Input type="number" min="0" max="31" disabled={isAutomatic} value={form.workingDaysElapsed} onChange={event => updateNumber("workingDaysElapsed", event.target.value)} /></div>
               </div>
               <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual e pelas opções de hoje, sábado, domingo e feriados." : "Informe os dias da filial; os feriados abaixo ajustam os totais automaticamente."}</p></div>
-              <div className="rounded-2xl border border-border/70 bg-muted/25 p-4"><Label htmlFor="manual-holiday">Excluir dia como feriado</Label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><Input id="manual-holiday" type="date" value={holidayDate} onChange={event => setHolidayDate(event.target.value)} /><Button type="button" variant="outline" onClick={() => adjustHoliday(holidayDate, "add")} disabled={!holidayDate} className="shrink-0 rounded-xl font-bold"><CalendarPlus className="mr-2 h-4 w-4" />Excluir dia</Button></div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">O dia excluído fica salvo para este mês e reduz a contagem automática ou os totais manuais, quando aplicável.</p>{form.manualHolidayDates.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{form.manualHolidayDates.map(date => <span key={date} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-bold"><span>{new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR")}</span><button type="button" aria-label={`Remover feriado ${date}`} onClick={() => adjustHoliday(date, "remove")} className="rounded-full text-muted-foreground transition-colors hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></span>)}</div>}</div>
+              <div className="rounded-2xl border border-border/70 bg-muted/25 p-4"><Label htmlFor="manual-holiday">Excluir dia como feriado</Label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><Input id="manual-holiday" type="date" value={holidayDate} onChange={event => setHolidayDate(event.target.value)} /><Button type="button" variant="outline" onClick={() => adjustHoliday(holidayDate, "add")} disabled={!holidayDate} className="shrink-0 rounded-xl font-bold"><CalendarPlus className="mr-2 h-4 w-4" />Excluir dia</Button></div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">O dia excluído fica salvo para este mês e reduz a contagem automática ou os totais manuais, quando aplicável.</p>{form.manualHolidayDates.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{form.manualHolidayDates.map(date => <span key={date} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-bold"><span>{new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR")}</span><button type="button" aria-label={`Remover feriado ${date}`} onClick={() => removeHoliday(date)} className="rounded-full text-muted-foreground transition-colors hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></span>)}</div>}</div>
               <div className="rounded-xl bg-muted/60 px-3 py-3"><p className="text-xs font-extrabold">Validação automática</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Até o dia 15, o sistema acompanha 80% do valor a receber. Após o prazo, sem atingimento registrado, a Meta Ticket fica não atingida.</p></div>
             </CardContent>
           </Card>

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { CheckCircle2, Clipboard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
-import { ChangeEvent, useRef } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -17,6 +17,8 @@ const planInfoBackgroundClasses = {
   rose: "border-rose-500/25 bg-rose-500/[0.08]",
   slate: "border-slate-500/25 bg-slate-500/[0.08]",
 } as const;
+type CustomPlan = { id: string; name: string; description: string; monthlyPrice: number; promotionPrice: number; isVisible: boolean };
+function readCustomPlans(value: string | null | undefined): CustomPlan[] { try { const parsed = JSON.parse(value || "[]"); return Array.isArray(parsed) ? parsed.filter(item => item && item.isVisible !== false && String(item.name || "").trim()).map(item => ({ id: String(item.id), name: String(item.name), description: String(item.description || ""), monthlyPrice: Number(item.monthlyPrice) || 0, promotionPrice: Number(item.promotionPrice) || 0, isVisible: true })) : []; } catch { return []; } }
 
 export default function Subscription() {
   const utils = trpc.useUtils();
@@ -25,6 +27,7 @@ export default function Subscription() {
   const submitProof = trpc.subscription.submitProof.useMutation();
   const pickerRef = useRef<HTMLInputElement>(null);
   const subscription = subscriptionQuery.data;
+  const [selectedPlanId, setSelectedPlanId] = useState("default");
 
   async function copyToClipboard(value: string, successMessage: string) {
     try {
@@ -62,8 +65,11 @@ export default function Subscription() {
   if (subscriptionQuery.isError || !subscription) return <section className="mx-auto max-w-3xl"><Card className="rounded-[1.6rem]"><CardContent className="p-7 text-sm text-muted-foreground">Não foi possível carregar sua assinatura agora. Atualize a página e tente novamente.</CardContent></Card></section>;
 
   const { settings, latestProof, isPro, proExpiresAt, status, graceEndsAt } = subscription;
+  const customPlans = readCustomPlans(settings.customPlansJson);
+  const selectedPlan = customPlans.find(plan => plan.id === selectedPlanId);
   const promotionIsActive = settings.promotionOriginalPrice > settings.promotionPrice && settings.promotionPrice > 0;
-  const chargeAmount = promotionIsActive ? settings.promotionPrice : settings.monthlyPrice;
+  const selectedPromotion = Boolean(selectedPlan && selectedPlan.promotionPrice > 0 && selectedPlan.promotionPrice < selectedPlan.monthlyPrice);
+  const chargeAmount = selectedPlan ? (selectedPromotion ? selectedPlan.promotionPrice : selectedPlan.monthlyPrice) : (promotionIsActive ? settings.promotionPrice : settings.monthlyPrice);
   const paymentReady = Boolean(chargeAmount > 0 && (settings.pixQrCodeUrl || settings.pixCopyPaste || settings.pixKey));
   const waitingReview = latestProof?.status === "pending";
   const isGracePeriod = status === "grace";
@@ -75,6 +81,7 @@ export default function Subscription() {
   return <section className="mx-auto max-w-4xl">
     <header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Acesso da conta</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">{texts.subscriptionTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{texts.subscriptionDescription}</p></header>
     <Card className={`mb-5 rounded-[1.6rem] shadow-sm ${planInfoBackground}`}><CardContent className="p-5 sm:p-6"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-background/70 text-primary shadow-sm"><Crown className="h-5 w-5" /></span><div><h2 className="text-lg font-black tracking-[-0.02em]">{settings.planInfoTitle}</h2><p className="mt-1.5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-foreground/70">{settings.planInfoDescription}</p>{showPlanInfoCta ? <a href={settings.planInfoCtaUrl} target={isExternalPlanInfoCta ? "_blank" : undefined} rel={isExternalPlanInfoCta ? "noreferrer" : undefined} className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-primary px-4 py-2 text-sm font-extrabold text-primary-foreground shadow-sm transition-transform duration-150 ease-out hover:bg-primary/90 active:scale-[0.97]">{settings.planInfoCtaLabel}</a> : null}</div></div></CardContent></Card>
+    {customPlans.length > 0 && <section className="mb-5"><div className="mb-3"><p className="text-xs font-black uppercase tracking-[0.14em] text-primary">Escolha sua modalidade</p><h2 className="mt-1 text-xl font-black">Planos disponíveis</h2></div><div className="grid gap-4 md:grid-cols-2">{customPlans.map(plan => { const discounted = plan.promotionPrice > 0 && plan.promotionPrice < plan.monthlyPrice; return <Card key={plan.id} className={`rounded-[1.4rem] border-border/70 shadow-sm ${selectedPlanId === plan.id ? "border-primary ring-2 ring-primary/20" : ""}`}><CardContent className="space-y-3 p-5"><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-base">{plan.name}</CardTitle><CardDescription className="mt-1">{plan.description || "Acesso aos recursos PRO."}</CardDescription></div><Crown className="h-5 w-5 shrink-0 text-primary" /></div><p className="text-2xl font-black text-primary">{money.format(discounted ? plan.promotionPrice : plan.monthlyPrice)}<span className="ml-1 text-xs font-semibold text-muted-foreground">/mês</span></p><Button type="button" variant={selectedPlanId === plan.id ? "default" : "outline"} className="w-full rounded-xl font-extrabold" onClick={() => setSelectedPlanId(plan.id)}>{selectedPlanId === plan.id ? "Plano selecionado" : "Escolher este plano"}</Button></CardContent></Card>; })}</div></section>}
     <div className="grid gap-5 lg:grid-cols-[.92fr_1.08fr]">
       <Card className={`lg:self-start rounded-[1.6rem] border-border/70 shadow-sm ${isPro ? "bg-primary/[0.03]" : ""}`}>
         <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />{isPro ? "Boas-vindas ao PRO" : "Plano Free"}</CardTitle><CardDescription className="mt-1">{isGracePeriod ? "Sua assinatura venceu, mas você ainda está no período de carência." : isPro ? "Seu acesso premium está ativo." : "Sua conta está no plano Free."}</CardDescription></div>{isGracePeriod ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-400">CARÊNCIA</span> : isPro ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">PRO</span> : <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-extrabold text-muted-foreground">FREE</span>}</div></CardHeader>

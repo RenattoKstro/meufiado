@@ -193,7 +193,11 @@ export async function listBranchOverviews() {
       : null,
     metrics: resolveBranchOverviewMetrics(metrics),
     updatedAt: latestOverviewUpdate(metrics?.updatedAt, matrixUpdatedAtByBranch.get(branch.id), profile?.updatedAt, branch.updatedAt),
-  }));
+  })).sort((left, right) => {
+    const rightTime = right.updatedAt?.getTime() ?? 0;
+    const leftTime = left.updatedAt?.getTime() ?? 0;
+    return rightTime - leftTime || left.branch.name.localeCompare(right.branch.name, "pt-BR");
+  });
 }
 
 export async function listMatrixOverviews() {
@@ -820,6 +824,7 @@ export type SubscriptionSettingsInput = {
   subscriberGoalMinimum: number;
   subscriberGoalCurrent: number;
   subscriberGoalContext: string;
+  customPlansJson: string;
   overviewPlan: SubscriptionPlan;
   matrixPlan: SubscriptionPlan;
   branchesPlan: SubscriptionPlan;
@@ -855,6 +860,7 @@ const defaultSubscriptionSettings: SubscriptionSettingsInput & { pixQrCodeUrl: s
   subscriberGoalMinimum: 0,
   subscriberGoalCurrent: 0,
   subscriberGoalContext: "",
+  customPlansJson: "[]",
   overviewPlan: "free",
   matrixPlan: "pro",
   branchesPlan: "pro",
