@@ -51,4 +51,11 @@ describe("calendário de dias úteis", () => {
       ticketWorkingDaysRemaining: 5,
     });
   });
+
+  it("conta o último dia do mês quando ele não é domingo e contar hoje está ativo", () => {
+    const calendar = automaticWorkingDays(new Date("2026-08-31T15:00:00.000Z"), { countToday: true });
+
+    expect(calendar.workingDaysRemaining).toBe(0);
+    expect(calendar.workingDaysElapsed).toBe(calendar.workingDaysTotal);
+  });
 });

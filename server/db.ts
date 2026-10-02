@@ -726,7 +726,7 @@ async function getHistoryEntryForBranch(db: ApplicationDatabase, id: number, bra
 
 export async function listReceiptHistory(userId: number, month: string, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
-  if (!db) return { month, entries: [], totalReceived: 0, daysRecorded: 0, averagePerDay: 0 };
+  if (!db) return { month, entries: [], totalReceived: 0, daysRecorded: 0, averagePerDay: 0, indicators: null };
   const branchId = await getHistoryBranchId(db, userId);
   const { start, end } = monthBounds(month);
   const entries = await db
@@ -739,12 +739,14 @@ export async function listReceiptHistory(userId: number, month: string, database
     ))
     .orderBy(desc(receiptHistoryEntries.entryDate));
   const totalReceived = entries.reduce((total, entry) => total + entry.receivedAmount, 0);
+  const latest = entries[0];
   return {
     month,
     entries,
     totalReceived,
     daysRecorded: entries.length,
     averagePerDay: entries.length ? totalReceived / entries.length : 0,
+    indicators: latest ? { monthOpening: latest.monthOpening, creditGoal: latest.creditGoal, challengeGoal: latest.challengeGoal, currentOverdue: latest.currentOverdue, delinquencyPercent: latest.delinquencyPercent, previousMonthDifference: latest.previousMonthDifference } : null,
   };
 }
 
@@ -761,6 +763,17 @@ export async function getReceiptDailyStatus(userId: number, entryDate: string, d
   return { hasBranch: true, hasEntry: Boolean(entry), entryDate };
 }
 
+async function getReceiptHistorySnapshot(db: ApplicationDatabase, branchId: number, entryDate: string) {
+  const [metrics] = await db.select({ monthOpening: branchMetrics.monthOpening, creditGoal: branchMetrics.creditGoal, challengeGoal: branchMetrics.challengeGoal, currentOverdue: branchMetrics.currentOverdue, portfolioTotal: branchMetrics.portfolioTotal }).from(branchMetrics).where(eq(branchMetrics.branchId, branchId)).limit(1);
+  const [year, month] = entryDate.slice(0, 7).split("-").map(Number);
+  const previous = new Date(Date.UTC(year, month - 2, 1));
+  const previousMonth = `${previous.getUTCFullYear()}-${String(previous.getUTCMonth() + 1).padStart(2, "0")}`;
+  const previousEnd = `${entryDate.slice(0, 7)}-01`;
+  const [previousEntry] = await db.select({ currentOverdue: receiptHistoryEntries.currentOverdue }).from(receiptHistoryEntries).where(and(eq(receiptHistoryEntries.branchId, branchId), gte(receiptHistoryEntries.entryDate, `${previousMonth}-01`), lt(receiptHistoryEntries.entryDate, previousEnd))).orderBy(desc(receiptHistoryEntries.entryDate)).limit(1);
+  const currentOverdue = metrics?.currentOverdue ?? 0;
+  return { monthOpening: metrics?.monthOpening ?? 0, creditGoal: metrics?.creditGoal ?? 0, challengeGoal: metrics?.challengeGoal ?? 0, currentOverdue, delinquencyPercent: metrics?.portfolioTotal ? (currentOverdue / metrics.portfolioTotal) * 100 : 0, previousMonthDifference: currentOverdue - (previousEntry?.currentOverdue ?? currentOverdue) };
+}
+
 export async function createReceiptHistoryEntry(userId: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
@@ -772,7 +785,8 @@ export async function createReceiptHistoryEntry(userId: number, input: ReceiptHi
     .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, entryDate)))
     .limit(1);
   if (existing) throw new Error("Já existe um lançamento para esta data. Edite o lançamento existente.");
-  await db.insert(receiptHistoryEntries).values({ branchId, entryDate, receivedAmount: input.receivedAmount, createdByUserId: userId });
+  const snapshot = await getReceiptHistorySnapshot(db, branchId, entryDate);
+  await db.insert(receiptHistoryEntries).values({ branchId, entryDate, receivedAmount: input.receivedAmount, createdByUserId: userId, ...snapshot });
 }
 
 export async function updateReceiptHistoryEntry(userId: number, id: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {
@@ -787,7 +801,8 @@ export async function updateReceiptHistoryEntry(userId: number, id: number, inpu
     .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, entryDate)))
     .limit(1);
   if (sameDayEntry && sameDayEntry.id !== id) throw new Error("Já existe um lançamento para esta data. Escolha outra data.");
-  await db.update(receiptHistoryEntries).set({ entryDate, receivedAmount: input.receivedAmount }).where(eq(receiptHistoryEntries.id, id));
+  const snapshot = await getReceiptHistorySnapshot(db, branchId, entryDate);
+  await db.update(receiptHistoryEntries).set({ entryDate, receivedAmount: input.receivedAmount, ...snapshot }).where(eq(receiptHistoryEntries.id, id));
 }
 
 export async function deleteReceiptHistoryEntry(userId: number, id: number, database?: ApplicationDatabase) {

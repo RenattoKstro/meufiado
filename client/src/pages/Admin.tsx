@@ -25,7 +25,6 @@ import AdminContactActions from "@/components/AdminContactActions";
 import SubscriptionAdminPanel from "@/components/SubscriptionAdminPanel";
 import AppTextSettingsPanel from "@/components/AppTextSettingsPanel";
 import UpdateNotesAdminPanel from "@/components/UpdateNotesAdminPanel";
-import { collectionProjectionRisk } from "../../../shared/collectionInsights";
 
 const INACTIVITY_DAYS = 7;
 type SpreadsheetRow = (string | number | null)[];
@@ -50,12 +49,10 @@ function identifyMatrixSheet(name: string): MatrixSheetKey | null {
   return null;
 }
 type Branch = { id: number; name: string; code: string | null; regional: string | null; isActive: boolean };
-type BranchOverview = { branch: Branch; metrics: { portfolioTotal: number; monthOpening: number; currentOverdue: number; creditGoal: number; workingDaysTotal: number; workingDaysElapsed: number } };
 
 export default function Admin() {
   const usersQuery = trpc.admin.users.useQuery();
   const branchesQuery = trpc.admin.branches.useQuery();
-  const overviewQuery = trpc.branches.overview.useQuery();
   const updateUser = trpc.admin.updateUser.useMutation();
   const updateRole = trpc.admin.updateRole.useMutation();
   const utils = trpc.useUtils();
@@ -87,7 +84,6 @@ export default function Admin() {
         <div className="flex min-w-0 flex-col gap-3 lg:items-end"><div className="flex w-full min-w-0 flex-wrap gap-2 lg:justify-end"><CredentialsDialog /><SpreadsheetImportDialog kind="branches" onComplete={refresh} /><SpreadsheetImportDialog kind="analytics" onComplete={refresh} /><BranchDialog onComplete={refresh} /><UserDialog branches={branches} onComplete={refresh} /></div><TabsList className="h-auto w-full max-w-full flex-wrap justify-start gap-1 rounded-xl bg-muted p-1 lg:justify-end"><TabsTrigger value="users" className="rounded-lg px-3 py-2 text-xs font-bold">Usuários</TabsTrigger><TabsTrigger value="contacts" className="rounded-lg px-3 py-2 text-xs font-bold">Perfis e contatos</TabsTrigger><TabsTrigger value="branches" className="rounded-lg px-3 py-2 text-xs font-bold">Filiais</TabsTrigger><TabsTrigger value="subscriptions" className="rounded-lg px-3 py-2 text-xs font-bold">Assinaturas</TabsTrigger><TabsTrigger value="updates" className="rounded-lg px-3 py-2 text-xs font-bold">Atualizações</TabsTrigger><TabsTrigger value="texts" className="rounded-lg px-3 py-2 text-xs font-bold">Textos</TabsTrigger><TabsTrigger value="alerts" className="rounded-lg px-3 py-2 text-xs font-bold">Atenções</TabsTrigger></TabsList></div>
       </header>
     <div className="grid gap-4 sm:grid-cols-3"><Stat icon={Users} label="Usuários ativos" value={active.length} tone="primary" /><Stat icon={CalendarOff} label="Em férias" value={vacation.length} tone="amber" /><Stat icon={Activity} label={`Inativos há ${INACTIVITY_DAYS}+ dias`} value={inactive.length} tone="violet" /></div>
-    <ManagementOverview rows={(overviewQuery.data ?? []) as BranchOverview[]} isLoading={overviewQuery.isLoading} />
       <TabsContent value="users" className="mt-5"><Card className="overflow-hidden rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader className="border-b border-border/70"><CardTitle className="text-lg">Operadores cadastrados</CardTitle><CardDescription>Ative ou desative acessos, altere a função e conceda perfil administrativo.</CardDescription></CardHeader><CardContent className="p-0"><div className="divide-y divide-border/70">{users.length === 0 ? <EmptyState text="Ainda não há operadores cadastrados." /> : users.map(item => { const hasAccount = Boolean(item.account); const idleDays = item.account?.lastSignedIn ? Math.floor((now - new Date(item.account.lastSignedIn).getTime()) / 86400000) : undefined; return <div key={item.profile.id} className="flex flex-col gap-4 p-5 xl:flex-row xl:items-center"><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-extrabold">{item.profile.fullName}</p>{!item.profile.isActive && <Badge variant="secondary" className="rounded-full bg-destructive/10 text-destructive">Inativo</Badge>}{item.profile.isOnVacation && <Badge variant="secondary" className="rounded-full bg-amber-500/10 text-amber-600">Férias</Badge>}{hasAccount && item.account?.role === "admin" && <Badge className="rounded-full bg-primary/10 text-primary hover:bg-primary/10">Admin</Badge>}</div><p className="mt-1 text-xs text-muted-foreground">{item.branch.name} · {item.profile.email} · {hasAccount ? `último login há ${idleDays ?? 0} dias` : "aguardando primeiro login"}</p></div><div className="grid grid-cols-3 items-center gap-3 xl:flex"><Select value={item.profile.operatorType} onValueChange={value => changeUser(item.profile.id, { operatorType: value as "leader" | "assistant" })}><SelectTrigger className="h-9 w-full text-xs xl:w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="leader">Líder</SelectItem><SelectItem value="assistant">Auxiliar</SelectItem></SelectContent></Select><div className="flex items-center gap-2 text-xs font-bold"><Switch checked={item.profile.isActive} onCheckedChange={checked => changeUser(item.profile.id, { isActive: checked })} /><span className="hidden xl:inline">Acesso</span></div><div className="flex items-center gap-2 text-xs font-bold"><Switch checked={item.profile.isOnVacation} onCheckedChange={checked => changeUser(item.profile.id, { isOnVacation: checked })} /><span className="hidden xl:inline">Férias</span></div>{item.profile.userId && <Button size="sm" variant="outline" className="h-9 rounded-lg text-xs" onClick={() => changeRole(item.profile.userId!, item.account?.role === "admin" ? "user" : "admin")}>{item.account?.role === "admin" ? "Remover admin" : "Promover"}</Button>}</div></div>; })}</div></CardContent></Card></TabsContent>
       <TabsContent value="contacts" className="mt-5"><AdminContactActions users={users} onChanged={refresh} /></TabsContent>
       <TabsContent value="branches" className="mt-5"><Card className="overflow-hidden rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Filiais</CardTitle><CardDescription>Cadastre manualmente ou importe uma planilha com ID, Regional e Filial.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{branches.map(branch => <BranchCard key={branch.id} branch={branch} onComplete={refresh} />)}{branches.length === 0 && <EmptyState text="Cadastre ou importe sua primeira filial para começar." />}</CardContent></Card></TabsContent>
@@ -99,32 +95,8 @@ export default function Admin() {
   </section>;
 }
 
-export function ManagementOverview({ rows, isLoading }: { rows: BranchOverview[]; isLoading: boolean }) {
-  if (isLoading) return <Card className="mt-5 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-5"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="h-20 animate-pulse rounded-2xl bg-muted" /><div className="h-20 animate-pulse rounded-2xl bg-muted" /></div></CardContent></Card>;
-  const operationalRows = rows.filter(row => row.metrics.monthOpening > 0 || row.metrics.currentOverdue > 0 || row.metrics.portfolioTotal > 0);
-  const insights = operationalRows.map(row => {
-    const elapsed = Math.max(1, row.metrics.workingDaysElapsed);
-    const remaining = Math.max(row.metrics.workingDaysTotal - row.metrics.workingDaysElapsed, 0);
-    const received = Math.max(row.metrics.monthOpening - row.metrics.currentOverdue, 0);
-    const projectedReceived = received + (received / elapsed) * remaining;
-    return { row, risk: collectionProjectionRisk({ monthOpening: row.metrics.monthOpening, projectedReceived, creditGoal: row.metrics.creditGoal }), projectedReceived };
-  });
-  const critical = insights.filter(item => item.risk.status === "critical");
-  const projectedTotal = insights.reduce((total, item) => total + item.projectedReceived, 0);
-  const averageDelinquency = operationalRows.length ? operationalRows.reduce((total, row) => total + (row.metrics.portfolioTotal > 0 ? (row.metrics.currentOverdue / row.metrics.portfolioTotal) * 100 : 0), 0) / operationalRows.length : 0;
-  const regional = Array.from(operationalRows.reduce((groups, row) => {
-    const key = row.branch.regional || "Sem regional";
-    const values = groups.get(key) ?? { delinquency: 0, count: 0 };
-    values.delinquency += row.metrics.portfolioTotal > 0 ? (row.metrics.currentOverdue / row.metrics.portfolioTotal) * 100 : 0;
-    values.count += 1;
-    groups.set(key, values);
-    return groups;
-  }, new Map<string, { delinquency: number; count: number }>())).map(([name, value]) => ({ name, average: value.delinquency / value.count, count: value.count })).sort((a, b) => b.average - a.average).slice(0, 4);
-  return <Card className="mt-5 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-primary/5 p-5 sm:flex-row sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-primary">Painel gerencial</p><h2 className="mt-1 text-xl font-black">Risco e projeção da operação</h2><p className="mt-1 text-xs text-muted-foreground">Visão consolidada baseada nas metas e no ritmo atual de cada filial.</p></div><span className="w-fit rounded-full bg-primary/10 px-3 py-1 text-xs font-extrabold text-primary">{operationalRows.length} filiais com dados</span></div><div className="grid gap-4 p-5 lg:grid-cols-[.8fr_.8fr_1.4fr]"><ManagementMetric label="Filiais críticas" value={String(critical.length)} note="Projeção acima da Meta Fiado" tone={critical.length ? "rose" : "emerald"} /><ManagementMetric label="Inadimplência média" value={`${averageDelinquency.toFixed(2)}%`} note="Média das filiais com carteira" tone={averageDelinquency >= 7 ? "rose" : "emerald"} /><ManagementMetric label="Projeção consolidada" value={new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(projectedTotal)} note="Estimativa de recebimento até o fim do mês" tone="primary" /></div><div className="grid gap-4 border-t border-border/70 p-5 lg:grid-cols-2"><div><p className="text-xs font-black">Filiais que exigem atenção</p><div className="mt-3 space-y-2">{critical.length ? critical.slice(0, 4).map(item => <div key={item.row.branch.id} className="flex items-center justify-between gap-3 rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2"><span className="truncate text-sm font-bold">{item.row.branch.name}</span><span className="shrink-0 text-xs font-black text-rose-700 dark:text-rose-300">Reforço {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(item.risk.amountToRecover)}</span></div>) : <p className="rounded-xl bg-emerald-500/10 px-3 py-3 text-sm font-bold text-emerald-800 dark:text-emerald-200">Nenhuma filial apresenta risco crítico com os dados atuais.</p>}</div></div><div><p className="text-xs font-black">Média por regional</p><div className="mt-3 space-y-2">{regional.length ? regional.map(item => <div key={item.name} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-2"><span className="truncate text-sm font-bold">{item.name}</span><span className="shrink-0 text-xs font-black text-primary">{item.average.toFixed(2)}% · {item.count} filial{item.count === 1 ? "" : "is"}</span></div>) : <p className="rounded-xl bg-muted px-3 py-3 text-sm text-muted-foreground">Aguardando métricas das filiais.</p>}</div></div></div></CardContent></Card>;
-}
-
-function ManagementMetric({ label, value, note, tone }: { label: string; value: string; note: string; tone: "rose" | "emerald" | "primary" }) { const colors = tone === "rose" ? "border-rose-500/20 bg-rose-500/5" : tone === "emerald" ? "border-emerald-500/20 bg-emerald-500/5" : "border-primary/20 bg-primary/5"; return <div className={`rounded-2xl border p-4 ${colors}`}><p className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-xl font-black tracking-tight">{value}</p><p className="mt-1 text-xs text-muted-foreground">{note}</p></div>; }
-
+/** Compatibilidade de importação: o painel gerencial foi removido da interface. */
+export function ManagementOverview(_props: { rows?: unknown[]; isLoading?: boolean }) { return null; }
 function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "analytics"; onComplete: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState("");
