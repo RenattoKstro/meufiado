@@ -61,6 +61,19 @@ export const appTextSettings = pgTable("appTextSettings", {
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
+export const maintenanceSettings = pgTable("maintenanceSettings", {
+  id: serial("id").primaryKey(),
+  enabled: boolean("enabled").default(false).notNull(),
+  title: varchar("title", { length: 180 }).notNull().default("Estamos em manutenção"),
+  message: text("message").notNull().default("Estamos atualizando o Meu Fiado para entregar uma experiência melhor. Voltaremos em breve."),
+  imageUrl: text("imageUrl"),
+  primaryLabel: varchar("primaryLabel", { length: 80 }).notNull().default("Falar com a administração"),
+  primaryUrl: varchar("primaryUrl", { length: 500 }).notNull().default("/ajuda"),
+  secondaryLabel: varchar("secondaryLabel", { length: 80 }).notNull().default("Tentar novamente"),
+  secondaryUrl: varchar("secondaryUrl", { length: 500 }).notNull().default("/"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
 export const branches = pgTable(
   "branches",
   {

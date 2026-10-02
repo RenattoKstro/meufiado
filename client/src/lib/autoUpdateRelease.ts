@@ -1,6 +1,6 @@
 const RELEASE_ENDPOINT = "/__manus__/version.json";
 const RELEASE_STORAGE_KEY = "meu-fiado:published-release";
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 10_000;
 
 type ReleasePayload = {
   version?: string;
@@ -9,7 +9,7 @@ type ReleasePayload = {
 
 function getStorage(): Storage | null {
   try {
-    return window.sessionStorage;
+    return window.localStorage ?? window.sessionStorage;
   } catch {
     return null;
   }
@@ -54,14 +54,19 @@ export function startPublishedReleasePolling(): () => void {
 
   let stopped = false;
   const run = () => {
-    if (!stopped && document.visibilityState !== "hidden") void checkForPublishedRelease();
+    if (!stopped) void checkForPublishedRelease();
   };
   const timer = window.setInterval(run, POLL_INTERVAL_MS);
   void checkForPublishedRelease();
+  const onFocus = () => { void checkForPublishedRelease(); };
+  window.addEventListener("focus", onFocus);
+  window.addEventListener("online", onFocus);
 
   return () => {
     stopped = true;
     window.clearInterval(timer);
+    window.removeEventListener("focus", onFocus);
+    window.removeEventListener("online", onFocus);
   };
 }
 

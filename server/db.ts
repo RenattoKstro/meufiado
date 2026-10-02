@@ -11,6 +11,7 @@ import {
   InsertUser,
   matrixImportSources,
   matrixMetrics,
+  maintenanceSettings,
   mercadoPagoSubscriptionPayments,
   mercadoPagoSubscriptions,
   metricSettings,
@@ -1895,4 +1896,45 @@ export async function updateAppTextSettings(input: AppTextSettingsInput) {
     await db.insert(appTextSettings).values(input);
   }
   return getAppTextSettings();
+}
+
+export const DEFAULT_MAINTENANCE_SETTINGS = {
+  enabled: false,
+  title: "Estamos em manutenção",
+  message: "Estamos atualizando o Meu Fiado para entregar uma experiência melhor. Voltaremos em breve.",
+  imageUrl: null,
+  primaryLabel: "Falar com a administração",
+  primaryUrl: "/ajuda",
+  secondaryLabel: "Tentar novamente",
+  secondaryUrl: "/",
+} as const;
+
+export type MaintenanceSettingsInput = {
+  enabled: boolean;
+  title: string;
+  message: string;
+  imageUrl: string | null;
+  primaryLabel: string;
+  primaryUrl: string;
+  secondaryLabel: string;
+  secondaryUrl: string;
+};
+
+export async function getMaintenanceSettings() {
+  const db = await getDb();
+  if (!db) return { id: 0, ...DEFAULT_MAINTENANCE_SETTINGS, updatedAt: new Date(0) };
+  const existing = await db.select().from(maintenanceSettings).limit(1);
+  if (existing[0]) return existing[0];
+  await db.insert(maintenanceSettings).values(DEFAULT_MAINTENANCE_SETTINGS);
+  const created = await db.select().from(maintenanceSettings).limit(1);
+  return created[0] ?? { id: 0, ...DEFAULT_MAINTENANCE_SETTINGS, updatedAt: new Date(0) };
+}
+
+export async function updateMaintenanceSettings(input: MaintenanceSettingsInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const existing = await db.select().from(maintenanceSettings).limit(1);
+  if (existing[0]) await db.update(maintenanceSettings).set({ ...input, updatedAt: new Date() }).where(eq(maintenanceSettings.id, existing[0].id));
+  else await db.insert(maintenanceSettings).values(input);
+  return getMaintenanceSettings();
 }

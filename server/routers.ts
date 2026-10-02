@@ -19,6 +19,7 @@ import {
   getMySubscription,
   getSubscriptionChargeAmount,
   getAppTextSettings,
+  getMaintenanceSettings,
   getSubscriptionSettings,
   getChatSupportAdmin,
   getMySupportAvailability,
@@ -54,6 +55,7 @@ import {
   updateUpdateNote,
   updateAccountRole,
   updateAppTextSettings,
+  updateMaintenanceSettings,
   updateMyAccount,
   updateMyPreferences,
   uploadMyAvatar,
@@ -227,6 +229,16 @@ const appTextSettingsInput = z.object({
   navPreferences: z.string().trim().min(2).max(80),
   navAccount: z.string().trim().min(2).max(80),
 });
+const maintenanceSettingsInput = z.object({
+  enabled: z.boolean(),
+  title: z.string().trim().min(2).max(180),
+  message: z.string().trim().min(2).max(2000),
+  imageUrl: z.string().trim().max(1000).nullable(),
+  primaryLabel: z.string().trim().min(2).max(80),
+  primaryUrl: z.string().trim().min(1).max(500),
+  secondaryLabel: z.string().trim().min(2).max(80),
+  secondaryUrl: z.string().trim().min(1).max(500),
+});
 const romaneioPartyInput = z.object({
   name: z.string().trim().min(2).max(180),
   branch: z.string().trim().max(120).optional().nullable(),
@@ -328,6 +340,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   appTexts: router({
     get: publicProcedure.query(() => resolveAppTexts()),
     update: adminProcedure.input(appTextSettingsInput).mutation(({ input }) => resolveAppTextsUpdate(input)),
+  }),
+  maintenance: router({
+    get: publicProcedure.query(() => getMaintenanceSettings()),
+    update: adminProcedure.input(maintenanceSettingsInput).mutation(({ input }) => updateMaintenanceSettings(input)),
   }),
   adminAuth: router({
     login: publicProcedure.input(z.object({ username: z.string().trim().min(1).max(80), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {
