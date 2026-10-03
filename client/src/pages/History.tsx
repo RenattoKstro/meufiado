@@ -16,6 +16,12 @@ type HistoryEntry = {
   entryDate: string;
   receivedAmount: number;
   updatedAt: Date | string;
+  monthOpening: number;
+  creditGoal: number;
+  challengeGoal: number;
+  currentOverdue: number;
+  delinquencyPercent: number;
+  previousMonthDifference: number;
 };
 
 function brazilDateParts(date = new Date()) {
@@ -64,25 +70,42 @@ function displayUpdate(value: Date | string) {
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
 }
 
+
+const indicatorFields = [
+  ["monthOpening", "Abertura do mês"],
+  ["creditGoal", "Meta Fiado"],
+  ["challengeGoal", "Meta Desafio"],
+  ["currentOverdue", "Vencido atual"],
+  ["delinquencyPercent", "Inadimplência (%)"],
+  ["previousMonthDifference", "Diferença do mês anterior"],
+] as const;
+
+function ManualIndicators({ values, onChange }: { values: Record<string, string>; onChange: (key: string, value: string) => void }) {
+  return <div className="space-y-3 rounded-2xl border border-primary/15 bg-primary/5 p-4"><div><p className="text-sm font-extrabold">Indicadores manuais</p><p className="mt-1 text-xs text-muted-foreground">Informe e edite estes valores manualmente. Eles serão salvos no Supabase junto ao dia.</p></div><div className="grid gap-3 sm:grid-cols-2">{indicatorFields.map(([key, label]) => <div key={key} className="space-y-1.5"><Label htmlFor={`history-${key}-${values.entryDate || "new"}`}>{label}</Label><Input id={`history-${key}-${values.entryDate || "new"}`} type="number" step="0.01" inputMode="decimal" value={values[key] ?? "0"} onChange={event => onChange(key, event.target.value)} required /></div>)}</div></div>;
+}
+
 function EntryDialog({ entry, onSaved, children }: { entry: HistoryEntry; onSaved: () => Promise<unknown>; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [entryDate, setEntryDate] = useState(entry.entryDate);
   const [receivedAmount, setReceivedAmount] = useState(String(entry.receivedAmount));
+  const [indicators, setIndicators] = useState<Record<string, string>>({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent), previousMonthDifference: String(entry.previousMonthDifference) });
   const update = trpc.history.update.useMutation();
 
   useEffect(() => {
     if (open) {
       setEntryDate(entry.entryDate);
       setReceivedAmount(String(entry.receivedAmount));
+      setIndicators({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent), previousMonthDifference: String(entry.previousMonthDifference) });
     }
   }, [entry, open]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     const amount = Number(receivedAmount);
-    if (!entryDate || !Number.isFinite(amount) || amount < 0) return toast.error("Informe uma data e um valor de recebimento válidos.");
+    const manual = Object.fromEntries(indicatorFields.map(([key]) => [key, Number(indicators[key])])) as Record<string, number>;
+    if (!entryDate || !Number.isFinite(amount) || amount < 0 || Object.values(manual).some(value => !Number.isFinite(value))) return toast.error("Informe valores válidos para o lançamento e os indicadores.");
     try {
-      await update.mutateAsync({ id: entry.id, data: { entryDate, receivedAmount: amount } });
+      await update.mutateAsync({ id: entry.id, data: { entryDate, receivedAmount: amount, ...manual } });
       await onSaved();
       setOpen(false);
       toast.success("Lançamento atualizado.");
@@ -91,13 +114,14 @@ function EntryDialog({ entry, onSaved, children }: { entry: HistoryEntry; onSave
     }
   }
 
-  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild>{children}</DialogTrigger><DialogContent className="rounded-[1.6rem] sm:max-w-lg"><DialogHeader><DialogTitle>Editar recebimento</DialogTitle><DialogDescription>Atualize a data ou o valor deste lançamento diário.</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-4"><div className="space-y-2"><Label htmlFor={`history-edit-date-${entry.id}`}>Data</Label><Input id={`history-edit-date-${entry.id}`} type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor={`history-edit-amount-${entry.id}`}>Recebido no dia</Label><Input id={`history-edit-amount-${entry.id}`} type="number" min="0" step="0.01" inputMode="decimal" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div><Button type="submit" className="w-full" disabled={update.isPending}>{update.isPending ? "Salvando…" : "Salvar alterações"}</Button></form></DialogContent></Dialog>;
+  return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild>{children}</DialogTrigger><DialogContent className="rounded-[1.6rem] sm:max-w-lg"><DialogHeader><DialogTitle>Editar recebimento</DialogTitle><DialogDescription>Atualize a data ou o valor deste lançamento diário.</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-4"><div className="space-y-2"><Label htmlFor={`history-edit-date-${entry.id}`}>Data</Label><Input id={`history-edit-date-${entry.id}`} type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor={`history-edit-amount-${entry.id}`}>Recebido no dia</Label><Input id={`history-edit-amount-${entry.id}`} type="number" min="0" step="0.01" inputMode="decimal" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div><ManualIndicators values={indicators} onChange={(key, value) => setIndicators(current => ({ ...current, [key]: value }))} /><Button type="submit" className="w-full" disabled={update.isPending}>{update.isPending ? "Salvando…" : "Salvar alterações"}</Button></form></DialogContent></Dialog>;
 }
 
 export default function History() {
   const [month, setMonth] = useState(currentMonth);
   const [entryDate, setEntryDate] = useState(currentDate);
   const [receivedAmount, setReceivedAmount] = useState("");
+  const [manualIndicators, setManualIndicators] = useState<Record<string, string>>({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
   const utils = trpc.useUtils();
   const profileQuery = trpc.profile.mine.useQuery();
   const hasBranch = Boolean(profileQuery.data?.profile?.branchId);
@@ -127,11 +151,13 @@ export default function History() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     const amount = Number(receivedAmount);
-    if (!entryDate || !Number.isFinite(amount) || amount < 0) return toast.error("Informe uma data e um valor de recebimento válidos.");
+    const manual = Object.fromEntries(indicatorFields.map(([key]) => [key, Number(manualIndicators[key])])) as Record<string, number>;
+    if (!entryDate || !Number.isFinite(amount) || amount < 0 || Object.values(manual).some(value => !Number.isFinite(value))) return toast.error("Informe valores válidos para o lançamento e os indicadores.");
     try {
-      await create.mutateAsync({ entryDate, receivedAmount: amount });
+      await create.mutateAsync({ entryDate, receivedAmount: amount, ...manual });
       setMonth(entryDate.slice(0, 7));
       setReceivedAmount("");
+      setManualIndicators({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
       await refreshHistory();
       toast.success("Recebimento diário salvo.");
     } catch (error) {
@@ -161,7 +187,7 @@ export default function History() {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Abertura do mês" value={indicators ? money(indicators.monthOpening) : "—"} hint="Valor salvo no lançamento mais recente" /><SummaryCard icon={TrendingUp} label="Meta Fiado" value={indicators ? money(indicators.creditGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={TrendingUp} label="Meta Desafio" value={indicators ? money(indicators.challengeGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={CircleDollarSign} label="Vencido atual" value={indicators ? money(indicators.currentOverdue) : "—"} hint="Valor salvo no histórico" /><SummaryCard icon={TrendingUp} label="Inadimplência" value={indicators ? `${indicators.delinquencyPercent.toFixed(2)}%` : "—"} hint="Vencido atual ÷ carteira total" /><SummaryCard icon={TrendingUp} label="Diferença do mês anterior" value={indicators ? money(indicators.previousMonthDifference) : "—"} hint={indicators && indicators.previousMonthDifference > 0 ? "Aumentou em relação ao mês anterior" : "Comparação com o mês anterior"} /></div>
     <div className="grid gap-4 sm:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Recebido no mês" value={money(history?.totalReceived ?? 0)} hint="Soma dos dias salvos" /><SummaryCard icon={CalendarDays} label="Dias registrados" value={String(history?.daysRecorded ?? 0)} hint="Lançamentos na filial" /><SummaryCard icon={TrendingUp} label="Média por dia" value={money(history?.averagePerDay ?? 0)} hint="Considera dias registrados" /></div>
 
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"><Card className="h-fit rounded-[1.7rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary"><Plus className="h-4 w-4" /></span>Novo lançamento</CardTitle><CardDescription>Registre o valor total recebido em um dia. Cada data possui um único lançamento por filial.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={submit}><div className="space-y-2"><Label htmlFor="history-entry-date">Data do recebimento</Label><Input id="history-entry-date" type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="history-entry-amount">Valor recebido</Label><div className="relative"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-bold text-muted-foreground">R$</span><Input id="history-entry-amount" className="pl-10" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0,00" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div></div><Button type="submit" className="w-full" disabled={create.isPending}>{create.isPending ? "Salvando…" : "Salvar recebimento"}</Button></form></CardContent></Card>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"><Card className="h-fit rounded-[1.7rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary"><Plus className="h-4 w-4" /></span>Novo lançamento</CardTitle><CardDescription>Registre o valor total recebido em um dia. Cada data possui um único lançamento por filial.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={submit}><div className="space-y-2"><Label htmlFor="history-entry-date">Data do recebimento</Label><Input id="history-entry-date" type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="history-entry-amount">Valor recebido</Label><div className="relative"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-bold text-muted-foreground">R$</span><Input id="history-entry-amount" className="pl-10" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0,00" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div></div><ManualIndicators values={{ ...manualIndicators, entryDate }} onChange={(key, value) => setManualIndicators(current => ({ ...current, [key]: value }))} /><Button type="submit" className="w-full" disabled={create.isPending}>{create.isPending ? "Salvando…" : "Salvar recebimento"}</Button></form></CardContent></Card>
 
       <Card className="rounded-[1.7rem] border-border/70 shadow-sm"><CardHeader className="flex-row items-start justify-between gap-4 space-y-0"><div><CardTitle className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-primary" />Lançamentos de {selectedMonthLabel}</CardTitle><CardDescription className="mt-1">Edite ou exclua um registro sempre que precisar corrigir o valor informado.</CardDescription></div><Badge variant="secondary" className="shrink-0">{entries.length} {entries.length === 1 ? "dia" : "dias"}</Badge></CardHeader><CardContent>{historyQuery.isLoading ? <p className="py-12 text-center text-sm text-muted-foreground">Carregando lançamentos…</p> : historyQuery.isError ? <div className="py-12 text-center"><p className="text-sm font-bold text-destructive">Não foi possível carregar os históricos.</p><Button className="mt-3" size="sm" variant="outline" onClick={() => void historyQuery.refetch()}>Tentar novamente</Button></div> : entries.length ? <div className="overflow-hidden rounded-2xl border border-border/70"><div className="hidden grid-cols-[1fr_1fr_1fr_auto] gap-3 bg-muted/45 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:grid"><span>Data</span><span>Recebido</span><span>Atualizado em</span><span className="text-right">Ações</span></div><div className="divide-y divide-border/70">{entries.map(entry => <article key={entry.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground sm:hidden">Data</p><p className="font-extrabold">{displayDate(entry.entryDate)}</p></div><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground sm:hidden">Recebido</p><p className="font-black text-primary">{money(entry.receivedAmount)}</p></div><div><p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground sm:hidden">Atualizado em</p><p className="text-xs text-muted-foreground">{displayUpdate(entry.updatedAt)}</p></div><div className="flex justify-start gap-1 sm:justify-end"><EntryDialog entry={entry} onSaved={refreshHistory}><Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl" aria-label={`Editar lançamento de ${displayDate(entry.entryDate)}`}><PencilLine className="h-4 w-4" /></Button></EntryDialog><Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-destructive hover:text-destructive" aria-label={`Excluir lançamento de ${displayDate(entry.entryDate)}`} disabled={remove.isPending} onClick={() => void removeEntry(entry.id)}><Trash2 className="h-4 w-4" /></Button></div></article>)}</div></div> : <div className="grid min-h-60 place-items-center rounded-2xl border border-dashed border-border p-6 text-center"><div><ReceiptText className="mx-auto h-7 w-7 text-muted-foreground" /><p className="mt-3 font-bold">Nenhum recebimento salvo neste mês.</p><p className="mt-1 max-w-sm text-sm text-muted-foreground">Use o formulário ao lado para registrar o primeiro dia de recebimento.</p></div></div>}</CardContent></Card></div></section>;
 }

@@ -334,6 +334,7 @@ export const adminCredentials = pgTable("adminCredentials", {
 export const userCredentials = pgTable("userCredentials", {
   id: serial("id").primaryKey(),
   userId: integer("userId").notNull().unique().references(() => users.id),
+  username: varchar("username", { length: 80 }).unique(),
   passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
   mustChangePassword: boolean("mustChangePassword").default(true).notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),

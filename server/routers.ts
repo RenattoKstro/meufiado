@@ -5,6 +5,7 @@ import {
   createReceiptHistoryEntry,
   createBranch,
   createPreRegisteredUser,
+  createLocalUser,
   deleteManagedUser,
   deleteReceiptHistoryEntry,
   deleteUtilityDownload,
@@ -60,6 +61,7 @@ import {
   updateMyPreferences,
   uploadMyAvatar,
   loginLocalAdmin,
+  loginLocalUser,
   updateLocalAdminCredentials,
   loginGoogleOperator,
   markChatMessagesRead,
@@ -165,6 +167,22 @@ const historyMonthInput = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0
 const historyEntryInput = z.object({
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   receivedAmount: nonNegativeNumber,
+  monthOpening: nonNegativeNumber.optional(),
+  creditGoal: nonNegativeNumber.optional(),
+  challengeGoal: nonNegativeNumber.optional(),
+  currentOverdue: nonNegativeNumber.optional(),
+  delinquencyPercent: nonNegativeNumber.optional(),
+  previousMonthDifference: z.number().finite().optional(),
+});
+const localUserInput = z.object({
+  fullName: z.string().trim().min(2).max(160),
+  phone: z.string().trim().min(8).max(32),
+  instagram: z.string().trim().max(120).optional().nullable(),
+  branchId: z.number().int().positive(),
+  operatorType,
+  username: z.string().trim().min(3).max(80).regex(/^[a-zA-Z0-9._-]+$/),
+  password: z.string().min(6).max(256),
+  email: z.string().trim().email().max(320).optional(),
 });
 const subscriptionPlan = z.enum(["free", "pro"]);
 const subscriptionPlanInfoBackground = z.enum(["sky", "emerald", "violet", "amber", "rose", "slate"]);
@@ -355,6 +373,16 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     }),
     updateCredentials: adminProcedure.input(z.object({ username: z.string().trim().min(3).max(80), newPassword: z.string().min(8).max(256).optional() })).mutation(({ input }) => updateLocalAdminCredentials(input)),
   }),
+  localAuth: router({
+    login: publicProcedure.input(z.object({ username: z.string().trim().min(1).max(80), password: z.string().min(1).max(256) })).mutation(async ({ ctx, input }) => {
+      const user = await loginLocalUser(input.username, input.password);
+      if (!user) return { success: false } as const;
+      const token = await createUserSession(user.id);
+      ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
+      ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
+      return { success: true } as const;
+    }),
+  }),
   googleAuth: router({
     config: publicProcedure.query(() => ({ clientId: getGoogleClientId() })),
     login: publicProcedure.input(z.object({ credential: z.string().min(20).max(8192), mode: z.enum(["login", "register"]) })).mutation(async ({ ctx, input }) => {
@@ -484,6 +512,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     importStatus: adminProcedure.query(() => getAnalyticImportStatus()),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
     preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
+    createLocalUser: adminProcedure.input(localUserInput).mutation(({ input }) => createLocalUser(input)),
     updateUser: adminProcedure
       .input(z.object({ id: z.number().int().positive(), isActive: z.boolean().optional(), isOnVacation: z.boolean().optional(), operatorType: operatorType.optional(), branchId: z.number().int().positive().optional() }))
       .mutation(({ input }) => {

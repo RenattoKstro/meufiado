@@ -690,6 +690,12 @@ export async function saveMyMetrics(userId: number, input: MetricsInput, databas
 export type ReceiptHistoryInput = {
   entryDate: string;
   receivedAmount: number;
+  monthOpening?: number;
+  creditGoal?: number;
+  challengeGoal?: number;
+  currentOverdue?: number;
+  delinquencyPercent?: number;
+  previousMonthDifference?: number;
 };
 
 function assertCalendarDate(value: string) {
@@ -787,7 +793,7 @@ export async function createReceiptHistoryEntry(userId: number, input: ReceiptHi
     .limit(1);
   if (existing) throw new Error("Já existe um lançamento para esta data. Edite o lançamento existente.");
   const snapshot = await getReceiptHistorySnapshot(db, branchId, entryDate);
-  await db.insert(receiptHistoryEntries).values({ branchId, entryDate, receivedAmount: input.receivedAmount, createdByUserId: userId, ...snapshot });
+  await db.insert(receiptHistoryEntries).values({ branchId, entryDate, receivedAmount: input.receivedAmount, createdByUserId: userId, ...snapshot, ...Object.fromEntries(Object.entries(input).filter(([key, value]) => key !== "entryDate" && key !== "receivedAmount" && value !== undefined)) });
 }
 
 export async function updateReceiptHistoryEntry(userId: number, id: number, input: ReceiptHistoryInput, database?: ApplicationDatabase) {
@@ -802,8 +808,9 @@ export async function updateReceiptHistoryEntry(userId: number, id: number, inpu
     .where(and(eq(receiptHistoryEntries.branchId, branchId), eq(receiptHistoryEntries.entryDate, entryDate)))
     .limit(1);
   if (sameDayEntry && sameDayEntry.id !== id) throw new Error("Já existe um lançamento para esta data. Escolha outra data.");
-  const snapshot = await getReceiptHistorySnapshot(db, branchId, entryDate);
-  await db.update(receiptHistoryEntries).set({ entryDate, receivedAmount: input.receivedAmount, ...snapshot }).where(eq(receiptHistoryEntries.id, id));
+  const current = await getHistoryEntryForBranch(db, id, branchId);
+  const snapshot = { monthOpening: current.monthOpening, creditGoal: current.creditGoal, challengeGoal: current.challengeGoal, currentOverdue: current.currentOverdue, delinquencyPercent: current.delinquencyPercent, previousMonthDifference: current.previousMonthDifference };
+  await db.update(receiptHistoryEntries).set({ entryDate, receivedAmount: input.receivedAmount, ...snapshot, ...Object.fromEntries(Object.entries(input).filter(([key, value]) => key !== "entryDate" && key !== "receivedAmount" && value !== undefined)) }).where(eq(receiptHistoryEntries.id, id));
 }
 
 export async function deleteReceiptHistoryEntry(userId: number, id: number, database?: ApplicationDatabase) {
@@ -1753,16 +1760,37 @@ export async function loginGoogleOperator(
   return { ...account, openId: googleOpenId, email, name: nextName, loginMethod: "google" };
 }
 
-export async function loginLocalUser(emailInput: string, password: string) {
+export type LocalUserInput = Omit<ProfileInput, "email"> & { username: string; password: string; email?: string };
+
+export async function createLocalUser(input: LocalUserInput) {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
-  const email = emailInput.trim().toLowerCase();
+  const username = input.username.trim().toLowerCase();
+  const email = (input.email?.trim().toLowerCase() || `${username}@local.meufiado.invalid`);
+  if (!/^[a-z0-9._-]{3,80}$/.test(username)) throw new Error("O usuário deve ter de 3 a 80 caracteres e usar apenas letras, números, ponto, hífen ou sublinhado.");
+  const [existingCredential] = await db.select({ id: userCredentials.id }).from(userCredentials).where(eq(userCredentials.username, username)).limit(1);
+  if (existingCredential) throw new Error("Este nome de usuário já está em uso.");
+  const [existingProfile] = await db.select().from(userProfiles).where(eq(userProfiles.email, email)).limit(1);
+  if (existingProfile?.userId) throw new Error("Já existe uma conta vinculada a este e-mail.");
+  await assertDatabaseBranchRoleSlotAvailable(db, input.branchId, input.operatorType, existingProfile?.id);
+  await db.insert(users).values({ openId: `local-user-${randomUUID()}`, name: input.fullName, email, loginMethod: "password", role: "user", lastSignedIn: new Date() });
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user) throw new Error("Não foi possível criar a conta do operador.");
+  await db.insert(userProfiles).values({ userId: user.id, fullName: input.fullName, email, branchId: input.branchId, phone: input.phone, instagram: input.instagram || null, operatorType: input.operatorType, profileComplete: true });
+  await db.insert(userCredentials).values({ userId: user.id, username, passwordHash: await hashPassword(input.password), mustChangePassword: true });
+  return { userId: user.id, username };
+}
+
+export async function loginLocalUser(usernameInput: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const username = usernameInput.trim().toLowerCase();
   const result = await db
     .select({ user: users, credential: userCredentials, profile: userProfiles })
     .from(userCredentials)
     .innerJoin(users, eq(userCredentials.userId, users.id))
     .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
-    .where(eq(users.email, email))
+    .where(eq(userCredentials.username, username))
     .limit(1);
   const account = result[0];
   if (!account || !account.profile?.isActive || !(await verifyPassword(password, account.credential.passwordHash))) return null;
