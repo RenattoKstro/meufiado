@@ -918,7 +918,7 @@ export async function updateSubscriptionSettings(input: SubscriptionSettingsInpu
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
   const current = await getSubscriptionSettings(db);
-  const values = { ...input, updatedByUserId: actorUserId };
+  const values = { ...input, pixCopyPaste: "", pixQrCodeUrl: "", updatedByUserId: actorUserId };
   if (current.id) await db.update(subscriptionSettings).set(values).where(eq(subscriptionSettings.id, current.id));
   else await db.insert(subscriptionSettings).values(values);
   return getSubscriptionSettings(db);

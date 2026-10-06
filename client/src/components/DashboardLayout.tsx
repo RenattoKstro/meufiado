@@ -27,7 +27,7 @@ import { useAppTexts } from "@/contexts/AppTextContext";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { delinquencyPercentage } from "@shared/goalRules";
-import { BarChart3, BellRing, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
+import { AlertTriangle, BarChart3, BellRing, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
 import React, { useRef } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -44,6 +44,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const messageNotificationsEnabled = profileQuery.data?.profile?.messageNotificationsEnabled !== false;
+  const isGracePeriod = user?.role !== "admin" && subscriptionQuery.data?.status === "grace";
+  const graceEndsAt = subscriptionQuery.data?.graceEndsAt ? new Date(subscriptionQuery.data.graceEndsAt) : null;
+  const graceDaysRemaining = graceEndsAt ? Math.max(0, Math.ceil((graceEndsAt.getTime() - Date.now()) / 86_400_000)) : 0;
   const presenceMutation = trpc.profile.presence.useMutation();
   const lastUnreadChatCount = useRef<number | null>(null);
   React.useEffect(() => {
@@ -72,6 +75,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
     lastUnreadChatCount.current = unread;
   }, [unreadChatQuery.data, messageNotificationsEnabled]);
+  React.useEffect(() => {
+    if (!isGracePeriod || !graceEndsAt || typeof window === "undefined") return;
+    const notificationKey = `meu-fiado-grace-renewal-${graceEndsAt.toISOString().slice(0, 10)}`;
+    if (window.localStorage.getItem(notificationKey) === "shown") return;
+    window.localStorage.setItem(notificationKey, "shown");
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Renove seu plano PRO", { body: `Você tem ${graceDaysRemaining} dia${graceDaysRemaining === 1 ? "" : "s"} de carência. Renove antes do prazo para não perder o acesso.` });
+    }
+  }, [isGracePeriod, graceEndsAt?.toISOString(), graceDaysRemaining]);
   const navigation = [
     { label: texts.navOverview, path: "/", icon: LayoutDashboard, feature: "overview" as const },
     { label: "Matriz", path: "/matriz", icon: TableProperties, feature: "matrix" as const },
@@ -170,20 +182,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="min-w-0 bg-background">
-        {isMobile ? <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl"><SidebarTrigger className="h-9 w-9 rounded-xl border border-border bg-card shadow-sm" /><p className="min-w-0 flex-1 truncate text-sm font-extrabold tracking-tight">{active}</p><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} /></header> : <div className="flex h-14 items-center justify-end border-b border-border/70 bg-background/90 px-6 backdrop-blur-xl"><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} /></div>}
+        {isMobile ? <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-4 backdrop-blur-xl"><SidebarTrigger className="h-9 w-9 rounded-xl border border-border bg-card shadow-sm" /><p className="min-w-0 flex-1 truncate text-sm font-extrabold tracking-tight">{active}</p><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} graceDaysRemaining={isGracePeriod ? graceDaysRemaining : 0} /></header> : <div className="flex h-14 items-center justify-end border-b border-border/70 bg-background/90 px-6 backdrop-blur-xl"><GlobalNotificationBell unread={unreadUpdatesQuery.data ?? 0} graceDaysRemaining={isGracePeriod ? graceDaysRemaining : 0} /></div>}
         <main className="min-h-screen p-4 sm:p-6 lg:p-9">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
 }
 
-function GlobalNotificationBell({ unread }: { unread: number }) {
+function GlobalNotificationBell({ unread, graceDaysRemaining }: { unread: number; graceDaysRemaining: number }) {
   const [, navigate] = useLocation();
+  const hasGraceAlert = graceDaysRemaining > 0;
   return <DropdownMenu>
-    <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={unread > 0 ? `${unread} notificações novas` : "Notificações"} className="relative h-10 w-10 rounded-xl border border-border/70 bg-card shadow-sm"><BellRing className="h-4 w-4" />{unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-black text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}</Button></DropdownMenuTrigger>
+    <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" aria-label={hasGraceAlert ? "Renovação do plano pendente" : unread > 0 ? `${unread} notificações novas` : "Notificações"} className="relative h-10 w-10 rounded-xl border border-border/70 bg-card shadow-sm"><BellRing className="h-4 w-4" />{hasGraceAlert ? <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-amber-500 px-1 text-[10px] font-black text-white">!</span> : unread > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-black text-destructive-foreground">{unread > 99 ? "99+" : unread}</span>}</Button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-2">
       <DropdownMenuLabel className="flex items-center justify-between px-3 py-2"><span>Notificações</span>{unread > 0 && <Badge className="rounded-full text-[10px]">{unread} nova{unread === 1 ? "" : "s"}</Badge>}</DropdownMenuLabel>
-      <DropdownMenuSeparator />
+      {hasGraceAlert && <><DropdownMenuItem className="items-start gap-3 rounded-xl bg-amber-500/10 p-3 text-amber-900 dark:text-amber-200" onSelect={() => navigate("/plano")}><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300"><AlertTriangle className="h-3.5 w-3.5" /></span><span className="min-w-0 text-xs leading-relaxed"><strong className="block">Renove seu plano PRO</strong>Você tem {graceDaysRemaining} dia{graceDaysRemaining === 1 ? "" : "s"} de carência. Toque para renovar antes do prazo.</span></DropdownMenuItem><DropdownMenuSeparator /></>}
       <DropdownMenuItem className="items-start gap-3 rounded-xl p-3" onSelect={() => navigate("/atualizacoes")}><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><BellRing className="h-3.5 w-3.5" /></span><span className="min-w-0 text-xs leading-relaxed">{unread > 0 ? "Há novas atualizações, incluindo alterações recentes da Matriz." : "Você está em dia. Abra Atualizações para consultar o histórico."}</span></DropdownMenuItem>
       <DropdownMenuSeparator /><DropdownMenuItem className="justify-center rounded-xl text-xs font-bold text-primary" onSelect={() => navigate("/atualizacoes")}>Ver todas as atualizações</DropdownMenuItem>
     </DropdownMenuContent>

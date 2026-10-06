@@ -4,8 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
-import { CheckCircle2, Clipboard, Crown, FileImage, ImageIcon, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
-import { ChangeEvent, useRef, useState } from "react";
+import { AlertTriangle, CheckCircle2, Clipboard, Crown, FileImage, Loader2, ShieldCheck, UploadCloud } from "lucide-react";
+import QRCode from "qrcode";
+import { createPixPayload } from "@shared/pix";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -28,6 +30,7 @@ export default function Subscription() {
   const pickerRef = useRef<HTMLInputElement>(null);
   const subscription = subscriptionQuery.data;
   const [selectedPlanId, setSelectedPlanId] = useState("default");
+  const [generatedPix, setGeneratedPix] = useState<{ payload: string; qrDataUrl: string } | null>(null);
 
   async function copyToClipboard(value: string, successMessage: string) {
     try {
@@ -70,9 +73,26 @@ export default function Subscription() {
   const promotionIsActive = settings.promotionOriginalPrice > settings.promotionPrice && settings.promotionPrice > 0;
   const selectedPromotion = Boolean(selectedPlan && selectedPlan.promotionPrice > 0 && selectedPlan.promotionPrice < selectedPlan.monthlyPrice);
   const chargeAmount = selectedPlan ? (selectedPromotion ? selectedPlan.promotionPrice : selectedPlan.monthlyPrice) : (promotionIsActive ? settings.promotionPrice : settings.monthlyPrice);
-  const paymentReady = Boolean(chargeAmount > 0 && (settings.pixQrCodeUrl || settings.pixCopyPaste || settings.pixKey));
+  useEffect(() => {
+    let cancelled = false;
+    async function generate() {
+      if (!(chargeAmount > 0 && settings.pixKey && settings.pixReceiverName && settings.pixReceiverBank)) {
+        setGeneratedPix(null);
+        return;
+      }
+      try {
+        const payload = createPixPayload({ key: settings.pixKey, amount: chargeAmount, receiverName: settings.pixReceiverName, receiverCity: settings.pixReceiverBank });
+        const qrDataUrl = await QRCode.toDataURL(payload, { errorCorrectionLevel: "M", margin: 2, width: 320 });
+        if (!cancelled) setGeneratedPix({ payload, qrDataUrl });
+      } catch { if (!cancelled) setGeneratedPix(null); }
+    }
+    void generate();
+    return () => { cancelled = true; };
+  }, [chargeAmount, settings.pixKey, settings.pixReceiverName, settings.pixReceiverBank]);
+  const paymentReady = Boolean(chargeAmount > 0 && generatedPix);
   const waitingReview = latestProof?.status === "pending";
   const isGracePeriod = status === "grace";
+  const graceDaysRemaining = graceEndsAt ? Math.max(0, Math.ceil((new Date(graceEndsAt).getTime() - Date.now()) / 86_400_000)) : 0;
   const planInfoBackground = planInfoBackgroundClasses[settings.planInfoBackground as keyof typeof planInfoBackgroundClasses] ?? planInfoBackgroundClasses.sky;
   const promotionBackground = planInfoBackgroundClasses[settings.promotionBackground as keyof typeof planInfoBackgroundClasses] ?? planInfoBackgroundClasses.emerald;
   const showPlanInfoCta = settings.planInfoCtaEnabled && settings.planInfoCtaLabel.trim().length >= 2 && /^(\/|https?:\/\/)/.test(settings.planInfoCtaUrl);
@@ -80,6 +100,7 @@ export default function Subscription() {
 
   return <section className="mx-auto max-w-4xl">
     <header className="mb-8"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Acesso da conta</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">{texts.subscriptionTitle}</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{texts.subscriptionDescription}</p></header>
+    {isGracePeriod && graceEndsAt ? <Card role="alert" className="mb-5 rounded-[1.6rem] border-amber-500/35 bg-amber-500/[0.08] shadow-sm"><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-300"><AlertTriangle className="h-5 w-5" /></span><div><p className="font-black text-amber-900 dark:text-amber-200">Renovação necessária</p><p className="mt-1 text-sm leading-relaxed text-amber-900/75 dark:text-amber-100/75">Seu PRO está em carência. Renove em até <strong>{graceDaysRemaining} dia{graceDaysRemaining === 1 ? "" : "s"}</strong>, até {new Date(graceEndsAt).toLocaleDateString("pt-BR")}, para continuar com os recursos premium.</p></div></div><Button type="button" className="shrink-0 rounded-xl bg-amber-600 font-extrabold text-white hover:bg-amber-700" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}>Renovar agora</Button></CardContent></Card> : null}
     <Card className={`mb-5 rounded-[1.6rem] shadow-sm ${planInfoBackground}`}><CardContent className="p-5 sm:p-6"><div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-background/70 text-primary shadow-sm"><Crown className="h-5 w-5" /></span><div><h2 className="text-lg font-black tracking-[-0.02em]">{settings.planInfoTitle}</h2><p className="mt-1.5 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-foreground/70">{settings.planInfoDescription}</p>{showPlanInfoCta ? <a href={settings.planInfoCtaUrl} target={isExternalPlanInfoCta ? "_blank" : undefined} rel={isExternalPlanInfoCta ? "noreferrer" : undefined} className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-primary px-4 py-2 text-sm font-extrabold text-primary-foreground shadow-sm transition-transform duration-150 ease-out hover:bg-primary/90 active:scale-[0.97]">{settings.planInfoCtaLabel}</a> : null}</div></div></CardContent></Card>
     {customPlans.length > 0 && <section className="mb-5"><div className="mb-3"><p className="text-xs font-black uppercase tracking-[0.14em] text-primary">Escolha sua modalidade</p><h2 className="mt-1 text-xl font-black">Planos disponíveis</h2></div><div className="grid gap-4 md:grid-cols-2">{customPlans.map(plan => { const discounted = plan.promotionPrice > 0 && plan.promotionPrice < plan.monthlyPrice; return <Card key={plan.id} className={`rounded-[1.4rem] border-border/70 shadow-sm ${selectedPlanId === plan.id ? "border-primary ring-2 ring-primary/20" : ""}`}><CardContent className="space-y-3 p-5"><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-base">{plan.name}</CardTitle><CardDescription className="mt-1">{plan.description || "Acesso aos recursos PRO."}</CardDescription></div><Crown className="h-5 w-5 shrink-0 text-primary" /></div><p className="text-2xl font-black text-primary">{money.format(discounted ? plan.promotionPrice : plan.monthlyPrice)}<span className="ml-1 text-xs font-semibold text-muted-foreground">/mês</span></p><Button type="button" variant={selectedPlanId === plan.id ? "default" : "outline"} className="w-full rounded-xl font-extrabold" onClick={() => setSelectedPlanId(plan.id)}>{selectedPlanId === plan.id ? "Plano selecionado" : "Escolher este plano"}</Button></CardContent></Card>; })}</div></section>}
     <div className="grid gap-5 lg:grid-cols-[.92fr_1.08fr]">
@@ -92,8 +113,8 @@ export default function Subscription() {
         <CardHeader><CardTitle className="text-lg">Pagamento via PIX</CardTitle><CardDescription>Se preferir, faça o pagamento e envie o comprovante para conferência da administração.</CardDescription></CardHeader>
         <CardContent className="space-y-5">{!paymentReady ? <div className="rounded-2xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">A mensalidade ou os dados de pagamento ainda não foram configurados pela administração.</div> : <>
           <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
-            <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-white p-3">{settings.pixQrCodeUrl ? <img src={settings.pixQrCodeUrl} alt={`QR Code PIX de ${money.format(settings.monthlyPrice)}`} className="h-40 w-40 object-contain" /> : <div className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-3 text-center text-xs text-muted-foreground"><ImageIcon className="h-8 w-8" />QR Code não anexado</div>}</div>
-            <div className="space-y-3"><div><p className="text-sm font-extrabold">Dados para pagamento</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Valor mensal: {money.format(chargeAmount)}.</p></div><div className="rounded-xl bg-muted/55 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Recebedor</p><p className="mt-1 text-sm font-extrabold">{settings.pixReceiverName || "A confirmar"}</p>{settings.pixReceiverBank && <p className="text-xs text-muted-foreground">Banco: {settings.pixReceiverBank}</p>}</div>{settings.pixCopyPaste && <Button type="button" variant="outline" className="w-full rounded-xl font-bold" onClick={() => copyToClipboard(settings.pixCopyPaste, "PIX Copia e Cola copiado.")}><Clipboard className="mr-2 h-4 w-4" />Copiar PIX Copia e Cola</Button>}</div>
+            <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-white p-3">{generatedPix ? <img src={generatedPix.qrDataUrl} alt={`QR Code PIX de ${money.format(chargeAmount)}`} className="h-40 w-40 object-contain" /> : <div className="flex h-40 w-40 flex-col items-center justify-center gap-2 rounded-xl bg-muted px-3 text-center text-xs text-muted-foreground">Configure chave, recebedor e banco para gerar o QR Code.</div>}</div>
+            <div className="space-y-3"><div><p className="text-sm font-extrabold">Dados para pagamento</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Valor selecionado: {money.format(chargeAmount)}. O QR Code e o código são atualizados quando você troca de plano.</p></div><div className="rounded-xl bg-muted/55 p-3"><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Recebedor</p><p className="mt-1 text-sm font-extrabold">{settings.pixReceiverName || "A confirmar"}</p>{settings.pixReceiverBank && <p className="text-xs text-muted-foreground">Banco: {settings.pixReceiverBank}</p>}</div>{generatedPix && <Button type="button" variant="outline" className="w-full rounded-xl font-bold" onClick={() => copyToClipboard(generatedPix.payload, "PIX Copia e Cola copiado.")}><Clipboard className="mr-2 h-4 w-4" />Copiar PIX Copia e Cola</Button>}</div>
           </div>
           {settings.pixKey && <div className="space-y-2"><Label>Chave PIX</Label><div className="flex gap-2"><Input value={settings.pixKey} readOnly className="bg-muted/35 font-medium" /><Button type="button" variant="outline" className="shrink-0 rounded-xl" onClick={() => copyToClipboard(settings.pixKey, "Chave PIX copiada.")}><Clipboard className="mr-2 h-4 w-4" />Copiar</Button></div></div>}
           <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground"><ShieldCheck className="mr-1.5 inline h-4 w-4 text-primary" />Confirme o nome e o valor no aplicativo do seu banco antes de autorizar. O comprovante é encaminhado somente à administração para conferência e aprovação.</div>
