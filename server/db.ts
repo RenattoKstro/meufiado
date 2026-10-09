@@ -12,6 +12,7 @@ import {
   matrixImportSources,
   matrixMetrics,
   maintenanceSettings,
+  mercadoPagoPixPayments,
   mercadoPagoSubscriptionPayments,
   mercadoPagoSubscriptions,
   metricSettings,
@@ -52,6 +53,7 @@ import { assertOperatorSlotAvailable, deriveBranchSlotAvailability, type Operato
 import { resolveSubscriptionAccess, SUBSCRIPTION_GRACE_DAYS } from "../shared/subscriptionAccess";
 import { storagePut } from "./storage";
 import { resolveSupabaseConnectionString } from "./dbConnection";
+import { createMercadoPagoPixPayment, getMercadoPagoPayment } from "./mercadoPago";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _pool: Pool | null = null;
@@ -903,7 +905,28 @@ export function hasActiveSubscriptionPromotion(settings: Pick<SubscriptionSettin
 export function getSubscriptionChargeAmount(settings: Pick<SubscriptionSettingsInput, "monthlyPrice" | "promotionOriginalPrice" | "promotionPrice">) {
   return hasActiveSubscriptionPromotion(settings) ? settings.promotionPrice : settings.monthlyPrice;
 }
-
+type SubscriptionPlanOption = { id: string; monthlyPrice: number; promotionPrice: number; isVisible?: boolean };
+function readSubscriptionPlanOptions(value: string | null | undefined): SubscriptionPlanOption[] {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.filter(item => item && String(item.id || "").trim()).map(item => ({
+      id: String(item.id),
+      monthlyPrice: Number(item.monthlyPrice) || 0,
+      promotionPrice: Number(item.promotionPrice) || 0,
+      isVisible: item.isVisible !== false,
+    })) : [];
+  } catch {
+    return [];
+  }
+}
+export function getSubscriptionPlanChargeAmount(settings: Pick<SubscriptionSettingsInput, "monthlyPrice" | "promotionOriginalPrice" | "promotionPrice" | "customPlansJson">, planId: string) {
+  if (planId !== "default") {
+    const plan = readSubscriptionPlanOptions(settings.customPlansJson).find(item => item.id === planId && item.isVisible);
+    if (!plan) return 0;
+    return plan.promotionPrice > 0 && plan.promotionPrice < plan.monthlyPrice ? plan.promotionPrice : plan.monthlyPrice;
+  }
+  return getSubscriptionChargeAmount(settings);
+}
 export async function getSubscriptionSettings(database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) return { id: 0, ...defaultSubscriptionSettings };
@@ -953,14 +976,15 @@ export async function expireSubscriptionsPastGracePeriod(now = new Date()) {
 export async function getMySubscription(userId: number) {
   const db = await getDb();
   const settings = await getSubscriptionSettings(db ?? undefined);
-  if (!db) return { plan: "free" as const, isPro: false, status: "free" as const, proExpiresAt: null, graceEndsAt: null, settings, latestProof: null };
+  if (!db) return { plan: "free" as const, isPro: false, status: "free" as const, proExpiresAt: null, graceEndsAt: null, settings, latestProof: null, latestPixPayment: null };
   const [account] = await db.select({ plan: users.plan, proExpiresAt: users.proExpiresAt }).from(users).where(eq(users.id, userId)).limit(1);
   const [latestProof] = await db.select().from(subscriptionProofs).where(eq(subscriptionProofs.userId, userId)).orderBy(desc(subscriptionProofs.createdAt)).limit(1);
+  const [latestPixPayment] = await db.select().from(mercadoPagoPixPayments).where(eq(mercadoPagoPixPayments.userId, userId)).orderBy(desc(mercadoPagoPixPayments.createdAt)).limit(1);
   const access = resolveSubscriptionAccess({ plan: (account?.plan ?? "free") as SubscriptionPlan, proExpiresAt: account?.proExpiresAt ?? null });
   if (account && access.status === "expired") {
     await db.update(users).set({ plan: "free", proExpiresAt: null }).where(eq(users.id, userId));
   }
-  return { plan: access.plan, isPro: access.isPro, status: access.status, proExpiresAt: account?.proExpiresAt ?? null, graceEndsAt: access.graceEndsAt, settings, latestProof: latestProof ?? null };
+  return { plan: access.plan, isPro: access.isPro, status: access.status, proExpiresAt: account?.proExpiresAt ?? null, graceEndsAt: access.graceEndsAt, settings, latestProof: latestProof ?? null, latestPixPayment: latestPixPayment ?? null };
 }
 
 export async function canAccessSubscriptionFeature(userId: number, role: "admin" | "user", feature: SubscriptionFeatureKey) {
@@ -975,6 +999,89 @@ export async function setManagedUserPlan(userId: number, plan: SubscriptionPlan,
   if (!db) throw new Error("Banco de dados indisponível");
   const expiresAt = plan === "pro" ? (proExpiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)) : null;
   await db.update(users).set({ plan, proExpiresAt: expiresAt }).where(eq(users.id, userId));
+}
+
+function parseProviderDate(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export async function createMercadoPagoPixPaymentRecord(input: {
+  userId: number;
+  planId: string;
+  amount: number;
+  payerEmail: string;
+  notificationUrl: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const externalReference = `mf-pix-${input.userId}-${randomUUID()}`;
+  const providerPayment = await createMercadoPagoPixPayment({
+    amount: input.amount,
+    description: `Assinatura PRO Meu Fiado - ${input.planId}`,
+    externalReference,
+    payerEmail: input.payerEmail,
+    notificationUrl: input.notificationUrl,
+    idempotencyKey: randomUUID(),
+  });
+  const transactionData = providerPayment.point_of_interaction?.transaction_data;
+  if (!providerPayment.id || !transactionData?.qr_code) throw new Error("O Mercado Pago não retornou os dados do PIX.");
+  const [created] = await db.insert(mercadoPagoPixPayments).values({
+    userId: input.userId,
+    planId: input.planId,
+    externalReference,
+    providerPaymentId: String(providerPayment.id),
+    status: providerPayment.status === "approved" ? "pending" : (providerPayment.status ?? "pending"),
+    statusDetail: providerPayment.status_detail ?? null,
+    amount: input.amount,
+    currencyId: providerPayment.currency_id ?? "BRL",
+    qrCode: transactionData.qr_code,
+    qrCodeBase64: transactionData.qr_code_base64 ?? null,
+    ticketUrl: transactionData.ticket_url ?? null,
+    dateOfExpiration: parseProviderDate(providerPayment.date_of_expiration),
+    // A data só é gravada pelo processador idempotente após renovar o usuário.
+    dateApproved: null,
+  }).returning();
+  if (providerPayment.status === "approved") await processMercadoPagoPixWebhook(String(providerPayment.id));
+  return created;
+}
+
+export async function processMercadoPagoPixWebhook(paymentId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const providerPayment = await getMercadoPagoPayment(paymentId);
+  const externalReference = providerPayment.external_reference;
+  if (!externalReference) return { handled: false, renewed: false, reason: "missing-reference" as const };
+  const [storedPayment] = await db.select().from(mercadoPagoPixPayments).where(eq(mercadoPagoPixPayments.externalReference, externalReference)).limit(1);
+  if (!storedPayment) return { handled: false, renewed: false, reason: "payment-not-found" as const };
+  const amountMatches = providerPayment.currency_id === "BRL" && Math.round((providerPayment.transaction_amount ?? 0) * 100) === Math.round(storedPayment.amount * 100);
+  const status = amountMatches ? (providerPayment.status ?? "unknown") : "amount_mismatch";
+  const statusDetail = amountMatches ? (providerPayment.status_detail ?? null) : "Valor diferente do pedido original.";
+  const paymentData = {
+    providerPaymentId: String(providerPayment.id ?? paymentId),
+    status,
+    statusDetail,
+    dateApproved: parseProviderDate(providerPayment.date_approved),
+    updatedAt: new Date(),
+  };
+  if (status !== "approved") {
+    await db.update(mercadoPagoPixPayments).set(paymentData).where(eq(mercadoPagoPixPayments.id, storedPayment.id));
+    return { handled: true, renewed: false, reason: status as "pending" | "rejected" | "cancelled" | "amount_mismatch" | "unknown" };
+  }
+  return db.transaction(async tx => {
+    const [marked] = await tx.update(mercadoPagoPixPayments)
+      .set(paymentData)
+      .where(and(eq(mercadoPagoPixPayments.id, storedPayment.id), ne(mercadoPagoPixPayments.status, "approved")))
+      .returning({ id: mercadoPagoPixPayments.id });
+    if (!marked) return { handled: true, renewed: false, reason: "already-processed" as const };
+    const [account] = await tx.select({ plan: users.plan, proExpiresAt: users.proExpiresAt }).from(users).where(eq(users.id, storedPayment.userId)).limit(1);
+    const now = new Date();
+    const activeExpiry = account?.plan === "pro" && account.proExpiresAt && account.proExpiresAt > now ? account.proExpiresAt : now;
+    const renewedUntil = new Date(activeExpiry.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await tx.update(users).set({ plan: "pro", proExpiresAt: renewedUntil }).where(eq(users.id, storedPayment.userId));
+    return { handled: true, renewed: true, renewedUntil, reason: "approved" as const };
+  });
 }
 
 export async function getMercadoPagoSubscription(userId: number) {

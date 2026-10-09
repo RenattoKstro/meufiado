@@ -4,6 +4,8 @@ import type { TrpcContext } from "./_core/context";
 const dbMocks = vi.hoisted(() => ({
   getMySubscription: vi.fn(),
   getSubscriptionSettings: vi.fn(),
+  getSubscriptionPlanChargeAmount: vi.fn(),
+  createMercadoPagoPixPaymentRecord: vi.fn(),
   updateSubscriptionSettings: vi.fn(),
   uploadSubscriptionPixQrCode: vi.fn(),
   setManagedUserPlan: vi.fn(),
@@ -85,6 +87,16 @@ describe("procedures de assinatura", () => {
     expect(dbMocks.uploadSubscriptionPixQrCode).toHaveBeenCalledWith(31, expect.stringContaining("data:image/png;base64,"));
     expect(dbMocks.setManagedUserPlan).toHaveBeenCalledWith(42, "pro");
     expect(dbMocks.reviewSubscriptionProof).toHaveBeenCalledWith(7, "approved", null, 31);
+  });
+
+  it("cria o PIX automático usando o preço resolvido no servidor", async () => {
+    dbMocks.getSubscriptionSettings.mockResolvedValue(settings);
+    dbMocks.getSubscriptionPlanChargeAmount.mockReturnValue(24.9);
+    dbMocks.createMercadoPagoPixPaymentRecord.mockResolvedValue({ id: 12, planId: "default", amount: 24.9, status: "pending", qrCode: "pix-code" });
+    const user = createAppRouter().createCaller(contextFor("user"));
+    await expect(user.subscription.createPixPayment({ planId: "default" })).resolves.toMatchObject({ id: 12, amount: 24.9 });
+    expect(dbMocks.getSubscriptionPlanChargeAmount).toHaveBeenCalledWith(settings, "default");
+    expect(dbMocks.createMercadoPagoPixPaymentRecord).toHaveBeenCalledWith(expect.objectContaining({ userId: 31, planId: "default", amount: 24.9, payerEmail: "teste@example.com", notificationUrl: "https://app.example.com/api/mercado-pago/webhook" }));
   });
 
   it("recusa promoção inválida para proteger o preço da assinatura", async () => {

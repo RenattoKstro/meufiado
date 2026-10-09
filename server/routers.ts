@@ -17,8 +17,10 @@ import {
   countUnreadChatMessages,
   countUnreadUpdateNotes,
   canAccessSubscriptionFeature,
+  createMercadoPagoPixPaymentRecord,
   getMySubscription,
   getSubscriptionChargeAmount,
+  getSubscriptionPlanChargeAmount,
   getAppTextSettings,
   getMaintenanceSettings,
   getSubscriptionSettings,
@@ -70,6 +72,7 @@ import {
   sendChatMessage,
   setMySupportAvailability,
   listSubscriptionProofs,
+  processMercadoPagoPixWebhook,
   reviewSubscriptionProof,
   setManagedUserPlan,
   getSharedRomaneioDocument,
@@ -598,6 +601,23 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   subscription: router({
     mine: protectedProcedure.query(({ ctx }) => getMySubscription(ctx.user.id)),
+    createPixPayment: protectedProcedure.input(z.object({ planId: z.string().trim().min(1).max(120) })).mutation(async ({ ctx, input }) => {
+      const settings = await getSubscriptionSettings();
+      const amount = getSubscriptionPlanChargeAmount(settings, input.planId);
+      if (!(amount > 0)) throw new TRPCError({ code: "BAD_REQUEST", message: "Este plano ainda não tem um valor configurado." });
+      const email = ctx.user.email?.trim();
+      if (!email) throw new TRPCError({ code: "BAD_REQUEST", message: "Sua conta precisa ter um e-mail para gerar o PIX." });
+      const forwardedProto = String(ctx.req.headers?.["x-forwarded-proto"] || ctx.req.header?.("x-forwarded-proto") || ctx.req.protocol || "https").split(",")[0];
+      const host = ctx.req.headers?.host || ctx.req.header?.("host") || ctx.req.get?.("host");
+      if (!host) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível identificar o endereço público do aplicativo." });
+      return createMercadoPagoPixPaymentRecord({
+        userId: ctx.user.id,
+        planId: input.planId,
+        amount,
+        payerEmail: email,
+        notificationUrl: `${forwardedProto}://${host}/api/mercado-pago/webhook`,
+      });
+    }),
     submitProof: protectedProcedure.input(proofInput).mutation(async ({ ctx, input }) => {
       const proof = await submitSubscriptionProof(ctx.user.id, input.dataUrl);
       await notifyOwner({

@@ -8,11 +8,19 @@ import { appRouter } from "../routers";
 import {
   deleteExpiredChatMessages,
   expireSubscriptionsPastGracePeriod,
+  processMercadoPagoPixWebhook,
 } from "../db";
 import { createContext } from "./context";
 import { apiNotFoundHandler } from "./apiFallback";
 import { sdk } from "./sdk";
 import { serveStatic, setupVite } from "./vite";
+import { ENV } from "./env";
+import {
+  getMercadoPagoWebhookDataId,
+  getMercadoPagoWebhookRequestId,
+  verifyMercadoPagoWebhookSignature,
+  type MercadoPagoWebhookNotification,
+} from "../mercadoPago";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -40,6 +48,27 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
+  app.post("/api/mercado-pago/webhook", async (req, res) => {
+    const notification = (req.body ?? {}) as MercadoPagoWebhookNotification;
+    const dataId = getMercadoPagoWebhookDataId(req.query as Record<string, unknown>, notification);
+    const requestId = getMercadoPagoWebhookRequestId(req.headers as Record<string, string | string[] | undefined>);
+    const signatureIsValid = verifyMercadoPagoWebhookSignature({
+      signature: req.headers["x-signature"],
+      requestId,
+      dataId,
+      secret: ENV.mercadoPagoWebhookSecret,
+    });
+    if (!signatureIsValid) return res.status(401).json({ error: "Assinatura do webhook inválida." });
+    const isPaymentNotification = notification.type === "payment" || notification.topic === "payment" || notification.action?.startsWith("payment.");
+    if (!isPaymentNotification || !dataId) return res.status(200).json({ ok: true, ignored: true });
+    try {
+      const result = await processMercadoPagoPixWebhook(dataId);
+      return res.status(200).json({ ok: true, ...result });
+    } catch (error) {
+      console.error("[Mercado Pago] Falha ao processar webhook PIX:", error);
+      return res.status(500).json({ error: "Falha temporária ao processar o pagamento." });
+    }
+  });
   // tRPC API
   app.use(
     "/api/trpc",

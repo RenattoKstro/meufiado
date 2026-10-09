@@ -564,6 +564,36 @@ export const mercadoPagoSubscriptionPayments = pgTable(
   ],
 );
 
+// Pagamentos PIX avulsos criados pelo Checkout API do Mercado Pago.
+// A referência externa identifica a cobrança e permite processar webhooks sem duplicar a renovação.
+export const mercadoPagoPixPayments = pgTable(
+  "mercadoPagoPixPayments",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").notNull().references(() => users.id),
+    planId: varchar("planId", { length: 120 }).notNull(),
+    externalReference: varchar("externalReference", { length: 160 }).notNull(),
+    providerPaymentId: varchar("providerPaymentId", { length: 120 }),
+    status: varchar("status", { length: 48 }).notNull().default("pending"),
+    statusDetail: varchar("statusDetail", { length: 120 }),
+    amount: doublePrecision("amount").notNull(),
+    currencyId: varchar("currencyId", { length: 3 }).notNull().default("BRL"),
+    qrCode: text("qrCode"),
+    qrCodeBase64: text("qrCodeBase64"),
+    ticketUrl: varchar("ticketUrl", { length: 2048 }),
+    dateOfExpiration: timestamp("dateOfExpiration"),
+    dateApproved: timestamp("dateApproved"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  },
+  table => [
+    uniqueIndex("mercado_pago_pix_reference_unique").on(table.externalReference),
+    uniqueIndex("mercado_pago_pix_provider_payment_unique").on(table.providerPaymentId),
+    index("mercado_pago_pix_user_created_idx").on(table.userId, table.createdAt),
+    index("mercado_pago_pix_status_created_idx").on(table.status, table.createdAt),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 export type Branch = typeof branches.$inferSelect;
@@ -579,5 +609,6 @@ export type SubscriptionSettings = typeof subscriptionSettings.$inferSelect;
 export type SubscriptionProof = typeof subscriptionProofs.$inferSelect;
 export type MercadoPagoSubscription = typeof mercadoPagoSubscriptions.$inferSelect;
 export type MercadoPagoSubscriptionPayment = typeof mercadoPagoSubscriptionPayments.$inferSelect;
+export type MercadoPagoPixPayment = typeof mercadoPagoPixPayments.$inferSelect;
 export type Romaneio = typeof romaneios.$inferSelect;
 export type RomaneioItem = typeof romaneioItems.$inferSelect;
