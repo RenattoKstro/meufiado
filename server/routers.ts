@@ -101,6 +101,7 @@ import {
 import { OAuth2Client } from "google-auth-library";
 import { TRPCError } from "@trpc/server";
 import { notifyOwner } from "./_core/notification";
+import { getMercadoPagoPayerEmail } from "./mercadoPago";
 
 const operatorType = z.enum(["leader", "assistant"]);
 const palette = z.enum(["ocean", "violet", "forest", "sunset", "rose", "midnight", "citrus", "slate"]);
@@ -605,8 +606,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       const settings = await getSubscriptionSettings();
       const amount = getSubscriptionPlanChargeAmount(settings, input.planId);
       if (!(amount > 0)) throw new TRPCError({ code: "BAD_REQUEST", message: "Este plano ainda não tem um valor configurado." });
-      const email = ctx.user.email?.trim();
-      if (!email) throw new TRPCError({ code: "BAD_REQUEST", message: "Sua conta precisa ter um e-mail para gerar o PIX." });
+      const email = getMercadoPagoPayerEmail(ctx.user.email, ctx.user.id);
       const forwardedProto = String(ctx.req.headers?.["x-forwarded-proto"] || ctx.req.header?.("x-forwarded-proto") || ctx.req.protocol || "https").split(",")[0];
       const host = ctx.req.headers?.host || ctx.req.header?.("host") || ctx.req.get?.("host");
       if (!host) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível identificar o endereço público do aplicativo." });

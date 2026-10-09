@@ -29,6 +29,20 @@ export type MercadoPagoWebhookNotification = {
   data?: { id?: number | string };
 };
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Contas locais antigas usam endereços técnicos em `.invalid`, que são úteis
+ * para autenticação interna, mas são rejeitados pelo Mercado Pago. Quando o
+ * usuário não informou um e-mail externo, usamos um identificador válido e
+ * estável apenas como payer.email da cobrança.
+ */
+export function getMercadoPagoPayerEmail(email: string | null | undefined, userId: number) {
+  const normalized = email?.trim().toLowerCase();
+  if (normalized && emailPattern.test(normalized) && !normalized.endsWith(".invalid")) return normalized;
+  return `pagamento+usuario-${userId}@meufiado.com`;
+}
+
 function requireAccessToken() {
   if (!ENV.mercadoPagoAccessToken) throw new Error("Mercado Pago ainda não está configurado.");
   return ENV.mercadoPagoAccessToken;
