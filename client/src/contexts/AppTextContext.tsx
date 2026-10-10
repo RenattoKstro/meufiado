@@ -11,7 +11,7 @@ export const DEFAULT_APP_TEXTS = {
   utilitiesTitle: "Utilidades",
   utilitiesDescription: "Arquivos, relatórios e ferramentas para apoiar sua rotina.",
   subscriptionTitle: "Plano",
-  subscriptionDescription: "Gerencie seu acesso e envie o comprovante após o pagamento.",
+  subscriptionDescription: "Gerencie seu acesso e acompanhe a confirmação automática do pagamento.",
   navOverview: "Visão Geral",
   navBranches: "Filiais",
   navHistory: "Históricos",
