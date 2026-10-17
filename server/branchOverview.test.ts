@@ -37,6 +37,7 @@ describe("resumo de filiais", () => {
       currentOverdue: 10000,
       monthOpening: 15000,
       dayOpening: 11000,
+      ticketReachedByMatrix: true,
       lostGoal: 1000,
       lostReceived: 1050,
       ticketWorkingDaysRemaining: 2,
@@ -47,7 +48,22 @@ describe("resumo de filiais", () => {
     expect(performance.challenge).toMatchObject({ progress: 96, reward: 200, nextTarget: 98, missingForNext: 200, missingFor100: 400 });
     expect(performance.ticket).toMatchObject({ target: 4320, remaining: 0, dailyNeeded: 0 });
     expect(performance.lost).toMatchObject({ progress: 105, reward: 700, missingFor100: 0, missingFor105: 0 });
-    expect(performance.totalReward).toBe(1015.5);
+    expect(performance.totalReward).toBe(1115.5);
     expect(performance.totalPossibleReward).toBe(2087.5);
+  });
+
+  it("não contabiliza a Meta Ticket quando a Matriz não confirma 80%", () => {
+    const performance = getBranchPerformance("leader", resolveBranchOverviewMetrics({
+      currentOverdue: 10000,
+      monthOpening: 15000,
+      dayOpening: 11000,
+      creditGoal: 9600,
+      challengeGoal: 9600,
+      ticketReachedByMatrix: false,
+      ticketWorkingDaysRemaining: 0,
+    }), new Date("2026-08-18T12:00:00Z"));
+
+    expect(performance.ticket?.status).toBe("expired");
+    expect(performance.totalReward).toBe(315.5);
   });
 });

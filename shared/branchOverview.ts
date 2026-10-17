@@ -30,6 +30,7 @@ export type BranchMetricSnapshot = Partial<{
   workingDaysTotal: number | null;
   workingDaysElapsed: number | null;
   ticketWorkingDaysRemaining: number | null;
+  ticketReachedByMatrix: boolean | null;
   fiadoAtDay15: boolean | null;
   monthlyLoss: number | null;
   lossSalesPercent: number | null;
@@ -55,6 +56,7 @@ export function resolveBranchOverviewMetrics(
     workingDaysTotal: value("workingDaysTotal"),
     workingDaysElapsed: value("workingDaysElapsed"),
     ticketWorkingDaysRemaining: value("ticketWorkingDaysRemaining"),
+    ticketReachedByMatrix: Boolean(operatorMetrics?.ticketReachedByMatrix ?? branchDefaults?.ticketReachedByMatrix ?? false),
     fiadoAtDay15: Boolean(operatorMetrics?.fiadoAtDay15 ?? branchDefaults?.fiadoAtDay15 ?? false),
     monthlyLoss: value("monthlyLoss"),
     lossSalesPercent: value("lossSalesPercent"),
@@ -107,7 +109,7 @@ export function getBranchPerformance(operatorType: OperatorType | null, metrics:
         receivedAccumulated: receipts.accumulated,
         receivableAmount,
         workingDaysRemaining: metrics.ticketWorkingDaysRemaining,
-        reachedByDay15: metrics.fiadoAtDay15,
+        reachedByDay15: metrics.ticketReachedByMatrix,
         referenceDate,
       })
     : null;

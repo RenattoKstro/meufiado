@@ -90,7 +90,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     receivedAccumulated: receipts.accumulated,
     receivableAmount,
     workingDaysRemaining: metrics.ticketWorkingDaysRemaining,
-    reachedByDay15: metrics.fiadoAtDay15,
+    reachedByDay15: metrics.ticketReachedByMatrix ?? false,
   });
   const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
   const fiadoRemaining = remainingToGoal(metrics.currentOverdue, metrics.creditGoal);

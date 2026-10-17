@@ -178,8 +178,9 @@ export async function listBranchOverviews() {
     .where(eq(branches.isActive, true))
     .orderBy(branches.name, userProfiles.fullName);
 
-  const matrixUpdates = await db.select({ branchId: matrixMetrics.branchId, updatedAt: matrixMetrics.updatedAt }).from(matrixMetrics);
+  const matrixUpdates = await db.select({ branchId: matrixMetrics.branchId, updatedAt: matrixMetrics.updatedAt, ticketPercent: matrixMetrics.ticketPercent }).from(matrixMetrics);
   const matrixUpdatedAtByBranch = new Map(matrixUpdates.map(item => [item.branchId, item.updatedAt]));
+  const matrixTicketByBranch = new Map(matrixUpdates.map(item => [item.branchId, Number(item.ticketPercent ?? 0) >= 80]));
   return rows.map(({ branch, profile, account, branchMetrics: metrics }) => ({
     branch,
     operator: profile
@@ -194,7 +195,10 @@ export async function listBranchOverviews() {
           lastSignedIn: account?.lastSignedIn ?? null,
         }
       : null,
-    metrics: resolveBranchOverviewMetrics(metrics),
+    metrics: {
+      ...resolveBranchOverviewMetrics(metrics),
+      ticketReachedByMatrix: matrixTicketByBranch.get(branch.id) ?? false,
+    },
     updatedAt: latestOverviewUpdate(metrics?.updatedAt, matrixUpdatedAtByBranch.get(branch.id), profile?.updatedAt, branch.updatedAt),
   })).sort((left, right) => {
     const rightTime = right.updatedAt?.getTime() ?? 0;
@@ -552,6 +556,7 @@ type MetricsInput = {
   workingDaysTotal: number;
   workingDaysElapsed: number;
   ticketWorkingDaysRemaining: number;
+  ticketReachedByMatrix?: boolean;
   manualHolidayDates: string[];
   fiadoAtDay15: boolean;
   fiadoAtDay15Month?: string | null;
@@ -629,10 +634,14 @@ export async function getMyMetrics(userId: number, database?: ApplicationDatabas
   const storageScope = resolveMetricStorageScope(userId, profile[0]?.branchId);
   if (storageScope.type === "branch") {
     const sharedMetrics = await db.select().from(branchMetrics).where(eq(branchMetrics.branchId, storageScope.branchId)).limit(1);
-    return metricsForClient(sharedMetrics[0] ?? emptyMetrics);
+    const matrixTicket = await db.select({ ticketPercent: matrixMetrics.ticketPercent }).from(matrixMetrics).where(eq(matrixMetrics.branchId, storageScope.branchId)).limit(1);
+    return {
+      ...metricsForClient(sharedMetrics[0] ?? emptyMetrics),
+      ticketReachedByMatrix: Number(matrixTicket[0]?.ticketPercent ?? 0) >= 80,
+    };
   }
   const legacyMetrics = await db.select().from(metricSettings).where(eq(metricSettings.userId, userId)).limit(1);
-  return metricsForClient(legacyMetrics[0] ?? emptyMetrics);
+  return { ...metricsForClient(legacyMetrics[0] ?? emptyMetrics), ticketReachedByMatrix: false };
 }
 
 export async function getMatrixAutofillForUser(userId: number, database?: ApplicationDatabase) {

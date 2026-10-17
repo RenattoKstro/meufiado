@@ -15,7 +15,7 @@ import { Link } from "wouter";
 type BranchOverviewItem = {
   branch: { id: number; name: string; code: string | null; regional: string | null };
   operator: { id: number; userId: number; fullName: string; phone: string | null; instagram: string | null; operatorType: "leader" | "assistant"; isOnVacation: boolean; lastSignedIn: Date | null } | null;
-  metrics: { portfolioTotal: number; monthOpening: number; dayOpening: number; currentOverdue: number; creditGoal: number; challengeGoal: number; lostGoal: number; lostReceived: number; workingDaysTotal: number; workingDaysElapsed: number; ticketWorkingDaysRemaining: number; fiadoAtDay15: boolean; monthlyLoss: number; lossSalesPercent: number };
+  metrics: { portfolioTotal: number; monthOpening: number; dayOpening: number; currentOverdue: number; creditGoal: number; challengeGoal: number; lostGoal: number; lostReceived: number; workingDaysTotal: number; workingDaysElapsed: number; ticketWorkingDaysRemaining: number; ticketReachedByMatrix: boolean; fiadoAtDay15: boolean; monthlyLoss: number; lossSalesPercent: number };
   updatedAt: Date | null;
 };
 
