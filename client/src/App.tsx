@@ -28,6 +28,7 @@ import Subscription from "@/pages/Subscription";
 import Updates from "@/pages/Updates";
 import RomaneioShare from "@/pages/RomaneioShare";
 import Welcome from "@/pages/Welcome";
+import { shouldShowMaintenance } from "../../shared/maintenance";
 import { ArrowRight, Crown, ShieldAlert } from "lucide-react";
 import { useEffect } from "react";
 import { Route, Switch, useLocation } from "wouter";
@@ -59,7 +60,7 @@ function AuthenticatedApp() {
   const { user, loading } = useAuth();
   const [location, navigate] = useLocation();
   const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
-  const maintenanceQuery = trpc.maintenance.get.useQuery(undefined, { refetchInterval: 10_000, refetchOnWindowFocus: true });
+  const maintenanceQuery = trpc.maintenance.get.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 10_000, refetchOnWindowFocus: true });
   const { applyPreferences } = useTheme();
   const hasOperatorProfile = Boolean(profileQuery.data?.profile?.profileComplete);
   useEffect(() => { const profile = profileQuery.data?.profile; if (profile) applyPreferences(profile.colorMode, profile.colorPalette); }, [applyPreferences, profileQuery.data?.profile]);
@@ -69,7 +70,7 @@ function AuthenticatedApp() {
   if (profileQuery.isLoading) return <LoadingScreen />;
   if (!hasOperatorProfile && user.role !== "admin") return <Onboarding />;
   if (profileQuery.data?.profile?.isActive === false) return <SuspendedScreen />;
-  if (maintenanceQuery.data?.enabled && user.role !== "admin") return <Maintenance />;
+  if (shouldShowMaintenance(Boolean(maintenanceQuery.data?.enabled), user.role)) return <Maintenance />;
   return <DashboardLayout><Switch><Route path="/" component={OverviewPage} /><Route path="/fiado" component={LegacyMetaRedirect} /><Route path="/desafio" component={LegacyMetaRedirect} /><Route path="/matriz">{() => <SubscriptionFeature feature="matrix"><Matrix /></SubscriptionFeature>}</Route><Route path="/filiais">{() => <SubscriptionFeature feature="branches"><Branches /></SubscriptionFeature>}</Route><Route path="/historicos">{() => <SubscriptionFeature feature="history"><History /></SubscriptionFeature>}</Route><Route path="/utilidades">{() => <SubscriptionFeature feature="utilities"><Utilities /></SubscriptionFeature>}</Route><Route path="/chat" component={Chat} /><Route path="/plano" component={Subscription} /><Route path="/conta" component={Account} /><Route path="/ajustes">{() => <SubscriptionFeature feature="metrics"><MetricsSettings /></SubscriptionFeature>}</Route><Route path="/configuracoes">{() => <SubscriptionFeature feature="appearance"><AppearanceSettings /></SubscriptionFeature>}</Route><Route path="/ajuda">{() => <SubscriptionFeature feature="help"><Help /></SubscriptionFeature>}</Route><Route path="/atualizacoes">{() => <SubscriptionFeature feature="updates"><Updates /></SubscriptionFeature>}</Route><Route path="/admin" component={user.role === "admin" ? Admin : AdminAccessDenied} /><Route component={NotFound} /></Switch></DashboardLayout>;
 }
 
