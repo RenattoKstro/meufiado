@@ -6,8 +6,6 @@ import { trpc } from "@/lib/trpc";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
-import { isReceiptForecastEligible, receiptProjection, type ReceiptProjection } from "../../../shared/receiptProjection";
-import { collectionProjectionRisk, fiadoGoalGap, type FiadoGoalGap, type ProjectionRisk } from "../../../shared/collectionInsights";
 import { subscriberGoalLabel, subscriberGoalStatus } from "../../../shared/subscriberGoal";
 import {
   accumulatedReward,
@@ -34,13 +32,6 @@ import { Link } from "wouter";
 type View = "overview" | "fiado" | "challenge";
 type StatTone = "default" | "success" | "danger";
 
-function currentBrazilMonth() {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit" })
-    .formatToParts(new Date())
-    .reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {});
-  return `${parts.year}-${parts.month}`;
-}
-
 function currentBrazilDate() {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" })
     .formatToParts(new Date())
@@ -51,7 +42,6 @@ function currentBrazilDate() {
 export default function Dashboard({ view = "overview" }: { view?: View }) {
   const { user } = useAuth();
   const texts = useAppTexts();
-  const [projectionMonth] = React.useState(currentBrazilMonth);
   const [today] = React.useState(currentBrazilDate);
   const profileQuery = trpc.profile.mine.useQuery();
   const metricsQuery = trpc.metrics.mine.useQuery();
@@ -61,7 +51,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const metrics = metricsQuery.data;
   const [dailyReminderDismissed, setDailyReminderDismissed] = React.useState(false);
   const canViewProjection = user?.role === "admin" || Boolean(subscriptionQuery?.data?.isPro);
-  const historyQuery = trpc.history?.list.useQuery({ month: projectionMonth }, { enabled: canViewProjection && Boolean(profile?.branchId) });
+  const matrixQuery = trpc.matrix?.mine.useQuery(undefined, { enabled: canViewProjection && Boolean(profile?.branchId), refetchInterval: 30_000, refetchOnWindowFocus: true });
   const dailyStatusQuery = trpc.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
 
   React.useEffect(() => {
@@ -105,17 +95,11 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     : metrics.workingDaysTotal;
   const dailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.creditGoal, workingDaysRemaining);
   const challengeDailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.challengeGoal, workingDaysRemaining);
-  const projection = receiptProjection({
-    historyTotalReceived: historyQuery?.data?.totalReceived ?? 0,
-    historyDaysRecorded: historyQuery?.data?.daysRecorded ?? 0,
-    fallbackTotalReceived: receipts.accumulated,
-    workingDaysElapsed: metrics.workingDaysElapsed,
-    workingDaysRemaining,
-    remainingToReceive: Math.max(metrics.currentOverdue - metrics.creditGoal, 0),
-  });
-  const canShowForecast = canViewProjection && isReceiptForecastEligible(historyQuery?.data?.daysRecorded ?? 0);
-  const projectionRisk = collectionProjectionRisk({ monthOpening: metrics.monthOpening, projectedReceived: projection.projectedReceived, creditGoal: metrics.creditGoal });
-  const goalGap = fiadoGoalGap({ projectedOverdue: projectionRisk.projectedOverdue, creditGoal: metrics.creditGoal });
+  const canShowMatrixForecast = canViewProjection;
+  const matrixData = matrixQuery?.data?.metrics ?? null;
+  const matrixClosingForecast = matrixData?.closingForecast ?? null;
+  const fiadoGap = matrixData ? goalGapFromClosingForecast(matrixData.closingForecast, metrics.creditGoal) : null;
+  const challengeGap = matrixData ? goalGapFromClosingForecast(matrixData.closingForecast, metrics.challengeGoal) : null;
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
   const showTicketGoal = profile.showTicketGoal ?? true;
@@ -149,9 +133,8 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && !dailyReminderDismissed && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><div className="flex shrink-0 items-center gap-3"><Link href="/historicos" className="text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link><button type="button" onClick={dismissDailyReminder} aria-label="Fechar lembrete diário" className="grid h-7 w-7 place-items-center rounded-lg text-amber-800 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 dark:text-amber-200"><X className="h-4 w-4" /></button></div></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
-      {canShowForecast && <><ReceiptProjectionCard projection={projection} canView isLoading={Boolean(historyQuery?.isLoading)} />
-      <FiadoGoalGapCard gap={goalGap} canView />
-      {projectionRisk.status !== "unavailable" && <ProjectionRiskCard risk={projectionRisk} />}</>}
+      <MatrixClosingForecastCard closingForecast={matrixClosingForecast} closingForecastPercent={matrixData?.closingForecastPercent ?? null} canView={canShowMatrixForecast} isLoading={Boolean(matrixQuery?.isLoading)} />
+      {canShowMatrixForecast && matrixData && <div className="mt-5 grid gap-5 lg:grid-cols-2"><GoalGapCard label="GAP Meta Fiado" gap={fiadoGap!} goal={metrics.creditGoal} /><GoalGapCard label="GAP Meta Desafio" gap={challengeGap!} goal={metrics.challengeGoal} /></div>}
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{showTicketGoal ? type === "leader" ? <TicketStatus ticket={ticket} dailyReceived={receipts.today} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} /> : <AssistantNotice /> : null}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {showRewardAmounts && <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />}
@@ -170,41 +153,32 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   </section>;
 }
 
+type GoalGap = { status: "inside" | "outside" | "unavailable"; amount: number; projected: number; message: string };
+function goalGapFromClosingForecast(closingForecast: number, goal: number): GoalGap {
+  const projected = Math.max(Number.isFinite(closingForecast) ? closingForecast : 0, 0);
+  const target = Math.max(Number.isFinite(goal) ? goal : 0, 0);
+  if (!target) return { status: "unavailable", amount: 0, projected, message: "Informe a meta para calcular o GAP." };
+  const difference = projected - target;
+  return difference <= 0
+    ? { status: "inside", amount: Math.abs(difference), projected, message: "Dentro da meta de fechamento da Matriz." }
+    : { status: "outside", amount: difference, projected, message: "Fora da meta de fechamento da Matriz." };
+}
+export function MatrixClosingForecastCard({ closingForecast, closingForecastPercent, canView, isLoading }: { closingForecast: number | null; closingForecastPercent: number | null; canView: boolean; isLoading: boolean }) {
+  if (!canView) return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm"><CardContent className="p-6"><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-sm text-muted-foreground">A previsão de fechamento da filial está disponível para usuários PRO.</p></CardContent></Card>;
+  if (isLoading) return <Card className="mt-7 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-6"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-5 h-16 animate-pulse rounded-2xl bg-muted" /></CardContent></Card>;
+  if (closingForecast === null) return <Card className="mt-7 rounded-[1.7rem] border-amber-500/25 bg-amber-500/10 shadow-sm"><CardContent className="p-6"><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-sm text-muted-foreground">Ainda não há previsão importada da Matriz para esta filial.</p></CardContent></Card>;
+  return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex items-center justify-between gap-4 border-b border-border/70 bg-primary/5 p-6"><div><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-xs text-muted-foreground">Valor importado da aba Matriz.</p></div><TrendingUp className="h-5 w-5 text-primary" /></div><div className="grid gap-4 p-6 sm:grid-cols-2"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Fechamento previsto</p><p className="mt-2 text-3xl font-black text-primary">{currency(closingForecast)}</p></div><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Percentual previsto</p><p className="mt-2 text-3xl font-black text-primary">{closingForecastPercent === null ? "—" : `${closingForecastPercent.toFixed(2)}%`}</p></div></div></CardContent></Card>;
+}
+export function GoalGapCard({ label, gap, goal }: { label: string; gap: GoalGap; goal: number }) {
+  const inside = gap.status === "inside";
+  const styles = inside ? "border-emerald-500/25 bg-emerald-500/10" : "border-rose-500/30 bg-rose-500/10";
+  return <Card className={`rounded-[1.5rem] border ${styles}`}><CardContent className="flex items-center justify-between gap-4 p-5"><div><p className="font-black">{label}</p><p className="mt-1 text-sm text-muted-foreground">{gap.message}</p><p className="mt-2 text-xs text-muted-foreground">Previsão: <strong>{currency(gap.projected)}</strong> · Meta: <strong>{currency(goal)}</strong></p></div><div className="shrink-0 text-right"><Badge className={`rounded-full ${inside ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15" : "bg-rose-500/15 text-rose-700 hover:bg-rose-500/15"}`}>{inside ? "Dentro" : "Fora"}</Badge><p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{inside ? "Margem" : "GAP"}</p><p className="text-lg font-black">{currency(gap.amount)}</p></div></CardContent></Card>;
+}
 function AdminDashboardNotice({ view }: { view: View }) {
   const title = view === "overview" ? "Visão geral" : view === "fiado" ? "Meta Fiado" : "Meta Desafio";
   return <section className="mx-auto max-w-4xl animate-in fade-in duration-300"><Card className="overflow-hidden rounded-[1.8rem] border-primary/20 shadow-sm"><CardContent className="p-7 sm:p-9"><Badge className="rounded-full bg-primary/10 px-3 py-1 font-bold text-primary hover:bg-primary/10">Modo administrador</Badge><h1 className="mt-5 text-3xl font-black tracking-[-0.04em]">{title}</h1><p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Esta página está disponível para consulta administrativa. Como esta conta não está vinculada a uma filial, os indicadores individuais não são exibidos aqui.</p><div className="mt-6 flex flex-wrap gap-3"><Link href="/filiais" className="rounded-xl bg-primary px-4 py-2.5 text-sm font-extrabold text-primary-foreground shadow-sm transition-transform hover:brightness-105 active:scale-[0.98]">Ver resultados por filial</Link><Link href="/admin" className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-extrabold transition-colors hover:bg-muted">Abrir administração</Link></div></CardContent></Card></section>;
 }
 
-export function ReceiptProjectionCard({ projection, canView, isLoading }: { projection: ReceiptProjection; canView: boolean; isLoading: boolean }) {
-  if (!canView) return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm"><CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-primary/15 text-primary"><LockKeyhole className="h-5 w-5" /></span><div><p className="text-base font-black">Projeção e GAP da Meta Fiado</p><p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">Somente usuários PRO podem ver a projeção e o GAP da Meta Fiado.</p></div></div><Link href="/plano" className="shrink-0 rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-extrabold text-primary-foreground shadow-sm transition-transform hover:brightness-105 active:scale-[0.98]">Conhecer o plano PRO</Link></CardContent></Card>;
-  if (isLoading) return <Card className="mt-7 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-6"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-5 h-16 animate-pulse rounded-2xl bg-muted" /></CardContent></Card>;
-  const sourceDescription = projection.source === "daily-history" ? "Baseada nos recebimentos diários, limitada pela Meta Fiado." : "Baseada no total recebido e limitada pela Meta Fiado.";
-  const rate = Math.min(projection.projectedCollectionRate, 100);
-  return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-4 border-b border-border/70 bg-primary/5 p-6 sm:flex-row sm:items-start"><div><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary"><TrendingUp className="h-4 w-4" /></span><div><p className="text-base font-black">Forecast de recebimento</p><p className="mt-1 text-xs text-muted-foreground">{sourceDescription}</p></div></div></div><Badge className="w-fit rounded-full bg-primary/10 px-3 py-1 font-bold text-primary hover:bg-primary/10">{projection.source === "daily-history" ? "Com histórico diário" : "Por total recebido"}</Badge></div><div className="grid gap-5 p-6 lg:grid-cols-[1.1fr_.9fr]"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Estimativa de recebido na Meta Fiado</p><p className="mt-2 text-3xl font-black tracking-[-0.04em] text-primary">{currency(projection.projectedReceived)}</p><div className="mt-5"><div className="flex items-center justify-between gap-3 text-xs font-bold"><span>Previsão de atingimento da meta</span><span className="text-primary">{projection.projectedCollectionRate.toFixed(2)}%</span></div><Progress value={rate} className="mt-2 h-2.5" /></div></div><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><ProjectionMetric label="Meta de recebimento" value={currency(projection.targetReceived)} /><ProjectionMetric label="Falta para a meta" value={currency(projection.remainingToReceive)} /><ProjectionMetric label="Necessário por dia" value={currency(projection.dailyNeeded)} /></div></div><div className="border-t border-border/70 bg-muted/35 px-6 py-4"><p className="text-xs leading-relaxed text-muted-foreground">{projection.daysRemaining > 0 ? <>O forecast usa a média de <strong className="text-foreground">{currency(projection.averagePerDay)}</strong>, reduz o peso dos últimos dias úteis e respeita o teto de <strong className="text-foreground">101% da Meta Fiado</strong>. Para atingir a meta, são necessários <strong className="text-foreground">{currency(projection.dailyNeeded)}</strong> por dia.</> : <>Não há dias úteis restantes no período. O forecast mostra o total estimado dentro da Meta Fiado.</>}</p></div></CardContent></Card>;
-}
-
-export function FiadoGoalGapCard({ gap, canView }: { gap: FiadoGoalGap; canView: boolean }) {
-  if (!canView || gap.status === "unavailable") return null;
-  const withinTarget = gap.status === "inside";
-  const styles = withinTarget
-    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
-    : "border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-100";
-  const amountLabel = withinTarget ? "Margem dentro da meta" : "GAP a recuperar";
-  return <Card className={`mt-5 rounded-[1.5rem] border ${styles}`}><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><TrendingUp className="mt-0.5 h-5 w-5 shrink-0" /><div><p className="font-black">GAP da Meta Fiado</p><p className="mt-1 text-sm leading-relaxed opacity-85">{gap.message}</p><p className="mt-2 text-xs opacity-75">Vencido projetado: <strong>{currency(gap.projectedOverdue)}</strong> · Meta Fiado: <strong>{currency(gap.creditGoal)}</strong></p></div></div><div className="rounded-xl border border-current/15 bg-background/35 px-4 py-3 text-left sm:text-right"><Badge className={`rounded-full ${withinTarget ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-200" : "bg-rose-500/15 text-rose-700 hover:bg-rose-500/15 dark:text-rose-200"}`}>{withinTarget ? "Dentro da meta" : "Fora da meta"}</Badge><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">{amountLabel}</p><p className="mt-1 text-lg font-black">{currency(gap.amount)}</p></div></CardContent></Card>;
-}
-
-function ProjectionRiskCard({ risk }: { risk: ProjectionRisk }) {
-  const styles = risk.status === "healthy"
-    ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
-    : risk.status === "critical"
-      ? "border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-100"
-      : "border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100";
-  const iconClass = risk.status === "healthy" ? "text-emerald-700 dark:text-emerald-300" : risk.status === "critical" ? "text-rose-700 dark:text-rose-300" : "text-amber-700 dark:text-amber-300";
-  const title = risk.status === "healthy" ? "Projeção favorável" : risk.status === "critical" ? "Alerta de risco" : "Atenção à Meta Fiado";
-  return <Card className={`mt-5 rounded-[1.5rem] border ${styles}`}><CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${iconClass}`} /><div><p className="font-black">{title}</p><p className="mt-1 text-sm leading-relaxed opacity-85">{risk.message}</p></div></div>{risk.amountToRecover > 0 && <div className="rounded-xl border border-current/15 bg-background/35 px-4 py-3 text-left sm:text-right"><p className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70">Reforço estimado</p><p className="mt-1 text-sm font-black">{currency(risk.amountToRecover)}</p></div>}</CardContent></Card>;
-}
-
-function ProjectionMetric({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl border border-border/70 bg-card px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.11em] text-muted-foreground">{label}</p><p className="mt-1 text-sm font-black">{value}</p></div>; }
 
 function TicketStatus({ ticket, dailyReceived, showPossibleRewards, showRewardAmounts }: { ticket: ReturnType<typeof ticketGoalState>; dailyReceived: number; showPossibleRewards: boolean; showRewardAmounts: boolean }) { const stateCopy = ticket.status === "achieved" ? "Atingida" : ticket.status === "expired" ? "Não atingida" : "Em andamento"; const stateClass = ticket.status === "achieved" ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10" : ticket.status === "expired" ? "bg-destructive/10 text-destructive hover:bg-destructive/10" : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/10"; return <Card className="overflow-hidden rounded-[1.6rem] border-border/70 shadow-sm"><CardContent className="p-0"><div className="flex items-start justify-between gap-4 p-5"><div><div className="flex items-center gap-2"><span className="grid h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600"><TicketCheck className="h-4 w-4" /></span><p className="text-sm font-extrabold">Meta de 80%</p></div><p className="mt-3 max-w-md text-xs leading-relaxed text-muted-foreground">A meta é receber 80% do valor a receber até o dia 15. Após o prazo, sem atingimento registrado, a premiação não é válida.</p></div><Badge className={`rounded-full ${stateClass}`}>{stateCopy}</Badge></div><div className="border-t border-border/70 bg-muted/35 p-5"><div className="grid gap-4 sm:grid-cols-3">{showPossibleRewards && <div><p className="text-xl font-black">{currency(100)}</p><p className="mt-1 text-[11px] text-muted-foreground">Premiação possível</p></div>}{showRewardAmounts && <div><p className="text-sm font-black">{currency(ticket.status === "achieved" ? 100 : 0)}</p><p className="mt-1 text-[11px] text-muted-foreground">Premiação atual</p></div>}<div><p className="text-sm font-black">{currency(ticket.target)}</p><p className="mt-1 text-[11px] text-muted-foreground">Meta 80%</p></div><div><p className="text-sm font-black">{currency(dailyReceived)}</p><p className="mt-1 text-[11px] text-muted-foreground">Recebido hoje</p></div><div className="text-left sm:text-right"><p className="text-sm font-black">{currency(ticket.remaining)}</p><p className="mt-1 text-[11px] text-muted-foreground">Falta para atingir</p></div></div><p className="mt-4 text-xs font-semibold text-muted-foreground">{ticket.afterDay15 ? ticket.status === "achieved" ? "Meta atingida dentro do prazo e premiação preservada." : "O prazo do dia 15 encerrou sem atingir a Meta de 80%; premiação não válida." : ticket.remaining > 0 ? `${currency(ticket.dailyNeeded)} por dia útil nos dias restantes até o dia 15.` : "Meta atingida dentro do prazo."}</p></div></CardContent></Card> }
 function LostGoal({ progress, received, total, showPossibleRewards, showRewardAmounts }: { progress: number; received: number; total: number; showPossibleRewards: boolean; showRewardAmounts: boolean }) { const value = accumulatedReward(LOST_TIERS, progress); const missingAt100 = lostGoalMissingForTarget(100, total, received); const missingAt105 = lostGoalMissingForTarget(105, total, received); return <Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardContent className="p-5"><div className="flex items-center justify-between"><p className="text-sm font-extrabold">Meta Perdido</p><span className="text-sm font-black text-primary">{progress.toFixed(2)}%</span></div><Progress value={Math.min(progress / 105 * 100, 100)} className="mt-5 h-2.5" /><div className="mt-5 flex items-end justify-between"><div>{showRewardAmounts && <p className="text-xl font-black">{currency(value)}</p>}{showRewardAmounts && <p className="text-[11px] text-muted-foreground">Premiação atual</p>}{showPossibleRewards && <p className="text-[11px] text-muted-foreground">de {currency(700)} possíveis</p>}</div><p className="text-xs font-semibold text-muted-foreground">Recebido: <span className="text-foreground">{currency(received)}</span><br />Meta: <span className="text-foreground">{currency(total)}</span></p></div><div className="mt-5 grid gap-3 border-t border-border/70 pt-4 sm:grid-cols-2"><MissingLostGoal label="Falta para 100%" value={missingAt100} /><MissingLostGoal label="Falta para 105%" value={missingAt105} /></div></CardContent></Card> }

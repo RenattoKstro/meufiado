@@ -33,6 +33,7 @@ import {
   importBranches,
   getAnalyticImportStatus,
   getMatrixAutofillForUser,
+  getMyMatrixMetrics,
   getMyMetrics,
   getMyProfile,
   getReceiptDailyStatus,
@@ -294,6 +295,7 @@ type RouterDependencies = {
   completeMyProfile?: typeof completeMyProfile;
   getMyMetrics?: typeof getMyMetrics;
   getMatrixAutofillForUser?: typeof getMatrixAutofillForUser;
+  getMyMatrixMetrics?: typeof getMyMatrixMetrics;
   saveMyMetrics?: typeof saveMyMetrics;
   listReceiptHistory?: typeof listReceiptHistory;
   importReceiptHistoryFromMatrix?: typeof importReceiptHistoryFromMatrix;
@@ -314,6 +316,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveProfileCompletion = dependencies.completeMyProfile ?? completeMyProfile;
   const resolveMetrics = dependencies.getMyMetrics ?? getMyMetrics;
   const resolveMatrixAutofill = dependencies.getMatrixAutofillForUser ?? getMatrixAutofillForUser;
+  const resolveMyMatrixMetrics = dependencies.getMyMatrixMetrics ?? getMyMatrixMetrics;
   const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
   const resolveHistoryList = dependencies.listReceiptHistory ?? listReceiptHistory;
   const resolveHistoryMatrixImport = dependencies.importReceiptHistoryFromMatrix ?? importReceiptHistoryFromMatrix;
@@ -455,6 +458,10 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     }),
   }),
   matrix: router({
+    mine: protectedProcedure.query(async ({ ctx }) => {
+      await requireFeatureAccess(ctx.user.id, ctx.user.role, "matrix");
+      return resolveMyMatrixMetrics(ctx.user.id);
+    }),
     overview: protectedProcedure.query(async ({ ctx }) => {
       await requireFeatureAccess(ctx.user.id, ctx.user.role, "matrix");
       return listMatrixOverviews();

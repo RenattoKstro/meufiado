@@ -644,6 +644,18 @@ export async function getMyMetrics(userId: number, database?: ApplicationDatabas
   return { ...metricsForClient(legacyMetrics[0] ?? emptyMetrics), ticketReachedByMatrix: false };
 }
 
+export async function getMyMatrixMetrics(userId: number, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) return null;
+  const [profile] = await db.select({ branchId: userProfiles.branchId }).from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+  if (!profile?.branchId) return null;
+  const [result] = await db.select({ metrics: matrixMetrics, updatedAt: matrixMetrics.updatedAt })
+    .from(matrixMetrics)
+    .where(eq(matrixMetrics.branchId, profile.branchId))
+    .limit(1);
+  return result ?? null;
+}
+
 export async function getMatrixAutofillForUser(userId: number, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) throw new Error("Banco de dados indisponível");
