@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, PencilLine, Plus, ReceiptText, Trash2, TrendingUp } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Download, PencilLine, Plus, ReceiptText, Trash2, TrendingUp } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { monthOverMonth } from "../../../shared/collectionInsights";
@@ -129,6 +129,7 @@ export default function History() {
   const previousHistoryQuery = trpc.history.list.useQuery({ month: previousMonth(month) }, { enabled: hasBranch });
   const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: hasBranch });
   const create = trpc.history.create.useMutation();
+  const importFromMatrix = trpc.history.importFromMatrix.useMutation();
   const remove = trpc.history.delete.useMutation();
   const history = historyQuery.data;
   const entries = (history?.entries ?? []) as HistoryEntry[];
@@ -146,6 +147,21 @@ export default function History() {
 
   async function refreshHistory() {
     await utils.history.list.invalidate();
+  }
+
+  async function importMatrixHistory() {
+    try {
+      const result = await importFromMatrix.mutateAsync({ month });
+      await refreshHistory();
+      const imported = result.created + result.updated;
+      if (imported === 0) {
+        toast.info("Nenhum recebimento diário disponível na Matriz para este mês.");
+      } else {
+        toast.success(`${imported} dia${imported === 1 ? "" : "s"} importado${imported === 1 ? "" : "s"} da Matriz.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível importar os recebimentos da Matriz.");
+    }
   }
 
   async function submit(event: FormEvent) {
@@ -179,7 +195,7 @@ export default function History() {
   if (profileQuery.isLoading) return <section className="mx-auto max-w-6xl py-16 text-center text-sm text-muted-foreground">Carregando históricos…</section>;
   if (!canShowData) return <section className="mx-auto grid min-h-[58vh] max-w-2xl place-items-center"><Card className="w-full rounded-[1.8rem] border-border/70 text-center shadow-sm"><CardContent className="p-8 sm:p-10"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/10 text-primary"><ClipboardList className="h-6 w-6" /></span><h1 className="mt-5 text-2xl font-black tracking-tight">Históricos por filial</h1><p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">Vincule seu perfil a uma filial para registrar os recebimentos diários e acompanhar o consolidado mensal.</p></CardContent></Card></section>;
 
-  return <section className="mx-auto max-w-6xl space-y-6"><header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">Recebimentos registrados</p><h1 className="mt-1 text-3xl font-black tracking-tight">Históricos</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Registre o total recebido a cada dia. Líder e auxiliar compartilham o mesmo histórico da filial.</p></div><div className="flex items-center gap-2 self-start rounded-2xl border border-border bg-card p-1.5 shadow-sm lg:self-auto"><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Mês anterior" onClick={() => setMonth(value => changeMonth(value, -1))}><ChevronLeft className="h-4 w-4" /></Button><div className="min-w-44 text-center"><p className="text-sm font-extrabold capitalize">{selectedMonthLabel}</p><input aria-label="Selecionar mês" type="month" value={month} onChange={event => setMonth(event.target.value)} className="mt-0.5 w-full cursor-pointer bg-transparent text-center text-[11px] font-semibold text-muted-foreground outline-none" /></div><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Próximo mês" onClick={() => setMonth(value => changeMonth(value, 1))}><ChevronRight className="h-4 w-4" /></Button></div></header>
+  return <section className="mx-auto max-w-6xl space-y-6"><header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-sm font-bold uppercase tracking-[0.14em] text-primary">Recebimentos registrados</p><h1 className="mt-1 text-3xl font-black tracking-tight">Históricos</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Registre o total recebido a cada dia. Líder e auxiliar compartilham o mesmo histórico da filial.</p></div><div className="flex flex-wrap items-center gap-2 self-start lg:self-auto"><Button type="button" variant="outline" className="h-11 rounded-xl font-extrabold" onClick={() => void importMatrixHistory()} disabled={importFromMatrix.isPending}><Download className="mr-2 h-4 w-4" />{importFromMatrix.isPending ? "Importando…" : "Importar da Matriz"}</Button><div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm"><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Mês anterior" onClick={() => setMonth(value => changeMonth(value, -1))}><ChevronLeft className="h-4 w-4" /></Button><div className="min-w-44 text-center"><p className="text-sm font-extrabold capitalize">{selectedMonthLabel}</p><input aria-label="Selecionar mês" type="month" value={month} onChange={event => setMonth(event.target.value)} className="mt-0.5 w-full cursor-pointer bg-transparent text-center text-[11px] font-semibold text-muted-foreground outline-none" /></div><Button type="button" variant="ghost" size="icon" className="rounded-xl" aria-label="Próximo mês" onClick={() => setMonth(value => changeMonth(value, 1))}><ChevronRight className="h-4 w-4" /></Button></div></div></header>
 
     <Card className="overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-primary/5 p-5 sm:flex-row sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-primary">Fechamento mensal</p><h2 className="mt-1 text-xl font-black capitalize">Resumo de {selectedMonthLabel}</h2><p className="mt-1 text-xs text-muted-foreground">Consolidado dos lançamentos da filial, com comparação ao mês anterior.</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${monthlyEvolution.direction === "up" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : monthlyEvolution.direction === "down" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"}`}>{monthlyEvolution.percent === null ? "Sem base anterior" : `${monthlyEvolution.direction === "up" ? "+" : ""}${monthlyEvolution.percent.toFixed(2)}% vs. mês anterior`}</span></div><div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4"><ClosingMetric label="Recebido registrado" value={money(history?.totalReceived ?? 0)} note="Soma dos dias lançados" /><ClosingMetric label="Variação mensal" value={money(monthlyEvolution.difference)} note={monthlyEvolution.percent === null ? "Aguardando base anterior" : "Comparado ao mês anterior"} /><ClosingMetric label="Faixas atuais" value={`${metricsQuery.data ? fiadoPercentage(metricsQuery.data.creditGoal, metricsQuery.data.currentOverdue).toFixed(2) : "—"}% Fiado`} note={metricsQuery.data ? `${challengePercentage(metricsQuery.data.challengeGoal, metricsQuery.data.currentOverdue).toFixed(2)}% Desafio` : "Carregando metas"} /><ClosingMetric label="Premiação estimada" value={money(fiadoReward + challengeReward)} note="Conforme metas atuais" /></div></CardContent></Card>
 

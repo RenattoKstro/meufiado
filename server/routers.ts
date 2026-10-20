@@ -45,6 +45,7 @@ import {
   listAllBranches,
   listManagedUsers,
   listReceiptHistory,
+  importReceiptHistoryFromMatrix,
   listRomaneioDocuments,
   listUtilityDownloads,
   listUtilityReports,
@@ -295,6 +296,7 @@ type RouterDependencies = {
   getMatrixAutofillForUser?: typeof getMatrixAutofillForUser;
   saveMyMetrics?: typeof saveMyMetrics;
   listReceiptHistory?: typeof listReceiptHistory;
+  importReceiptHistoryFromMatrix?: typeof importReceiptHistoryFromMatrix;
   getReceiptDailyStatus?: typeof getReceiptDailyStatus;
   createReceiptHistoryEntry?: typeof createReceiptHistoryEntry;
   updateReceiptHistoryEntry?: typeof updateReceiptHistoryEntry;
@@ -314,6 +316,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   const resolveMatrixAutofill = dependencies.getMatrixAutofillForUser ?? getMatrixAutofillForUser;
   const resolveMetricsSave = dependencies.saveMyMetrics ?? saveMyMetrics;
   const resolveHistoryList = dependencies.listReceiptHistory ?? listReceiptHistory;
+  const resolveHistoryMatrixImport = dependencies.importReceiptHistoryFromMatrix ?? importReceiptHistoryFromMatrix;
   const resolveDailyReceiptStatus = dependencies.getReceiptDailyStatus ?? getReceiptDailyStatus;
   const resolveHistoryCreate = dependencies.createReceiptHistoryEntry ?? createReceiptHistoryEntry;
   const resolveHistoryUpdate = dependencies.updateReceiptHistoryEntry ?? updateReceiptHistoryEntry;
@@ -463,6 +466,7 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
   }),
   history: router({
     list: protectedProcedure.input(historyMonthInput).query(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryList(ctx.user.id, input.month); }),
+    importFromMatrix: protectedProcedure.input(historyMonthInput).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryMatrixImport(ctx.user.id, input.month); }),
     dailyStatus: protectedProcedure.input(z.object({ entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).query(({ ctx, input }) => resolveDailyReceiptStatus(ctx.user.id, input.entryDate)),
     create: protectedProcedure.input(historyEntryInput).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryCreate(ctx.user.id, input); }),
     update: protectedProcedure.input(z.object({ id: z.number().int().positive(), data: historyEntryInput })).mutation(async ({ ctx, input }) => { await requireFeatureAccess(ctx.user.id, ctx.user.role, "history"); return resolveHistoryUpdate(ctx.user.id, input.id, input.data); }),

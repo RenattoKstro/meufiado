@@ -6,6 +6,7 @@ const listHistory = vi.fn();
 const createHistory = vi.fn();
 const updateHistory = vi.fn();
 const deleteHistory = vi.fn();
+const importHistoryFromMatrix = vi.fn();
 
 function historyContext(): TrpcContext {
   return {
@@ -31,6 +32,7 @@ describe("history router", () => {
     createReceiptHistoryEntry: createHistory,
     updateReceiptHistoryEntry: updateHistory,
     deleteReceiptHistoryEntry: deleteHistory,
+    importReceiptHistoryFromMatrix: importHistoryFromMatrix,
     canAccessSubscriptionFeature: async () => true,
   }).createCaller(historyContext());
 
@@ -39,6 +41,7 @@ describe("history router", () => {
     createHistory.mockReset().mockResolvedValue(undefined);
     updateHistory.mockReset().mockResolvedValue(undefined);
     deleteHistory.mockReset().mockResolvedValue(undefined);
+    importHistoryFromMatrix.mockReset().mockResolvedValue({ month: "2026-08", created: 3, updated: 2, skipped: 0, available: 5 });
   });
 
   it("consulta apenas o mês solicitado no escopo do operador autenticado", async () => {
@@ -65,5 +68,11 @@ describe("history router", () => {
 
     await expect(api.history.list({ month: "08/2026" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(api.history.create({ entryDate: "21/08/2026", receivedAmount: 10 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("importa os recebimentos diários da Matriz para o mês selecionado", async () => {
+    await caller().history.importFromMatrix({ month: "2026-08" });
+
+    expect(importHistoryFromMatrix).toHaveBeenCalledWith(77, "2026-08");
   });
 });

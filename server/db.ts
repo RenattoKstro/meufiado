@@ -767,7 +767,56 @@ export async function listReceiptHistory(userId: number, month: string, database
     indicators: latest ? { monthOpening: latest.monthOpening, creditGoal: latest.creditGoal, challengeGoal: latest.challengeGoal, currentOverdue: latest.currentOverdue, delinquencyPercent: latest.delinquencyPercent, previousMonthDifference: latest.previousMonthDifference } : null,
   };
 }
-
+export async function importReceiptHistoryFromMatrix(userId: number, month: string, database?: ApplicationDatabase) {
+  const db = database ?? await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const branchId = await getHistoryBranchId(db, userId);
+  const { start, end } = monthBounds(month);
+  const [matrix] = await db.select().from(matrixMetrics).where(eq(matrixMetrics.branchId, branchId)).limit(1);
+  if (!matrix) throw new Error("Não há dados da Matriz importados para sua filial.");
+  let dailyReceived: Array<number | null> = [];
+  if (matrix.receiptDailyJson) {
+    try {
+      const parsed = JSON.parse(matrix.receiptDailyJson);
+      if (Array.isArray(parsed)) dailyReceived = parsed.map(value => typeof value === "number" && Number.isFinite(value) ? value : null);
+    } catch {
+      dailyReceived = [];
+    }
+  }
+  const availableDays = dailyReceived
+    .map((receivedAmount, index) => ({ receivedAmount, index }))
+    .filter((item): item is { receivedAmount: number; index: number } => item.receivedAmount !== null && item.receivedAmount >= 0);
+  if (!availableDays.length) return { month, created: 0, updated: 0, skipped: 0, available: 0 };
+  const existing = await db.select({ id: receiptHistoryEntries.id, entryDate: receiptHistoryEntries.entryDate })
+    .from(receiptHistoryEntries)
+    .where(and(eq(receiptHistoryEntries.branchId, branchId), gte(receiptHistoryEntries.entryDate, start), lt(receiptHistoryEntries.entryDate, end)));
+  const existingByDate = new Map(existing.map(entry => [entry.entryDate, entry.id]));
+  const daysInMonth = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
+  let created = 0;
+  let updated = 0;
+  for (const { receivedAmount, index } of availableDays) {
+    if (index >= daysInMonth) continue;
+    const entryDate = `${month}-${String(index + 1).padStart(2, "0")}`;
+    const values = {
+      entryDate,
+      receivedAmount,
+      monthOpening: matrix.overdueOpening,
+      creditGoal: matrix.creditGoal,
+      challengeGoal: matrix.challengeGoal,
+      currentOverdue: matrix.received,
+      delinquencyPercent: matrix.delinquencyPercent,
+    };
+    const existingId = existingByDate.get(entryDate);
+    if (existingId) {
+      await db.update(receiptHistoryEntries).set({ ...values, updatedAt: new Date() }).where(eq(receiptHistoryEntries.id, existingId));
+      updated += 1;
+    } else {
+      await db.insert(receiptHistoryEntries).values({ branchId, createdByUserId: userId, previousMonthDifference: 0, ...values });
+      created += 1;
+    }
+  }
+  return { month, created, updated, skipped: availableDays.length - created - updated, available: availableDays.length };
+}
 export async function getReceiptDailyStatus(userId: number, entryDate: string, database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) return { hasBranch: false, hasEntry: false, entryDate };
