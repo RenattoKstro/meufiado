@@ -24,10 +24,11 @@ describe("previsão da Matriz dentro dos cards de metas", () => {
   };
 
   it("mostra a previsão de fechamento e inadimplência prevista dentro do Fiado", () => {
-    render(<GoalCard {...baseProps} title="Meta Fiado" forecastClosing={12_500} forecastPercent={6.25} gap={{ status: "outside", amount: 2_500, projected: 12_500, message: "Fora da meta de fechamento da Matriz." }} />);
+    render(<GoalCard {...baseProps} title="Meta Fiado" forecastClosing={12_500} forecastClosingPercent={96.5} forecastPercent={6.25} gap={{ status: "outside", amount: 2_500, projected: 12_500, message: "Fora da meta de fechamento da Matriz." }} />);
     expect(screen.getByText("Previsão de fechamento")).toBeInTheDocument();
     expect(screen.getByText("Previsão de inadimplência %")).toBeInTheDocument();
     expect(screen.getByText("6.25%")).toBeInTheDocument();
+    expect(screen.getByText("96.50%")).toBeInTheDocument();
     expect(screen.getByText("GAP da Meta Fiado")).toBeInTheDocument();
     expect(screen.getByText("Fora da meta")).toBeInTheDocument();
   });

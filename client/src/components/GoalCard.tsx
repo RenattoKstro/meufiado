@@ -28,6 +28,7 @@ type GoalCardProps = {
   showPossibleRewards?: boolean;
   showRewardAmounts?: boolean;
   forecastClosing?: number | null;
+  forecastClosingPercent?: number | null;
   forecastPercent?: number | null;
   gap?: { status: "inside" | "outside" | "unavailable"; amount: number; projected: number; message: string } | null;
 };
@@ -48,7 +49,7 @@ function progressTone(progress: number): ProgressTone {
   return { key: "green", label: "100% ou mais", color: "#10b981", textClass: "text-emerald-600 dark:text-emerald-400", softClass: "bg-emerald-500/10", bubbleClass: "border-emerald-500/45 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" };
 }
 
-export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, dailyGoal, dailyReceived, remainingLabel, remainingValue, targetMissing, projectionTargets, showPossibleRewards = true, showRewardAmounts = true, forecastClosing = null, forecastPercent = null, gap = null }: GoalCardProps) {
+export default function GoalCard({ title, description, progress, received, accumulated, total, tiers, daysTotal, daysElapsed, referenceGoal, dailyGoal, dailyReceived, remainingLabel, remainingValue, targetMissing, projectionTargets, showPossibleRewards = true, showRewardAmounts = true, forecastClosing = null, forecastClosingPercent = null, forecastPercent = null, gap = null }: GoalCardProps) {
   const [activeTarget, setActiveTarget] = useState<number | null>(null);
   const visualProgress = Math.min(Math.max(progress, 0), 105);
   const displayedTargets = Array.from(new Set(projectionTargets ?? tiers.map(tier => tier.target)));
@@ -110,7 +111,7 @@ export default function GoalCard({ title, description, progress, received, accum
           <div className={cn("rounded-2xl border p-3 sm:col-span-2", dailyGoal > 0 ? reachedDailyGoal ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10" : "border-border/70 bg-muted/45")}>
             <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Meta diária / Rec. hoje</p><p className={cn("mt-1 text-sm font-black", dailyGoal > 0 && (reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"))}>{currency(dailyGoal)} / {currency(dailyReceived)}</p><p className={cn("mt-0.5 text-[11px] font-semibold", dailyGoal > 0 ? reachedDailyGoal ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300" : "text-muted-foreground")}>{dailyGoal > 0 ? reachedDailyGoal ? "Meta diária atingida" : "Meta diária ainda não atingida" : "Informe as metas para acompanhar"}</p>
           </div>
-          {forecastClosing !== null && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Previsão de fechamento</p><p className="mt-1 text-sm font-black text-primary">{currency(forecastClosing)}</p></div>}
+          {forecastClosing !== null && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Previsão de fechamento</p><p className="mt-1 text-sm font-black text-primary">{currency(forecastClosing)}</p>{forecastClosingPercent !== null && <p className="mt-0.5 text-[11px] font-bold text-primary">{forecastClosingPercent.toFixed(2)}%</p>}</div>}
           {forecastPercent !== null && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Previsão de inadimplência %</p><p className="mt-1 text-sm font-black text-primary">{forecastPercent.toFixed(2)}%</p></div>}
           {gap && gap.status !== "unavailable" && <div className={cn("rounded-2xl border p-3 sm:col-span-2", gap.status === "inside" ? "border-emerald-500/30 bg-emerald-500/10" : "border-rose-500/30 bg-rose-500/10")}><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">GAP da {title}</p><p className="mt-1 text-xs text-muted-foreground">{gap.message}</p></div><div className="text-right"><p className="text-xs font-black">{gap.status === "inside" ? "Dentro da meta" : "Fora da meta"}</p><p className="mt-1 text-sm font-black">{currency(gap.amount)}</p></div></div></div>}
         </div>
