@@ -26,8 +26,9 @@ import {
   dailyCollectionGoal,
   remainingToGoal,
 } from "../../../shared/goalRules";
-import { AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, CircleDollarSign, CircleHelp, Clock3, LockKeyhole, Medal, Percent, Settings2, TicketCheck, TrendingUp, Trophy, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, CircleDollarSign, CircleHelp, Clock3, Medal, Percent, Settings2, TicketCheck, Trophy, X } from "lucide-react";
 import { Link } from "wouter";
+import { shouldShowTicketGoal } from "../../../shared/ticketVisibility";
 
 type View = "overview" | "fiado" | "challenge";
 type StatTone = "default" | "success" | "danger";
@@ -39,10 +40,15 @@ function currentBrazilDate() {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+function currentBrazilDay() {
+  return Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Sao_Paulo", day: "2-digit" }).format(new Date()));
+}
+
 export default function Dashboard({ view = "overview" }: { view?: View }) {
   const { user } = useAuth();
   const texts = useAppTexts();
   const [today] = React.useState(currentBrazilDate);
+  const [dayOfMonth] = React.useState(currentBrazilDay);
   const profileQuery = trpc.profile.mine.useQuery();
   const metricsQuery = trpc.metrics.mine.useQuery();
   const subscriptionQuery = trpc.subscription?.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
@@ -95,14 +101,13 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     : metrics.workingDaysTotal;
   const dailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.creditGoal, workingDaysRemaining);
   const challengeDailyGoal = dailyCollectionGoal(metrics.currentOverdue, metrics.challengeGoal, workingDaysRemaining);
-  const canShowMatrixForecast = canViewProjection;
   const matrixData = matrixQuery?.data?.metrics ?? null;
   const matrixClosingForecast = matrixData?.closingForecast ?? null;
   const fiadoGap = matrixData ? goalGapFromClosingForecast(matrixData.closingForecast, metrics.creditGoal) : null;
   const challengeGap = matrixData ? goalGapFromClosingForecast(matrixData.closingForecast, metrics.challengeGoal) : null;
   const fiadoTiers = FIADO_TIERS[type];
   const challengeTiers = CHALLENGE_TIERS[type];
-  const showTicketGoal = profile.showTicketGoal ?? true;
+  const showTicketGoal = shouldShowTicketGoal({ dayOfMonth, showTicketGoal: profile.showTicketGoal ?? true, showAfterDeadline: profile.showTicketGoalAfterDeadline ?? false });
   const showPossibleRewards = profile.showPossibleRewards ?? true;
   const showRewardAmounts = profile.showRewardAmounts ?? true;
   const ticketValid = type === "leader" && ticket.status === "achieved";
@@ -110,8 +115,11 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const delinquency = delinquencyPercentage(metrics.currentOverdue, metrics.portfolioTotal);
   const pendingSetup = metrics.creditGoal <= 0 || metrics.challengeGoal <= 0 || metrics.currentOverdue <= 0;
 
-  const fiado = <GoalCard title="Meta Fiado" description="Premiação acumulativa por percentual atingindo." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} daysTotal={workingDaysTotalForGoalCard} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} dailyGoal={dailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Fiado" remainingValue={fiadoRemaining} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} />;
-  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} daysTotal={workingDaysTotalForGoalCard} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} dailyGoal={challengeDailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Desafio" remainingValue={challengeRemaining} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} />;
+  const forecastPercent = matrixData && matrixClosingForecast !== null
+    ? delinquencyPercentage(matrixClosingForecast, matrixData.portfolioTotal ?? metrics.portfolioTotal)
+    : null;
+  const fiado = <GoalCard title="Meta Fiado" description="Premiação acumulativa por percentual atingindo." progress={fiadoProgress} received={receipts.accumulated} accumulated={accumulatedReward(fiadoTiers, fiadoProgress)} total={totalReward(fiadoTiers)} tiers={fiadoTiers} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} daysTotal={workingDaysTotalForGoalCard} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.creditGoal} dailyGoal={dailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Fiado" remainingValue={fiadoRemaining} targetMissing={target => fiadoMissingForTarget(target, metrics.creditGoal, metrics.currentOverdue)} forecastClosing={matrixClosingForecast} forecastPercent={forecastPercent} gap={fiadoGap} />;
+  const challenge = <GoalCard title="Meta Desafio" description="Acompanhe as faixas de bonificações do desafio." progress={challengeProgress} received={receipts.accumulated} accumulated={accumulatedReward(challengeTiers, challengeProgress)} total={totalReward(challengeTiers)} tiers={challengeTiers} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} daysTotal={workingDaysTotalForGoalCard} daysElapsed={metrics.workingDaysElapsed} referenceGoal={metrics.challengeGoal} dailyGoal={challengeDailyGoal} dailyReceived={receipts.today} remainingLabel="Restante Desafio" remainingValue={challengeRemaining} targetMissing={target => challengeMissingForTarget(target, metrics.challengeGoal, metrics.currentOverdue)} gap={challengeGap} />;
   const delinquencyTone: StatTone = metrics.portfolioTotal > 0 ? delinquency < 7 ? "success" : "danger" : "default";
   const subscriberGoal = subscriptionQuery?.data?.settings;
   const subscriberGoalMinimum = subscriberGoal?.subscriberGoalMinimum ?? 0;
@@ -133,8 +141,6 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && !dailyReminderDismissed && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><div className="flex shrink-0 items-center gap-3"><Link href="/historicos" className="text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link><button type="button" onClick={dismissDailyReminder} aria-label="Fechar lembrete diário" className="grid h-7 w-7 place-items-center rounded-lg text-amber-800 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 dark:text-amber-200"><X className="h-4 w-4" /></button></div></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
-      <MatrixClosingForecastCard closingForecast={matrixClosingForecast} closingForecastPercent={matrixData?.closingForecastPercent ?? null} canView={canShowMatrixForecast} isLoading={Boolean(matrixQuery?.isLoading)} />
-      {canShowMatrixForecast && matrixData && <div className="mt-5 grid gap-5 lg:grid-cols-2"><GoalGapCard label="GAP Meta Fiado" gap={fiadoGap!} goal={metrics.creditGoal} /><GoalGapCard label="GAP Meta Desafio" gap={challengeGap!} goal={metrics.challengeGoal} /></div>}
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{showTicketGoal ? type === "leader" ? <TicketStatus ticket={ticket} dailyReceived={receipts.today} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} /> : <AssistantNotice /> : null}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {showRewardAmounts && <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />}
@@ -162,17 +168,6 @@ function goalGapFromClosingForecast(closingForecast: number, goal: number): Goal
   return difference <= 0
     ? { status: "inside", amount: Math.abs(difference), projected, message: "Dentro da meta de fechamento da Matriz." }
     : { status: "outside", amount: difference, projected, message: "Fora da meta de fechamento da Matriz." };
-}
-export function MatrixClosingForecastCard({ closingForecast, closingForecastPercent, canView, isLoading }: { closingForecast: number | null; closingForecastPercent: number | null; canView: boolean; isLoading: boolean }) {
-  if (!canView) return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card shadow-sm"><CardContent className="p-6"><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-sm text-muted-foreground">A previsão de fechamento da filial está disponível para usuários PRO.</p></CardContent></Card>;
-  if (isLoading) return <Card className="mt-7 rounded-[1.7rem] border-border/70 shadow-sm"><CardContent className="p-6"><div className="h-5 w-52 animate-pulse rounded bg-muted" /><div className="mt-5 h-16 animate-pulse rounded-2xl bg-muted" /></CardContent></Card>;
-  if (closingForecast === null) return <Card className="mt-7 rounded-[1.7rem] border-amber-500/25 bg-amber-500/10 shadow-sm"><CardContent className="p-6"><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-sm text-muted-foreground">Ainda não há previsão importada da Matriz para esta filial.</p></CardContent></Card>;
-  return <Card className="mt-7 overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex items-center justify-between gap-4 border-b border-border/70 bg-primary/5 p-6"><div><p className="text-base font-black">Previsão de fechamento</p><p className="mt-1 text-xs text-muted-foreground">Valor importado da aba Matriz.</p></div><TrendingUp className="h-5 w-5 text-primary" /></div><div className="grid gap-4 p-6 sm:grid-cols-2"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Fechamento previsto</p><p className="mt-2 text-3xl font-black text-primary">{currency(closingForecast)}</p></div><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Percentual previsto</p><p className="mt-2 text-3xl font-black text-primary">{closingForecastPercent === null ? "—" : `${closingForecastPercent.toFixed(2)}%`}</p></div></div></CardContent></Card>;
-}
-export function GoalGapCard({ label, gap, goal }: { label: string; gap: GoalGap; goal: number }) {
-  const inside = gap.status === "inside";
-  const styles = inside ? "border-emerald-500/25 bg-emerald-500/10" : "border-rose-500/30 bg-rose-500/10";
-  return <Card className={`rounded-[1.5rem] border ${styles}`}><CardContent className="flex items-center justify-between gap-4 p-5"><div><p className="font-black">{label}</p><p className="mt-1 text-sm text-muted-foreground">{gap.message}</p><p className="mt-2 text-xs text-muted-foreground">Previsão: <strong>{currency(gap.projected)}</strong> · Meta: <strong>{currency(goal)}</strong></p></div><div className="shrink-0 text-right"><Badge className={`rounded-full ${inside ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/15" : "bg-rose-500/15 text-rose-700 hover:bg-rose-500/15"}`}>{inside ? "Dentro" : "Fora"}</Badge><p className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{inside ? "Margem" : "GAP"}</p><p className="text-lg font-black">{currency(gap.amount)}</p></div></CardContent></Card>;
 }
 function AdminDashboardNotice({ view }: { view: View }) {
   const title = view === "overview" ? "Visão geral" : view === "fiado" ? "Meta Fiado" : "Meta Desafio";

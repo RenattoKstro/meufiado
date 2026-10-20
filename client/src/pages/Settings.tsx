@@ -190,6 +190,16 @@ export function MetricsSettings() {
     }
   }
 
+  async function setTicketAfterDeadlineVisibility(showTicketGoalAfterDeadline: boolean) {
+    try {
+      await preferences.mutateAsync({ showTicketGoalAfterDeadline });
+      await profileQuery.refetch();
+      toast.success(showTicketGoalAfterDeadline ? "Meta Alimentação continuará visível após o dia 15." : "Meta Alimentação será ocultada após o dia 15.");
+    } catch {
+      toast.error("Não foi possível atualizar a exibição após o dia 15.");
+    }
+  }
+
   async function setPossibleRewardsVisibility(showPossibleRewards: boolean) {
     try {
       await preferences.mutateAsync({ showPossibleRewards });
@@ -300,6 +310,7 @@ export function MetricsSettings() {
             <CardContent className="space-y-5">
               <div className="grid gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 sm:grid-cols-2">
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar Meta Alimentação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os cards, a meta, o recebido hoje e o ritmo até o dia 15.</p></div><Switch checked={profileQuery.data.profile.showTicketGoal ?? true} onCheckedChange={setTicketVisibility} disabled={preferences.isPending} /></div>
+                <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar após o dia 15</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Após o dia 16, mantém a Meta Alimentação visível somente se ativado.</p></div><Switch checked={profileQuery.data.profile.showTicketGoalAfterDeadline ?? false} onCheckedChange={setTicketAfterDeadlineVisibility} disabled={preferences.isPending} /></div>
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar valores possíveis</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe os valores máximos de premiação nos cards.</p></div><Switch checked={profileQuery.data.profile.showPossibleRewards ?? true} onCheckedChange={setPossibleRewardsVisibility} disabled={preferences.isPending} /></div>
                 <div className="flex items-center justify-between gap-3 rounded-xl bg-background/70 p-3"><div><p className="text-xs font-extrabold">Mostrar premiação</p><p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Exibe o valor já ganho em Fiado, Desafio, Alimentação e Perdido.</p></div><Switch checked={profileQuery.data.profile.showRewardAmounts ?? true} onCheckedChange={setRewardAmountsVisibility} disabled={preferences.isPending} /></div>
               </div>

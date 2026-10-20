@@ -105,6 +105,7 @@ export const userProfiles = pgTable(
     isOnVacation: boolean("isOnVacation").default(false).notNull(),
     showLostGoal: boolean("showLostGoal").default(false).notNull(),
     showTicketGoal: boolean("showTicketGoal").default(true).notNull(),
+    showTicketGoalAfterDeadline: boolean("showTicketGoalAfterDeadline").default(false).notNull(),
     showPossibleRewards: boolean("showPossibleRewards").default(true).notNull(),
     showRewardAmounts: boolean("showRewardAmounts").default(true).notNull(),
     messageNotificationsEnabled: boolean("messageNotificationsEnabled").default(true).notNull(),
