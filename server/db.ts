@@ -2004,6 +2004,37 @@ export async function updateManagedUser(
   await db.update(userProfiles).set(input).where(eq(userProfiles.id, id));
 }
 
+export async function updateManagedUserCredentials(profileId: number, usernameInput: string, password: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Banco de dados indisponível");
+  const username = usernameInput.trim().toLowerCase();
+  if (!/^[a-z0-9._-]{3,80}$/.test(username)) throw new Error("O usuário deve ter de 3 a 80 caracteres e usar apenas letras, números, ponto, hífen ou sublinhado.");
+  if (password.length < 6 || password.length > 256) throw new Error("A senha deve ter entre 6 e 256 caracteres.");
+  const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.id, profileId)).limit(1);
+  if (!profile) throw new Error("Usuário não encontrado.");
+  const [usernameInUse] = await db.select({ userId: userCredentials.userId }).from(userCredentials).where(eq(userCredentials.username, username)).limit(1);
+  if (usernameInUse && usernameInUse.userId !== profile.userId) throw new Error("Este nome de usuário já está em uso.");
+  let userId = profile.userId;
+  if (userId) {
+    const [account] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+    if (account?.role === "admin") throw new Error("As credenciais administrativas devem ser alteradas em Credenciais.");
+  } else {
+    const email = profile.email.trim().toLowerCase();
+    const [existingEmail] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (existingEmail) throw new Error("O e-mail deste perfil já está vinculado a outra conta.");
+    await db.insert(users).values({ openId: `local-user-${randomUUID()}`, name: profile.fullName, email, loginMethod: "password", role: "user", lastSignedIn: new Date() });
+    const [createdUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (!createdUser) throw new Error("Não foi possível criar a conta do operador.");
+    userId = createdUser.id;
+    await db.update(userProfiles).set({ userId }).where(eq(userProfiles.id, profileId));
+  }
+  const passwordHash = await hashPassword(password);
+  const [credential] = await db.select({ id: userCredentials.id }).from(userCredentials).where(eq(userCredentials.userId, userId)).limit(1);
+  if (credential) await db.update(userCredentials).set({ username, passwordHash, mustChangePassword: true, updatedAt: new Date() }).where(eq(userCredentials.id, credential.id));
+  else await db.insert(userCredentials).values({ userId, username, passwordHash, mustChangePassword: true });
+  return { userId, username };
+}
+
 export async function updateAccountRole(userId: number, role: "admin" | "user") {
   const db = await getDb();
   if (!db) throw new Error("Banco de dados indisponível");

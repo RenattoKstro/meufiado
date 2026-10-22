@@ -54,6 +54,7 @@ import {
   saveMyMetrics,
   setBranchStatus,
   updateManagedUser,
+  updateManagedUserCredentials,
   updateReceiptHistoryEntry,
   updateUtilityDownload,
   updateUtilityReport,
@@ -534,6 +535,9 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
         const { id, ...changes } = input;
         return updateManagedUser(id, changes);
       }),
+    updateUserCredentials: adminProcedure
+      .input(z.object({ profileId: z.number().int().positive(), username: z.string().trim().min(3).max(80).regex(/^[a-zA-Z0-9._-]+$/), password: z.string().min(6).max(256) }))
+      .mutation(({ input }) => updateManagedUserCredentials(input.profileId, input.username, input.password)),
     updateRole: adminProcedure.input(z.object({ userId: z.number().int().positive(), role: z.enum(["admin", "user"]) })).mutation(({ input }) => updateAccountRole(input.userId, input.role)),
     deleteUser: adminProcedure.input(z.object({ profileId: z.number().int().positive() })).mutation(({ ctx, input }) => deleteManagedUser(input.profileId, ctx.user.id)),
   }),
