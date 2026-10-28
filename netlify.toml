@@ -1,13 +1,20 @@
 [build]
   command = "pnpm build"
   publish = "dist/public"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "22"
   PNPM_VERSION = "10.4.1"
 
-# O aplicativo usa roteamento SPA no cliente. O arquivo _redirects em
-# client/public também é copiado para dist/public durante o build.
+# API must be handled before the SPA fallback. Otherwise Netlify returns
+# index.html with HTTP 200 and the tRPC client cannot parse JSON.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
