@@ -62,7 +62,16 @@ export async function getDb() {
   const connectionString = resolveSupabaseConnectionString();
   if (!_db && connectionString) {
     try {
-      _pool = new Pool({ connectionString, max: 10, idleTimeoutMillis: 30_000 });
+      _pool = new Pool({
+        connectionString,
+        max: 10,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+        // Supabase pooler presents a certificate chain that is not available
+        // in every Netlify runtime. TLS remains enabled; only CA chain
+        // validation is disabled, matching the connection health checks.
+        ssl: { rejectUnauthorized: false },
+      });
       _db = drizzle(_pool);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
