@@ -4,7 +4,6 @@ import {
   createRomaneioDocument,
   createReceiptHistoryEntry,
   createBranch,
-  createPreRegisteredUser,
   createLocalUser,
   deleteManagedUser,
   deleteReceiptHistoryEntry,
@@ -68,7 +67,6 @@ import {
   loginLocalAdmin,
   loginLocalUser,
   updateLocalAdminCredentials,
-  loginGoogleOperator,
   markChatMessagesRead,
   markUpdateNotesRead,
   recordSupportConversationTopic,
@@ -101,7 +99,6 @@ import {
   receiptDailyRowFromSpreadsheet,
   uniqueRowsByBranchCode,
 } from "../shared/importRules";
-import { OAuth2Client } from "google-auth-library";
 import { TRPCError } from "@trpc/server";
 import { notifyOwner } from "./_core/notification";
 import { getMercadoPagoPayerEmail } from "./mercadoPago";
@@ -281,16 +278,7 @@ const romaneioInput = z.object({
     unit: z.string().trim().max(24).optional().nullable(),
   })).min(1).max(100),
 });
-const googleClient = new OAuth2Client();
-
-function getGoogleClientId() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) throw new Error("Login Google não está configurado.");
-  return clientId;
-}
-
 type RouterDependencies = {
-  loginGoogleOperator?: typeof loginGoogleOperator;
   getMyProfile?: typeof getMyProfile;
   listActiveBranchesWithSlots?: typeof listActiveBranchesWithSlots;
   completeMyProfile?: typeof completeMyProfile;
@@ -311,7 +299,6 @@ type RouterDependencies = {
 };
 
 export function createAppRouter(dependencies: RouterDependencies = {}) {
-  const resolveGoogleOperator = dependencies.loginGoogleOperator ?? loginGoogleOperator;
   const resolveMyProfile = dependencies.getMyProfile ?? getMyProfile;
   const resolveBranchesWithSlots = dependencies.listActiveBranchesWithSlots ?? listActiveBranchesWithSlots;
   const resolveProfileCompletion = dependencies.completeMyProfile ?? completeMyProfile;
@@ -392,28 +379,6 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
       ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
       ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
       return { success: true } as const;
-    }),
-  }),
-  googleAuth: router({
-    config: publicProcedure.query(() => ({ clientId: getGoogleClientId() })),
-    login: publicProcedure.input(z.object({ credential: z.string().min(20).max(8192), mode: z.enum(["login", "register"]) })).mutation(async ({ ctx, input }) => {
-      try {
-        const ticket = await googleClient.verifyIdToken({ idToken: input.credential, audience: getGoogleClientId() });
-        const payload = ticket.getPayload();
-        if (!payload?.sub || !payload.email || !payload.email_verified) return { success: false } as const;
-        const user = await resolveGoogleOperator(
-          { subject: payload.sub, email: payload.email, name: payload.name },
-          undefined,
-          { createIfMissing: input.mode === "register" },
-        );
-        if (!user) return { success: false, reason: "not_registered" } as const;
-        const token = await createUserSession(user.id);
-        ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 });
-        ctx.res.cookie(USER_SESSION_COOKIE, token, { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
-        return { success: true } as const;
-      } catch {
-        return { success: false } as const;
-      }
     }),
   }),
   profile: router({
@@ -527,7 +492,6 @@ export function createAppRouter(dependencies: RouterDependencies = {}) {
     }),
     importStatus: adminProcedure.query(() => getAnalyticImportStatus()),
     setBranchStatus: adminProcedure.input(z.object({ id: z.number().int().positive(), isActive: z.boolean() })).mutation(({ input }) => setBranchStatus(input.id, input.isActive)),
-    preRegister: adminProcedure.input(profileInput).mutation(({ input }) => createPreRegisteredUser(input)),
     createLocalUser: adminProcedure.input(localUserInput).mutation(({ input }) => createLocalUser(input)),
     updateUser: adminProcedure
       .input(z.object({ id: z.number().int().positive(), isActive: z.boolean().optional(), isOnVacation: z.boolean().optional(), operatorType: operatorType.optional(), branchId: z.number().int().positive().optional() }))

@@ -15,13 +15,12 @@ describe("contrato da navegação lateral", () => {
     expect(source).not.toContain('label: "Meta Desafio"');
   });
 
-  it("mantém apenas o acesso direto do Google disponível ao operador", async () => {
+  it("mantém somente o acesso local por usuário e senha disponível ao operador", async () => {
     const source = await readFile(resolve(process.cwd(), "client/src/pages/UserLogin.tsx"), "utf8");
-    expect(source).toContain('import GoogleOperatorSignIn from "@/components/GoogleOperatorSignIn"');
-    expect(source).toContain('mode="login"');
-    expect(source).toContain('href="/cadastro"');
-    expect(source).not.toContain("Entrar com senha");
-    expect(source).not.toContain("userAuth");
+    expect(source).toContain("trpc.localAuth.login.useMutation()");
+    expect(source).toContain("usuário e a senha");
+    expect(source).not.toContain("GoogleOperatorSignIn");
+    expect(source).not.toContain("googleAuth");
   });
 
   it("oferece opções distintas de entrar e cadastrar na tela inicial", async () => {
@@ -50,12 +49,10 @@ describe("contrato da navegação lateral", () => {
     expect(heading.length).toBeLessThanOrEqual(80);
   });
 
-  it("mostra a conexão Google de cadastro somente depois da escolha de cadastrar", async () => {
-    const login = await readFile(resolve(process.cwd(), "client/src/pages/UserLogin.tsx"), "utf8");
+  it("orienta o cadastro para a administração e não carrega integração Google", async () => {
     const registration = await readFile(resolve(process.cwd(), "client/src/pages/UserRegistration.tsx"), "utf8");
-    expect(login).toContain('mode="login"');
-    expect(registration).toContain('GoogleOperatorSignIn mode="register"');
-    expect(registration).toContain("Primeiro, conecte sua conta Google.");
+    expect(registration).toContain("exclusivamente pela administração");
+    expect(registration).not.toContain("GoogleOperatorSignIn");
   });
 
   it("direciona acessos não autenticados à tela do Google direto", () => {
@@ -286,12 +283,6 @@ describe("contrato da navegação lateral", () => {
     expect(matrix).toContain("Melhor efetividade");
     expect(matrix).toContain("Menor efetividade");
     expect(matrix).toContain("Maior efetividade Fiado");
-  });
-
-  it("mantém o ponto de montagem do Google disponível durante o carregamento", async () => {
-    const source = await readFile(resolve(process.cwd(), "client/src/components/GoogleOperatorSignIn.tsx"), "utf8");
-    expect(source).toContain('className={status === "ready" ? "min-h-12" : "hidden"} ref={mountRef}');
-    expect(source).toContain("window.setTimeout(finish, 5_000)");
   });
 
   afterEach(() => {
