@@ -1,4 +1,4 @@
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { createContext, useContext, type ReactNode } from "react";
 
 export const DEFAULT_APP_TEXTS = {
@@ -27,7 +27,7 @@ export type AppTexts = typeof DEFAULT_APP_TEXTS;
 const AppTextContext = createContext<AppTexts>(DEFAULT_APP_TEXTS);
 
 export function AppTextProvider({ children }: { children: ReactNode }) {
-  const query = trpc.appTexts.get.useQuery(undefined, {
+  const query = api.appTexts.get.useQuery(undefined, {
     staleTime: 5 * 60_000,
     retry: 1,
   });

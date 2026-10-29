@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { getBranchPerformance, hasBranchFinancialActivity } from "../../../shared/branchOverview";
 import { filterBranchOverviewsByRegional, filterBranchOverviewsBySearch, getBranchRegionals } from "../../../shared/branchSearch";
 import { AtSign, Building2, ChevronDown, Clock3, ListFilter, MessageCircle, Phone, Search, Trophy, TrendingUp, UserRound, X } from "lucide-react";
@@ -23,7 +23,7 @@ function currency(value: number) { return new Intl.NumberFormat("pt-BR", { style
 function relativeUpdate(value: Date | null) { if (!value) return "Sem atualização registrada"; const elapsed = Math.max(0, Date.now() - new Date(value).getTime()); const minutes = Math.floor(elapsed / 60_000); if (minutes < 1) return "Atualizado agora"; if (minutes < 60) return `Atualizado há ${minutes} min`; const hours = Math.floor(minutes / 60); if (hours < 24) return `Atualizado há ${hours} h`; const days = Math.floor(hours / 24); return `Atualizado há ${days} ${days === 1 ? "dia" : "dias"}`; }
 
 export default function Branches() {
-  const overviewQuery = trpc.branches.overview.useQuery();
+  const overviewQuery = api.branches.overview.useQuery();
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [hideZeroed, setHideZeroed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,7 +32,7 @@ export default function Branches() {
   if (overviewQuery.isLoading) return <BranchesLoading />;
   if (overviewQuery.isError) return <BranchesError />;
 
-  const items = overviewQuery.data ?? [];
+  const items = (overviewQuery.data ?? []) as BranchOverviewItem[];
   const activeItems = items.filter(item => hasBranchFinancialActivity(item.metrics));
   const roleFilteredItems = hideZeroed ? activeItems : items;
   const regionalOptions = getBranchRegionals(roleFilteredItems);

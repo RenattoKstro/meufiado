@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { BookOpen, CalendarDays, CheckCircle2, ClipboardList, Crown, FileSpreadsheet, Gauge, GitCompareArrows, History, LayoutDashboard, MessageCircle, TableProperties, Target, Users, Wrench } from "lucide-react";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Link, useLocation } from "wouter";
 
 type HelpSection = {
@@ -99,7 +99,7 @@ const sections: HelpSection[] = [
 export default function Help() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const supportRecipient = trpc.chat.supportRecipient.useQuery(undefined, { retry: false, refetchInterval: 60_000 });
+  const supportRecipient = api.chat.supportRecipient.useQuery(undefined, { retry: false, refetchInterval: 60_000 });
 
   const openSupportChat = () => {
     const recipient = supportRecipient.data;

@@ -11,8 +11,8 @@ const historyList = vi.hoisted(() => vi.fn());
 const dailyStatus = vi.hoisted(() => vi.fn());
 const useAuth = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     profile: { mine: { useQuery: profileMine } },
     metrics: { mine: { useQuery: metricsMine } },
     subscription: { mine: { useQuery: subscriptionMine } },

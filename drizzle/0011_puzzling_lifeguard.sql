@@ -1,1 +1,0 @@
-ALTER TABLE `userProfiles` ADD `avatarUrl` varchar(2048);

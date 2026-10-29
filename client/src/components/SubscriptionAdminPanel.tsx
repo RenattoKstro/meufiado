@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Crown, Loader2, Save, XCircle } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -56,11 +56,11 @@ const planInfoBackgroundOptions: Array<{ value: PlanInfoBackground; label: strin
 ];
 
 export default function SubscriptionAdminPanel({ users, onChanged }: { users: Array<{ profile: { userId: number | null; fullName: string }; account: { id: number; email: string | null; plan: "free" | "pro"; proExpiresAt: Date | null; role: "admin" | "user" } | null }>; onChanged: () => Promise<void> }) {
-  const utils = trpc.useUtils();
-  const settingsQuery = trpc.subscriptionAdmin.settings.useQuery();
-  const saveSettings = trpc.subscriptionAdmin.updateSettings.useMutation();
-  const uploadQrCode = trpc.subscriptionAdmin.uploadPixQrCode.useMutation();
-  const setPlan = trpc.subscriptionAdmin.setUserPlan.useMutation();
+  const utils = api.useUtils();
+  const settingsQuery = api.subscriptionAdmin.settings.useQuery();
+  const saveSettings = api.subscriptionAdmin.updateSettings.useMutation();
+  const uploadQrCode = api.subscriptionAdmin.uploadPixQrCode.useMutation();
+  const setPlan = api.subscriptionAdmin.setUserPlan.useMutation();
   const qrPickerRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<SettingsForm>(initialForm);
 

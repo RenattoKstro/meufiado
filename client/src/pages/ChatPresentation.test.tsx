@@ -15,8 +15,8 @@ const subscriptionQuery = vi.hoisted(() => vi.fn());
 const searchValue = vi.hoisted(() => ({ value: "" }));
 const setLocation = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     useUtils: () => ({ chat: { general: { invalidate: vi.fn() }, private: { invalidate: vi.fn() }, privateThreads: { invalidate: vi.fn() }, unreadCount: { invalidate: vi.fn() } } }),
     subscription: { mine: { useQuery: subscriptionQuery } },
     chat: {

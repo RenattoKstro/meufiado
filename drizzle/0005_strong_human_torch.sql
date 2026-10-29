@@ -1,1 +1,0 @@
-ALTER TABLE `metricSettings` ADD `ticketWorkingDaysRemaining` int DEFAULT 0 NOT NULL;

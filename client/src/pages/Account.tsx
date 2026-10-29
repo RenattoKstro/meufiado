@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { BellRing, Camera, Headset, Loader2, Save, UserRound } from "lucide-react";
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -19,19 +19,19 @@ function initials(value: string) {
 
 export default function Account() {
   const { user } = useAuth();
-  const utils = trpc.useUtils();
-  const profileQuery = trpc.profile.mine.useQuery();
-  const saveAccount = trpc.profile.account.useMutation();
-  const uploadAvatar = trpc.profile.uploadAvatar.useMutation();
-  const updateMessageNotifications = trpc.profile.preferences.useMutation({
+  const utils = api.useUtils();
+  const profileQuery = api.profile.mine.useQuery();
+  const saveAccount = api.profile.account.useMutation();
+  const uploadAvatar = api.profile.uploadAvatar.useMutation();
+  const updateMessageNotifications = api.profile.preferences.useMutation({
     onSuccess: async (_, variables) => {
       await utils.profile.mine.invalidate();
       toast.success(variables.messageNotificationsEnabled ? "Notificações de mensagens ativadas." : "Notificações de mensagens silenciadas.");
     },
     onError: error => toast.error(error.message || "Não foi possível atualizar as notificações de mensagens."),
   });
-  const supportAvailabilityQuery = trpc.chat.mySupportAvailability.useQuery(undefined, { enabled: user?.role === "admin" });
-  const setSupportAvailability = trpc.chat.setSupportAvailability.useMutation({
+  const supportAvailabilityQuery = api.chat.mySupportAvailability.useQuery(undefined, { enabled: user?.role === "admin" });
+  const setSupportAvailability = api.chat.setSupportAvailability.useMutation({
     onSuccess: async () => {
       await Promise.all([utils.chat.mySupportAvailability.invalidate(), utils.chat.supportRecipient.invalidate()]);
       toast.success("Status de atendimento atualizado.");

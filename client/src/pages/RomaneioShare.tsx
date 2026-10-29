@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { exportRomaneioPdf, generateNameSignature, ManualSignaturePad, SignaturePreview, signatureStyleFromValue, signatureStyleLabel, SignatureStylePicker, type RomaneioDocument, type SignatureMode, type SignatureStyle } from "@/components/RomaneioTool";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { CheckCircle2, ClipboardSignature, Copy, FileDown, Loader2, PenLine, Send, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,8 +21,8 @@ function PartyCard({ title, party }: { title: string; party: { name: string; bra
 export default function RomaneioShare() {
   const [, params] = useRoute("/romaneio/:token");
   const token = params?.token ?? "";
-  const documentQuery = trpc.romaneio.shared.useQuery({ token }, { enabled: /^[a-f0-9]{32}$/.test(token), retry: false });
-  const sign = trpc.romaneio.sign.useMutation();
+  const documentQuery = api.romaneio.shared.useQuery({ token }, { enabled: /^[a-f0-9]{32}$/.test(token), retry: false });
+  const sign = api.romaneio.sign.useMutation();
   const [selectedSigner, setSelectedSigner] = useState<Signer | null>(null);
   const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>("classica");
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("font");

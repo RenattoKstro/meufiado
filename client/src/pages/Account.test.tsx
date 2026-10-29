@@ -13,8 +13,8 @@ const supportAvailabilityQuery = vi.hoisted(() => vi.fn());
 const supportAvailabilityMutation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 7, name: "Ana Souza", email: "ana@exemplo.com" } }) }));
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     useUtils: () => ({ profile: { mine: { invalidate } }, auth: { me: { invalidate } }, chat: { mySupportAvailability: { invalidate }, supportRecipient: { invalidate } } }),
     profile: {
       mine: { useQuery: mineQuery },

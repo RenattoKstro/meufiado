@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CheckCircle2, ClipboardSignature, Copy, Crown, Eraser, ExternalLink, FileDown, Loader2, PackagePlus, PenLine, Plus, Send, Share2, Trash2 } from "lucide-react";
@@ -262,9 +262,9 @@ function PartyFields({ title, party, catalog, onChange }: { title: string; party
 function RomaneioDialog({ onCreated }: { onCreated: (document: RomaneioDocument) => void }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<RomaneioForm>(blankForm);
-  const create = trpc.romaneio.create.useMutation();
-  const catalogParties = trpc.romaneio.parties.useQuery(undefined, { enabled: open });
-  const catalogProducts = trpc.romaneio.products.useQuery(undefined, { enabled: open });
+  const create = api.romaneio.create.useMutation();
+  const catalogParties = api.romaneio.parties.useQuery(undefined, { enabled: open });
+  const catalogProducts = api.romaneio.products.useQuery(undefined, { enabled: open });
   const parties = (catalogParties.data ?? []) as CatalogParty[];
   const products = (catalogProducts.data ?? []) as CatalogProduct[];
   useEffect(() => { if (open) setForm(blankForm()); }, [open]);
@@ -289,13 +289,13 @@ function RomaneioDialog({ onCreated }: { onCreated: (document: RomaneioDocument)
 }
 
 function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; onClose: () => void }) {
-  const utils = trpc.useUtils();
+  const utils = api.useUtils();
   const [role, setRole] = useState<Signer | null>(null);
   const [signatureStyle, setSignatureStyle] = useState<SignatureStyle>("classica");
   const [signatureMode, setSignatureMode] = useState<SignatureMode>("font");
   const [manualSignature, setManualSignature] = useState<string | null>(null);
-  const sign = trpc.romaneio.sign.useMutation();
-  const savePdf = trpc.romaneio.savePdf.useMutation();
+  const sign = api.romaneio.sign.useMutation();
+  const savePdf = api.romaneio.savePdf.useMutation();
   const shareUrl = `${window.location.origin}/romaneio/${document.shareToken}`;
   const ownSigned = role === "origin" ? Boolean(document.originSignedAt) : role === "destination" ? Boolean(document.destinationSignedAt) : false;
   const counterpart = role === "origin" ? "solicita" : "fornece";
@@ -341,13 +341,13 @@ function RomaneioDetails({ document, onClose }: { document: RomaneioDocument; on
 
 export default function RomaneioTool() {
   const { user } = useAuth();
-  const utils = trpc.useUtils();
-  const subscription = trpc.subscription.mine.useQuery();
+  const utils = api.useUtils();
+  const subscription = api.subscription.mine.useQuery();
   const isAdmin = user?.role === "admin";
   const hasProAccess = isAdmin || subscription.data?.isPro === true || subscription.data?.plan === "pro";
-  const documentsQuery = trpc.romaneio.list.useQuery(undefined, { enabled: hasProAccess });
+  const documentsQuery = api.romaneio.list.useQuery(undefined, { enabled: hasProAccess });
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const selectedQuery = trpc.romaneio.get.useQuery({ id: selectedId ?? 0 }, { enabled: selectedId !== null && hasProAccess });
+  const selectedQuery = api.romaneio.get.useQuery({ id: selectedId ?? 0 }, { enabled: selectedId !== null && hasProAccess });
   const documents = (documentsQuery.data ?? []) as RomaneioSummary[];
   const totals = useMemo(() => ({ total: documents.length, signed: documents.filter(document => document.status === "signed").length, pending: documents.filter(document => document.status !== "signed").length }), [documents]);
   const handleCreated = async (document: RomaneioDocument) => { await utils.romaneio.list.invalidate(); setSelectedId(document.id); };

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_APP_TEXTS, type AppTexts } from "@/contexts/AppTextContext";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Loader2, Save, Type } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -58,9 +58,9 @@ const sections: Array<{ title: string; description: string; fields: Field[] }> =
 ];
 
 export default function AppTextSettingsPanel() {
-  const utils = trpc.useUtils();
-  const settingsQuery = trpc.appTexts.get.useQuery();
-  const updateMutation = trpc.appTexts.update.useMutation();
+  const utils = api.useUtils();
+  const settingsQuery = api.appTexts.get.useQuery();
+  const updateMutation = api.appTexts.update.useMutation();
   const [values, setValues] = useState<AppTexts>(DEFAULT_APP_TEXTS);
 
   useEffect(() => {

@@ -1,2 +1,0 @@
-ALTER TABLE `branchMetrics` ADD `workingDaysMode` varchar(12) DEFAULT 'automatic' NOT NULL;--> statement-breakpoint
-ALTER TABLE `metricSettings` ADD `workingDaysMode` varchar(12) DEFAULT 'automatic' NOT NULL;

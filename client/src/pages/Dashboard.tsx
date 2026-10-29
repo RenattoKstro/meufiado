@@ -2,7 +2,7 @@ import GoalCard, { currency } from "@/components/GoalCard";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import React from "react";
@@ -49,16 +49,16 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const texts = useAppTexts();
   const [today] = React.useState(currentBrazilDate);
   const [dayOfMonth] = React.useState(currentBrazilDay);
-  const profileQuery = trpc.profile.mine.useQuery();
-  const metricsQuery = trpc.metrics.mine.useQuery();
-  const subscriptionQuery = trpc.subscription?.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const profileQuery = api.profile.mine.useQuery();
+  const metricsQuery = api.metrics.mine.useQuery();
+  const subscriptionQuery = api.subscription?.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   const profile = profileQuery.data?.profile;
   const branch = profileQuery.data?.branch;
   const metrics = metricsQuery.data;
   const [dailyReminderDismissed, setDailyReminderDismissed] = React.useState(false);
   const canViewProjection = user?.role === "admin" || Boolean(subscriptionQuery?.data?.isPro);
-  const matrixQuery = trpc.matrix?.mine.useQuery(undefined, { enabled: canViewProjection && Boolean(profile?.branchId), refetchInterval: 30_000, refetchOnWindowFocus: true });
-  const dailyStatusQuery = trpc.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
+  const matrixQuery = api.matrix?.mine.useQuery(undefined, { enabled: canViewProjection && Boolean(profile?.branchId), refetchInterval: 30_000, refetchOnWindowFocus: true });
+  const dailyStatusQuery = api.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
 
   React.useEffect(() => {
     if (!branch?.id) {

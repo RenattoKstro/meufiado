@@ -8,8 +8,8 @@ import path from "node:path";
 
 const overviewQuery = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: { branches: { overview: { useQuery: overviewQuery } } },
+vi.mock("@/lib/api", () => ({
+  api: { branches: { overview: { useQuery: overviewQuery } } },
 }));
 
 import Branches from "./Branches";

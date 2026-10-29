@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTheme, type Palette } from "@/contexts/ThemeContext";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { automaticWorkingDays } from "@shared/workingDays";
 import { parsePastedCurrency } from "@shared/currencyInput";
@@ -70,12 +70,12 @@ function CurrencyInput({ id, label, value, onChange }: { id: string; label: stri
 
 export function MetricsSettings() {
   const { user } = useAuth();
-  const metricsQuery = trpc.metrics.mine.useQuery();
-  const profileQuery = trpc.profile.mine.useQuery();
-  const subscriptionQuery = trpc.subscription.mine.useQuery();
-  const save = trpc.metrics.save.useMutation();
-  const autofillFromMatrix = trpc.metrics.autofillFromMatrix.useMutation();
-  const preferences = trpc.profile.preferences.useMutation();
+  const metricsQuery = api.metrics.mine.useQuery();
+  const profileQuery = api.profile.mine.useQuery();
+  const subscriptionQuery = api.subscription.mine.useQuery();
+  const save = api.metrics.save.useMutation();
+  const autofillFromMatrix = api.metrics.autofillFromMatrix.useMutation();
+  const preferences = api.profile.preferences.useMutation();
   const [form, setForm] = useState(initialMetrics);
   const [holidayDate, setHolidayDate] = useState("");
 
@@ -346,10 +346,10 @@ export function MetricsSettings() {
 
 export function AppearanceSettings() {
   const { user } = useAuth();
-  const profileQuery = trpc.profile.mine.useQuery();
-  const preferences = trpc.profile.preferences.useMutation();
+  const profileQuery = api.profile.mine.useQuery();
+  const preferences = api.profile.preferences.useMutation();
   const { theme, palette, setTheme, setPalette } = useTheme();
-  const utils = trpc.useUtils();
+  const utils = api.useUtils();
 
   if (profileQuery.isLoading) return <SettingsLoading />;
   const profile = profileQuery.data?.profile;

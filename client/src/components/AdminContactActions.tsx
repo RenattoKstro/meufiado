@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Mail, MessageCircle, Phone, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -12,7 +12,7 @@ type ManagedUser = {
 };
 
 export default function AdminContactActions({ users, onChanged }: { users: ManagedUser[]; onChanged: () => Promise<void> }) {
-  const deleteUser = trpc.admin.deleteUser.useMutation();
+  const deleteUser = api.admin.deleteUser.useMutation();
   const [, navigate] = useLocation();
   async function remove(profileId: number) {
     try { await deleteUser.mutateAsync({ profileId }); await onChanged(); toast.success("Conta excluída com sucesso."); }

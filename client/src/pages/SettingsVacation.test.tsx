@@ -17,8 +17,8 @@ const autofillMutateAsync = vi.hoisted(() => vi.fn());
 const useAuth = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => ({ message: vi.fn(), success: vi.fn(), error: vi.fn() }));
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     profile: { mine: { useQuery: profileMine }, preferences: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) } },
     metrics: { mine: { useQuery: metricsMine }, save: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) }, autofillFromMatrix: { useMutation: () => ({ mutateAsync: autofillMutateAsync, isPending: false }) } },
     subscription: { mine: { useQuery: subscriptionMine } },

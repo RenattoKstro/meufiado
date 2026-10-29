@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { CalendarDays, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Download, PencilLine, Plus, ReceiptText, Trash2, TrendingUp } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -89,7 +89,7 @@ function EntryDialog({ entry, onSaved, children }: { entry: HistoryEntry; onSave
   const [entryDate, setEntryDate] = useState(entry.entryDate);
   const [receivedAmount, setReceivedAmount] = useState(String(entry.receivedAmount));
   const [indicators, setIndicators] = useState<Record<string, string>>({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent), previousMonthDifference: String(entry.previousMonthDifference) });
-  const update = trpc.history.update.useMutation();
+  const update = api.history.update.useMutation();
 
   useEffect(() => {
     if (open) {
@@ -122,15 +122,15 @@ export default function History() {
   const [entryDate, setEntryDate] = useState(currentDate);
   const [receivedAmount, setReceivedAmount] = useState("");
   const [manualIndicators, setManualIndicators] = useState<Record<string, string>>({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
-  const utils = trpc.useUtils();
-  const profileQuery = trpc.profile.mine.useQuery();
+  const utils = api.useUtils();
+  const profileQuery = api.profile.mine.useQuery();
   const hasBranch = Boolean(profileQuery.data?.profile?.branchId);
-  const historyQuery = trpc.history.list.useQuery({ month }, { enabled: hasBranch });
-  const previousHistoryQuery = trpc.history.list.useQuery({ month: previousMonth(month) }, { enabled: hasBranch });
-  const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: hasBranch });
-  const create = trpc.history.create.useMutation();
-  const importFromMatrix = trpc.history.importFromMatrix.useMutation();
-  const remove = trpc.history.delete.useMutation();
+  const historyQuery = api.history.list.useQuery({ month }, { enabled: hasBranch });
+  const previousHistoryQuery = api.history.list.useQuery({ month: previousMonth(month) }, { enabled: hasBranch });
+  const metricsQuery = api.metrics.mine.useQuery(undefined, { enabled: hasBranch });
+  const create = api.history.create.useMutation();
+  const importFromMatrix = api.history.importFromMatrix.useMutation();
+  const remove = api.history.delete.useMutation();
   const history = historyQuery.data;
   const entries = (history?.entries ?? []) as HistoryEntry[];
   const canShowData = hasBranch && !profileQuery.isLoading;

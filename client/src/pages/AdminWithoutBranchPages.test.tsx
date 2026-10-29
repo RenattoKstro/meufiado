@@ -8,8 +8,8 @@ const profileMine = vi.hoisted(() => vi.fn());
 const metricsMine = vi.hoisted(() => vi.fn());
 const subscriptionMine = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     profile: {
       mine: { useQuery: profileMine },
       preferences: { useMutation: () => ({ mutateAsync: vi.fn(), isPending: false }) },

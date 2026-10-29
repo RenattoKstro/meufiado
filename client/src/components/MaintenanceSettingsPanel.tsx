@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Eye, Loader2, Save, Wrench } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +12,10 @@ type Values = { enabled: boolean; title: string; message: string; imageUrl: stri
 const defaults: Values = { enabled: false, title: "Estamos em manutenção", message: "Estamos atualizando o Meu Fiado para entregar uma experiência melhor. Voltaremos em breve.", imageUrl: null, primaryLabel: "Falar com a administração", primaryUrl: "/ajuda", secondaryLabel: "Tentar novamente", secondaryUrl: "/" };
 
 export default function MaintenanceSettingsPanel() {
-  const query = trpc.maintenance.get.useQuery();
-  const update = trpc.maintenance.update.useMutation();
+  const query = api.maintenance.get.useQuery();
+  const update = api.maintenance.update.useMutation();
   const [values, setValues] = useState<Values>(defaults);
-  const utils = trpc.useUtils();
+  const utils = api.useUtils();
   useEffect(() => { if (query.data) setValues({ ...defaults, ...query.data }); }, [query.data]);
   const set = (key: keyof Values, value: string | boolean | null) => setValues(current => ({ ...current, [key]: value }));
   async function submit(event: FormEvent) { event.preventDefault(); try { await update.mutateAsync(values); await utils.maintenance.get.invalidate(); toast.success(values.enabled ? "Modo de manutenção ativado." : "Modo de manutenção desativado."); } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar a manutenção."); } }

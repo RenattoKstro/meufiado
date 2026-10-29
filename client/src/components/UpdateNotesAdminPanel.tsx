@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { FilePenLine, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -20,11 +20,11 @@ type UpdateNoteDraft = {
 const emptyDraft: UpdateNoteDraft = { title: "", description: "", category: "Geral", isVisible: true };
 
 export default function UpdateNotesAdminPanel() {
-  const utils = trpc.useUtils();
-  const notesQuery = trpc.updatesAdmin.list.useQuery();
-  const createMutation = trpc.updatesAdmin.create.useMutation();
-  const updateMutation = trpc.updatesAdmin.update.useMutation();
-  const deleteMutation = trpc.updatesAdmin.delete.useMutation();
+  const utils = api.useUtils();
+  const notesQuery = api.updatesAdmin.list.useQuery();
+  const createMutation = api.updatesAdmin.create.useMutation();
+  const updateMutation = api.updatesAdmin.update.useMutation();
+  const deleteMutation = api.updatesAdmin.delete.useMutation();
   const [draft, setDraft] = useState<UpdateNoteDraft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
   const isSaving = createMutation.isPending || updateMutation.isPending;

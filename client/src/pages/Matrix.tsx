@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { comparisonCodesFromSearch, comparisonEffectivenessHighlights, sortMatrixItemsByComparisonCodes, sortMatrixItemsForDisplay, type ComparisonEffectivenessHighlight, type MatrixSortOption } from "@shared/matrixComparison";
 import { matrixReceivedAmount } from "@shared/goalRules";
 import { Building2, ChevronDown, CircleAlert, Clock3, Database, ListFilter, Search, Target, TrendingDown, X } from "lucide-react";
@@ -95,8 +95,8 @@ function sourceUpdateLabel(value: Date | string | null | undefined) {
 }
 
 export default function Matrix() {
-  const matrixQuery = trpc.matrix.overview.useQuery();
-  const importStatusQuery = trpc.matrix.importStatus.useQuery();
+  const matrixQuery = api.matrix.overview.useQuery();
+  const importStatusQuery = api.matrix.importStatus.useQuery();
   const [searchTerm, setSearchTerm] = useState("");
   const [regional, setRegional] = useState("all");
   const [hidePending, setHidePending] = useState(false);

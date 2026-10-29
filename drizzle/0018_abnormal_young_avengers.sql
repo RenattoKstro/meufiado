@@ -1,1 +1,0 @@
-ALTER TABLE `userProfiles` MODIFY COLUMN `colorPalette` enum('ocean','violet','forest','sunset','rose','midnight','citrus','slate') NOT NULL DEFAULT 'ocean';

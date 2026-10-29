@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { BadgeCheck, Crown, MessageCircle, MessagesSquare, Send, Tag, TimerReset, UsersRound } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -24,15 +24,15 @@ export default function Chat() {
   const [, setLocation] = useLocation();
   const [body, setBody] = useState("");
   const [selectedSupportTopic, setSelectedSupportTopic] = useState<string | null>(null);
-  const utils = trpc.useUtils();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const utils = api.useUtils();
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 15_000, refetchOnWindowFocus: true });
   const canUseGeneralChat = user?.role === "admin" || Boolean(subscriptionQuery.data?.isPro) || subscriptionQuery.data?.settings.chatPlan === "free";
-  const privateThreadsQuery = trpc.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
-  const supportRecipientQuery = trpc.chat.supportRecipient.useQuery(undefined, { staleTime: 30_000 });
-  const generalMessagesQuery = trpc.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 5_000 });
-  const privateMessagesQuery = trpc.chat.private.useQuery({ recipientUserId: recipientUserId ?? 0 }, { enabled: Boolean(recipientUserId), refetchInterval: 5_000 });
+  const privateThreadsQuery = api.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
+  const supportRecipientQuery = api.chat.supportRecipient.useQuery(undefined, { staleTime: 30_000 });
+  const generalMessagesQuery = api.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 5_000 });
+  const privateMessagesQuery = api.chat.private.useQuery({ recipientUserId: recipientUserId ?? 0 }, { enabled: Boolean(recipientUserId), refetchInterval: 5_000 });
   const messagesQuery = recipientUserId ? privateMessagesQuery : generalMessagesQuery;
-  const sendMutation = trpc.chat.send.useMutation({
+  const sendMutation = api.chat.send.useMutation({
     onSuccess: async () => {
       setBody("");
       setSelectedSupportTopic(null);
@@ -42,11 +42,11 @@ export default function Chat() {
     },
     onError: () => toast.error("Não foi possível enviar a mensagem. Tente novamente."),
   });
-  const selectSupportTopic = trpc.chat.selectSupportTopic.useMutation({
+  const selectSupportTopic = api.chat.selectSupportTopic.useMutation({
     onSuccess: () => void utils.chat.privateThreads.invalidate(),
     onError: () => toast.error("Não foi possível registrar o assunto do atendimento."),
   });
-  const markRead = trpc.chat.markRead.useMutation({ onSuccess: () => void utils.chat.unreadCount.invalidate() });
+  const markRead = api.chat.markRead.useMutation({ onSuccess: () => void utils.chat.unreadCount.invalidate() });
   const latestMessageId = messagesQuery.data?.at(-1)?.message.id;
   useEffect(() => {
     if (!messagesQuery.isLoading && !messagesQuery.isError) markRead.mutate();

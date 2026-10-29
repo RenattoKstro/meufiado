@@ -1,1 +1,0 @@
-ALTER TABLE `appTextSettings` MODIFY COLUMN `welcomeDescription` varchar(600) NOT NULL DEFAULT 'Tenha uma visão clara das metas, indicadores e resultados da sua filial.';

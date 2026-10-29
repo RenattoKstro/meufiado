@@ -32,8 +32,8 @@ vi.stubGlobal("Notification", BrowserNotificationMock);
 vi.mock("@/_core/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 9, role: "user", name: "Operador" }, logout: vi.fn() }) }));
 vi.mock("@/contexts/ThemeContext", () => ({ useTheme: () => ({ theme: "dark", toggleTheme: vi.fn() }) }));
 vi.mock("@/hooks/useMobile", () => ({ useIsMobile: () => false }));
-vi.mock("@/lib/trpc", () => ({
-  trpc: {
+vi.mock("@/lib/api", () => ({
+  api: {
     chat: { unreadCount: { useQuery: unreadQuery } },
     updates: { unreadCount: { useQuery: unreadUpdatesQuery } },
     profile: {

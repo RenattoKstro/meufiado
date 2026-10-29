@@ -3,17 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { Building2, CircleAlert, Loader2, UserRoundCheck } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function Onboarding() {
   const { user } = useAuth();
-  const branches = trpc.profile.branches.useQuery();
-  const complete = trpc.profile.complete.useMutation();
-  const createBranch = trpc.admin.createBranch.useMutation();
-  const utils = trpc.useUtils();
+  const branches = api.profile.branches.useQuery();
+  const complete = api.profile.complete.useMutation();
+  const createBranch = api.admin.createBranch.useMutation();
+  const utils = api.useUtils();
   const [fullName, setFullName] = useState(user?.name || "");
   const [phone, setPhone] = useState("");
   const [instagram, setInstagram] = useState("");

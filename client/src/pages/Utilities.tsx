@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import RomaneioTool from "@/components/RomaneioTool";
 import CallingListTool from "@/components/CallingListTool";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { formatPastedCurrency, parsePastedCurrency } from "@shared/currencyInput";
 import { calculateNinetyPercent } from "@shared/ninetyCalculator";
 import { Archive, Calculator, ClipboardSignature, Clock3, Download, ExternalLink, File, FileAudio, FileImage, FileSpreadsheet, FileText, FileVideo, FileWarning, LayoutGrid, List, PencilLine, Pin, Plus, Rows3, ScrollText, Trash2 } from "lucide-react";
@@ -52,8 +52,8 @@ function DownloadDialog({ item, onComplete, children }: { item?: DownloadItem; o
   const [externalUrl, setExternalUrl] = useState(item?.externalUrl ?? "");
   const [isPinned, setIsPinned] = useState(item?.isPinned ?? false);
   const [isVisible, setIsVisible] = useState(item?.isVisible ?? true);
-  const createMutation = trpc.utilityAdmin.createDownload.useMutation();
-  const updateMutation = trpc.utilityAdmin.updateDownload.useMutation();
+  const createMutation = api.utilityAdmin.createDownload.useMutation();
+  const updateMutation = api.utilityAdmin.updateDownload.useMutation();
 
   useEffect(() => {
     if (!open) return;
@@ -99,8 +99,8 @@ function ReportDialog({ item, onComplete, children }: { item?: ReportItem; onCom
   const [title, setTitle] = useState(item?.title ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
   const [isVisible, setIsVisible] = useState(item?.isVisible ?? true);
-  const createMutation = trpc.utilityAdmin.createReport.useMutation();
-  const updateMutation = trpc.utilityAdmin.updateReport.useMutation();
+  const createMutation = api.utilityAdmin.createReport.useMutation();
+  const updateMutation = api.utilityAdmin.updateReport.useMutation();
 
   useEffect(() => {
     if (!open) return;
@@ -155,11 +155,11 @@ export default function Utilities() {
   const { user } = useAuth();
   const texts = useAppTexts();
   const isAdmin = user?.role === "admin";
-  const utils = trpc.useUtils();
-  const downloadsQuery = trpc.utilities.downloads.useQuery();
-  const reportsQuery = trpc.utilities.reports.useQuery();
-  const removeDownload = trpc.utilityAdmin.deleteDownload.useMutation();
-  const removeReport = trpc.utilityAdmin.deleteReport.useMutation();
+  const utils = api.useUtils();
+  const downloadsQuery = api.utilities.downloads.useQuery();
+  const reportsQuery = api.utilities.reports.useQuery();
+  const removeDownload = api.utilityAdmin.deleteDownload.useMutation();
+  const removeReport = api.utilityAdmin.deleteReport.useMutation();
   const [downloadView, setDownloadView] = useState<ViewMode>("cards");
   const downloads = (downloadsQuery.data ?? []) as DownloadItem[];
   const reports = (reportsQuery.data ?? []) as ReportItem[];

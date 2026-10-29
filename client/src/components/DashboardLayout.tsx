@@ -25,7 +25,7 @@ import {
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { useIsMobile } from "@/hooks/useMobile";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { delinquencyPercentage } from "@shared/goalRules";
 import { AlertTriangle, BarChart3, BellRing, Building2, ChevronDown, CircleHelp, Crown, FolderDown, History, LayoutDashboard, LockKeyhole, LogOut, MessageCircle, Moon, Palette, Pencil, ShieldCheck, SlidersHorizontal, Sun, TableProperties } from "lucide-react";
 import React, { useRef } from "react";
@@ -37,17 +37,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const texts = useAppTexts();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   const canUseChat = Boolean(user);
-  const unreadChatQuery = trpc.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
-  const unreadUpdatesQuery = trpc.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
-  const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
-  const metricsQuery = trpc.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const unreadChatQuery = api.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
+  const unreadUpdatesQuery = api.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
+  const profileQuery = api.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const metricsQuery = api.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const messageNotificationsEnabled = profileQuery.data?.profile?.messageNotificationsEnabled !== false;
   const isGracePeriod = user?.role !== "admin" && subscriptionQuery.data?.status === "grace";
   const graceEndsAt = subscriptionQuery.data?.graceEndsAt ? new Date(subscriptionQuery.data.graceEndsAt) : null;
   const graceDaysRemaining = graceEndsAt ? Math.max(0, Math.ceil((graceEndsAt.getTime() - Date.now()) / 86_400_000)) : 0;
-  const presenceMutation = trpc.profile.presence.useMutation();
+  const presenceMutation = api.profile.presence.useMutation();
   const lastUnreadChatCount = useRef<number | null>(null);
   React.useEffect(() => {
     if (!user) return;

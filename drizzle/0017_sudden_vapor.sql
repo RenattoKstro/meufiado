@@ -1,2 +1,0 @@
-ALTER TABLE `subscriptionSettings` RENAME COLUMN `pixReceiverCity` TO `pixReceiverBank`;--> statement-breakpoint
-ALTER TABLE `subscriptionSettings` MODIFY COLUMN `pixReceiverBank` varchar(80) NOT NULL DEFAULT '';

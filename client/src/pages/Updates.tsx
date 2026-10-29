@@ -1,13 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import React from "react";
 
 export default function Updates() {
-  const utils = trpc.useUtils();
-  const notesQuery = trpc.updates.list.useQuery();
-  const markRead = trpc.updates.markRead.useMutation({ onSuccess: () => void utils.updates.unreadCount.invalidate() });
+  const utils = api.useUtils();
+  const notesQuery = api.updates.list.useQuery();
+  const markRead = api.updates.markRead.useMutation({ onSuccess: () => void utils.updates.unreadCount.invalidate() });
   const latestId = notesQuery.data?.[0]?.id;
 
   React.useEffect(() => {

@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { RefreshCw, Wrench } from "lucide-react";
 
 export default function Maintenance() {
-  const query = trpc.maintenance.get.useQuery(undefined, { staleTime: 5_000 });
+  const query = api.maintenance.get.useQuery(undefined, { staleTime: 5_000 });
   const settings = query.data;
   if (!settings) return <div className="grid min-h-screen place-items-center bg-background"><Wrench className="h-8 w-8 animate-pulse text-primary" /></div>;
   const open = (url: string) => { if (/^https?:\/\//.test(url)) window.location.href = url; else window.location.assign(url); };

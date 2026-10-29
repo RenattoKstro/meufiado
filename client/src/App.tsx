@@ -7,7 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { AppTextProvider } from "@/contexts/AppTextContext";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import Admin from "@/pages/Admin";
 import AdminLogin from "@/pages/AdminLogin";
 import Account from "@/pages/Account";
@@ -59,8 +59,8 @@ function LegacyMetaRedirect() {
 function AuthenticatedApp() {
   const { user, loading } = useAuth();
   const [location, navigate] = useLocation();
-  const profileQuery = trpc.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
-  const maintenanceQuery = trpc.maintenance.get.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 10_000, refetchOnWindowFocus: true });
+  const profileQuery = api.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
+  const maintenanceQuery = api.maintenance.get.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 10_000, refetchOnWindowFocus: true });
   const { applyPreferences } = useTheme();
   const hasOperatorProfile = Boolean(profileQuery.data?.profile?.profileComplete);
   useEffect(() => { const profile = profileQuery.data?.profile; if (profile) applyPreferences(profile.colorMode, profile.colorPalette); }, [applyPreferences, profileQuery.data?.profile]);
@@ -76,7 +76,7 @@ function AuthenticatedApp() {
 
 function SubscriptionFeature({ feature, children }: { feature: SubscriptionFeatureKey; children: React.ReactNode }) {
   const { user } = useAuth();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
   if (user?.role === "admin") return <>{children}</>;
   if (subscriptionQuery.isLoading) return <LoadingScreen />;
   const settings = subscriptionQuery.data?.settings;

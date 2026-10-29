@@ -1,1 +1,0 @@
-ALTER TABLE `userProfiles` ADD `messageNotificationsEnabled` boolean DEFAULT true NOT NULL;

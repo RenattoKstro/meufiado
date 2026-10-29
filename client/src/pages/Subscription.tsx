@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
+import { api } from "@/lib/api";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { AlertTriangle, CheckCircle2, Clipboard, Crown, Loader2, QrCode } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -39,10 +39,10 @@ function isPixPaymentExpired(payment: PixPayment | null) {
 }
 
 export default function Subscription() {
-  const utils = trpc.useUtils();
+  const utils = api.useUtils();
   const texts = useAppTexts();
-  const subscriptionQuery = trpc.subscription.mine.useQuery(undefined, { refetchInterval: 5_000, refetchIntervalInBackground: true });
-  const createPixPayment = trpc.subscription.createPixPayment.useMutation();
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 5_000, refetchIntervalInBackground: true });
+  const createPixPayment = api.subscription.createPixPayment.useMutation();
   const subscription = subscriptionQuery.data;
   const [selectedPlanId, setSelectedPlanId] = useState("default");
   const [activePixPayment, setActivePixPayment] = useState<PixPayment | null>(null);
