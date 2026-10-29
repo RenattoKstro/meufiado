@@ -126,6 +126,13 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
+export async function getUserByAuthUserId(authUserId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.authUserId, authUserId)).limit(1);
+  return result[0];
+}
+
 export async function listActiveBranches(database?: ApplicationDatabase) {
   const db = database ?? await getDb();
   if (!db) return [];

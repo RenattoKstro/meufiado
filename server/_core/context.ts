@@ -1,7 +1,7 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
 import { parse } from "cookie";
-import { getUserById } from "../db";
+import { getUserByAuthUserId, getUserById } from "../db";
 import { ADMIN_SESSION_COOKIE, getAdminSessionUserId, getUserSessionUserId, USER_SESSION_COOKIE } from "../localAdminAuth";
 import { sdk } from "./sdk";
 
@@ -21,6 +21,26 @@ export async function createContext(
   } catch (error) {
     // Authentication is optional for public procedures.
     user = null;
+  }
+
+  if (!user) {
+    const authorization = opts.req.headers.authorization;
+    const bearer = authorization?.startsWith("Bearer ") ? authorization.slice("Bearer ".length).trim() : "";
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    if (bearer && supabaseUrl && supabaseAnonKey) {
+      try {
+        const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${bearer}` },
+        });
+        if (response.ok) {
+          const authUser = (await response.json()) as { id?: string };
+          if (authUser.id) user = (await getUserByAuthUserId(authUser.id)) ?? null;
+        }
+      } catch {
+        // Keep the legacy cookie fallbacks below for the transition period.
+      }
+    }
   }
 
   if (!user) {
