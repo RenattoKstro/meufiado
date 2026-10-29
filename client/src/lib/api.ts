@@ -137,6 +137,13 @@ async function matrixAutofillForCurrentUser() {
   return { portfolioTotal: data.portfolioTotal ?? 0, monthOpening: data.overdueOpening ?? 0, dayOpening: data.overdueOpening ?? 0, currentOverdue: data.received ?? 0, creditGoal: data.creditGoal ?? 0, challengeGoal: data.challengeGoal ?? 0, lostGoal: data.lostGoal ?? 0, lostReceived: data.lostReceived ?? 0 };
 }
 
+async function invokeCredentialFunction(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("admin-user-credentials", { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function dispatchQuery(path: string[], input: unknown) {
   const key = path.join(".");
   switch (key) {
@@ -172,6 +179,9 @@ async function dispatchMutation(path: string[], input: any) {
   switch (key) {
     case "admin.importAnalytics": return importMatrixWorkbook(input);
     case "metrics.autofillFromMatrix": return matrixAutofillForCurrentUser();
+    case "admin.updateUserCredentials": return invokeCredentialFunction({ action: "updateUserCredentials", ...input });
+    case "admin.createLocalUser": return invokeCredentialFunction({ action: "createLocalUser", ...input });
+    case "adminAuth.updateCredentials": return invokeCredentialFunction({ action: "updateAdminCredentials", username: input.username, newPassword: input.newPassword });
     case "profile.account": { const { error } = await table("userProfiles").update({ fullName: input.fullName, phone: input.phone, instagram: input.instagram }).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "profile.preferences": { const { error } = await table("userProfiles").update(input).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "profile.presence": { const { error } = await table("users").update({ lastSignedIn: new Date().toISOString() }).eq("id", user?.id ?? 0); if (error) throw error; return { success: true }; }
