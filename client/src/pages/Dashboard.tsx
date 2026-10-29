@@ -1,5 +1,6 @@
 import GoalCard, { currency } from "@/components/GoalCard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
@@ -75,6 +76,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   };
 
   if (profileQuery.isLoading || metricsQuery.isLoading) return <DashboardLoading />;
+  if (profileQuery.isError || metricsQuery.isError) return <DashboardDataError onRetry={() => { void profileQuery.refetch(); void metricsQuery.refetch(); }} />;
   if (user?.role === "admin" && (!profile || !branch)) return <AdminDashboardNotice view={view} />;
   if (!profile || !branch || !metrics) return <DashboardLoading />;
 
@@ -183,3 +185,4 @@ function MissingLostGoal({ label, value }: { label: string; value: number }) { r
 function AssistantNotice() { return <Card className="rounded-[1.6rem] border-border/70 bg-muted/35 shadow-sm"><CardContent className="flex gap-4 p-5"><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Medal className="h-4 w-4" /></div><div><p className="text-sm font-extrabold">Seu perfil é Operador Auxiliar</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">A Meta Ticket não se aplica a esta função. Suas faixas específicas estão nos cartões de Fiado e Desafio.</p></div></CardContent></Card> }
 function QuickStat({ icon: Icon, label, value, note, tone = "default" }: { icon: typeof Trophy; label: string; value: string; note: string; tone?: StatTone }) { const color = tone === "success" ? "text-emerald-600" : tone === "danger" ? "text-destructive" : "text-primary"; return <Card className="rounded-2xl border-border/70 shadow-sm"><CardContent className="p-4"><div className={`flex items-center gap-2 ${color}`}><Icon className="h-4 w-4" /><span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</span></div><p className={`mt-3 text-lg font-black tracking-tight ${tone === "default" ? "" : color}`}>{value}</p>{note && <p className="mt-1 text-[11px] text-muted-foreground">{note}</p>}</CardContent></Card> }
 function DashboardLoading() { return <div className="mx-auto max-w-7xl"><div className="h-8 w-52 animate-pulse rounded-lg bg-muted" /><div className="mt-8 grid gap-5 lg:grid-cols-2"><div className="h-80 animate-pulse rounded-[1.6rem] bg-muted" /><div className="h-80 animate-pulse rounded-[1.6rem] bg-muted" /></div></div> }
+function DashboardDataError({ onRetry }: { onRetry: () => void }) { return <section className="mx-auto grid min-h-[55vh] max-w-xl place-items-center"><Card className="w-full rounded-[1.8rem] border-destructive/20 shadow-sm"><CardContent className="p-8 text-center"><p className="text-lg font-black">Não foi possível carregar suas metas</p><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Sua sessão foi reconhecida, mas houve uma falha temporária ao consultar os dados. Tente novamente.</p><Button type="button" className="mt-6 rounded-xl font-extrabold" onClick={onRetry}>Tentar novamente</Button></CardContent></Card></section>; }

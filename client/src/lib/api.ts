@@ -38,7 +38,26 @@ async function metricsMine() {
   if (!user) return null;
   const { data, error } = await table("metricSettings").select("*").eq("userId", user.id).maybeSingle();
   if (error) throw error;
-  if (!data) return null;
+  if (!data) return {
+    userId: user.id,
+    portfolioTotal: 0,
+    monthOpening: 0,
+    dayOpening: 0,
+    currentOverdue: 0,
+    creditGoal: 0,
+    challengeGoal: 0,
+    lostGoal: 0,
+    lostReceived: 0,
+    workingDaysTotal: 0,
+    workingDaysElapsed: 0,
+    ticketWorkingDaysRemaining: 0,
+    workingDaysMode: "automatic",
+    manualHolidayDates: [],
+    countToday: true,
+    includeSaturday: true,
+    includeSunday: false,
+    fiadoAtDay15: false,
+  };
   return { ...data, manualHolidayDates: data.manualHolidayDatesJson ? JSON.parse(data.manualHolidayDatesJson) : [] };
 }
 
