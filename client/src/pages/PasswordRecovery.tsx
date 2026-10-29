@@ -41,7 +41,7 @@ export default function PasswordRecovery() {
         toast.error("Informe um usuário ou e-mail com endereço de recuperação válido.");
         return;
       }
-      const redirectTo = `${window.location.origin}/redefinir-senha`;
+      const redirectTo = `${window.location.origin}/?recovery=1`;
       const { error } = await supabase.auth.resetPasswordForEmail(resolvedEmail, { redirectTo });
       if (error) throw error;
       setSent(true);
@@ -71,7 +71,7 @@ export default function PasswordRecovery() {
     }
   }
 
-  const updating = hasRecoverySession || window.location.pathname === "/redefinir-senha" && Boolean(window.location.hash.includes("access_token"));
+  const updating = hasRecoverySession || new URLSearchParams(window.location.search).get("recovery") === "1" || window.location.pathname === "/redefinir-senha";
   return <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_18%_18%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_34%)] p-5">
     <Card className="w-full max-w-md rounded-[2rem] border-border/70 shadow-2xl shadow-primary/10">
       <CardHeader className="p-7 pb-3 sm:p-9 sm:pb-4">

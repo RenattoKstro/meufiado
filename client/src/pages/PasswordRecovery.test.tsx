@@ -29,7 +29,7 @@ describe("recuperação de senha", () => {
     fireEvent.change(screen.getByLabelText("Usuário ou e-mail"), { target: { value: "admin" } });
     fireEvent.submit(screen.getByRole("button", { name: "Enviar link de recuperação" }).closest("form")!);
 
-    await waitFor(() => expect(resetPasswordForEmail).toHaveBeenCalledWith("renatto.kstro@gmail.com", expect.objectContaining({ redirectTo: expect.stringContaining("/redefinir-senha") })));
+    await waitFor(() => expect(resetPasswordForEmail).toHaveBeenCalledWith("renatto.kstro@gmail.com", expect.objectContaining({ redirectTo: expect.stringContaining("/?recovery=1") })));
     expect(screen.getByText("Verifique seu e-mail")).toBeInTheDocument();
   });
 });
