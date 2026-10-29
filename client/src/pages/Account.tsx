@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { api } from "@/lib/api";
-import { BellRing, Camera, Headset, Loader2, Save, UserRound } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { BellRing, Camera, Headset, KeyRound, Loader2, Save, UserRound } from "lucide-react";
 import React, { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,6 +42,9 @@ export default function Account() {
   const pickerRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<AccountForm>({ fullName: "", phone: "", instagram: "" });
   const [preview, setPreview] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordPending, setPasswordPending] = useState(false);
 
   useEffect(() => {
     const profile = profileQuery.data?.profile;
@@ -75,6 +79,24 @@ export default function Account() {
       }
     } catch {
       // O erro já é exibido pela mutation para manter o estado visual anterior.
+    }
+  }
+
+  async function changePassword(event: FormEvent) {
+    event.preventDefault();
+    if (newPassword.length < 8) return toast.error("A nova senha deve ter pelo menos 8 caracteres.");
+    if (newPassword !== confirmPassword) return toast.error("A confirmação da senha não confere.");
+    setPasswordPending(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Senha alterada com segurança no Supabase.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a senha.");
+    } finally {
+      setPasswordPending(false);
     }
   }
 
@@ -119,6 +141,7 @@ export default function Account() {
       <Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><UserRound className="h-5 w-5 text-primary" />Foto de perfil</CardTitle><CardDescription>JPG, PNG ou WEBP, com até 2 MB.</CardDescription></CardHeader><CardContent className="flex flex-col items-center text-center"><Avatar className="h-28 w-28 border-4 border-primary/15 shadow-lg shadow-primary/10"><AvatarImage src={preview ?? undefined} alt={`Foto de ${form.fullName || "perfil"}`} /><AvatarFallback className="bg-primary/10 text-2xl font-black text-primary">{initials(form.fullName || user?.name || "")}</AvatarFallback></Avatar><input ref={pickerRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhoto} /><Button type="button" variant="outline" onClick={choosePhoto} disabled={uploadAvatar.isPending} className="mt-5 rounded-xl font-extrabold">{uploadAvatar.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Camera className="mr-2 h-4 w-4" />}{preview ? "Trocar foto" : "Adicionar foto"}</Button></CardContent></Card>
       <Card className="rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="text-lg">Dados de contato</CardTitle><CardDescription>Essas informações podem aparecer quando outros operadores abrirem seu perfil em Filiais.</CardDescription></CardHeader><CardContent><form onSubmit={submit} className="space-y-5"><div className="space-y-2"><Label htmlFor="account-name">Nome</Label><Input id="account-name" value={form.fullName} onChange={event => setForm(current => ({ ...current, fullName: event.target.value }))} minLength={2} required /></div><div className="space-y-2"><Label htmlFor="account-phone">Telefone / WhatsApp</Label><Input id="account-phone" inputMode="tel" value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} minLength={8} required /></div><div className="space-y-2"><Label htmlFor="account-instagram">Instagram <span className="font-normal text-muted-foreground">(opcional)</span></Label><Input id="account-instagram" value={form.instagram} onChange={event => setForm(current => ({ ...current, instagram: event.target.value }))} placeholder="@seuinstagram" maxLength={120} /></div><div className="rounded-xl bg-muted/55 px-3 py-2.5"><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">E-mail de acesso</p><p className="mt-1 truncate text-sm font-bold">{profileQuery.data?.profile?.email ?? user?.email ?? "Não informado"}</p></div><div className="flex justify-end"><Button type="submit" className="h-11 rounded-xl px-6 font-extrabold" disabled={saveAccount.isPending}>{saveAccount.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar dados</Button></div></form></CardContent></Card>
     </div>
+    <Card className="mt-5 rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><KeyRound className="h-5 w-5 text-primary" />Senha de acesso</CardTitle><CardDescription>Altere sua senha diretamente no Supabase Auth. Use pelo menos 8 caracteres.</CardDescription></CardHeader><CardContent><form className="grid gap-4 sm:grid-cols-2" onSubmit={changePassword}><div className="space-y-2"><Label htmlFor="account-new-password">Nova senha</Label><Input id="account-new-password" type="password" minLength={8} autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="account-confirm-password">Confirmar senha</Label><Input id="account-confirm-password" type="password" minLength={8} autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} required /></div><div className="flex justify-end sm:col-span-2"><Button type="submit" className="rounded-xl font-extrabold" disabled={passwordPending}>{passwordPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Alterar senha</Button></div></form></CardContent></Card>
     <Card className="mt-5 rounded-[1.6rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><BellRing className="h-5 w-5 text-primary" />Notificações de mensagens</CardTitle><CardDescription>Receba avisos do navegador sobre novas mensagens enquanto o painel estiver aberto.</CardDescription></CardHeader><CardContent><div className="flex items-center justify-between gap-5 rounded-2xl bg-muted/45 px-4 py-3"><div className="min-w-0"><Label htmlFor="message-notifications" className="text-sm font-extrabold">{messageNotificationsEnabled ? "Notificações ativadas" : "Notificações silenciadas"}</Label><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Você pode alterar esta opção a qualquer momento.</p></div><Switch id="message-notifications" aria-label="Ativar notificações de mensagens" checked={messageNotificationsEnabled} onCheckedChange={setMessageNotifications} disabled={updateMessageNotifications.isPending} /></div></CardContent></Card>
     {user?.role === "admin" && <Card className="mt-5 rounded-[1.6rem] border-primary/20 bg-primary/[0.035] shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Headset className="h-5 w-5 text-primary" />Status do atendimento</CardTitle><CardDescription>Este status aparece para os operadores no botão de atendimento da Ajuda. A presença automática continua sendo usada somente quando você estiver disponível.</CardDescription></CardHeader><CardContent><div className="max-w-md space-y-2"><Label htmlFor="support-availability">Minha disponibilidade</Label><Select value={supportAvailabilityQuery.data?.supportAvailability ?? "available"} onValueChange={value => setSupportAvailability.mutate(value as "available" | "away" | "busy")} disabled={supportAvailabilityQuery.isLoading || setSupportAvailability.isPending}><SelectTrigger id="support-availability" className="h-11 rounded-xl"><SelectValue placeholder="Escolha seu status" /></SelectTrigger><SelectContent><SelectItem value="available">Disponível</SelectItem><SelectItem value="away">Ausente</SelectItem><SelectItem value="busy">Em atendimento</SelectItem></SelectContent></Select></div></CardContent></Card>}
   </section>;
