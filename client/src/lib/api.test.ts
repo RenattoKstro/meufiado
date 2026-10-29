@@ -6,6 +6,9 @@ describe("cliente Supabase estático", () => {
     expect(api.profile.mine.useQuery).toBeTypeOf("function");
     expect(api.metrics.mine.useQuery).toBeTypeOf("function");
     expect(api.history.create.useMutation).toBeTypeOf("function");
+    expect(api.admin.importAnalytics.useMutation).toBeTypeOf("function");
+    expect(api.admin.createLocalUser.useMutation).toBeTypeOf("function");
+    expect(api.admin.updateUserCredentials.useMutation).toBeTypeOf("function");
     expect(api.useUtils).toBeTypeOf("function");
   });
 });

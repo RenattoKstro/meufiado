@@ -70,6 +70,20 @@ async function importMatrixWorkbook(input: any) {
   const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
   const receiptDaily = parseRows(input.receiptDaily, receiptDailyRowFromSpreadsheet);
   if (!analytic.length) throw new Error("A aba Analítico não possui filiais válidas. Verifique se a Filial está na coluna A.");
+  return invokeMatrixImportFunction({
+    analytic,
+    data,
+    dailyTracking,
+    challengeDaily,
+    receiptDaily,
+    receivedRows: {
+      analytic: input.analytic?.length ?? 0,
+      data: input.data?.length ?? 0,
+      dailyTracking: input.dailyTracking?.length ?? 0,
+      challengeDaily: input.challengeDaily?.length ?? 0,
+      receiptDaily: input.receiptDaily?.length ?? 0,
+    },
+  });
 
   const [{ data: branches, error: branchesError }, { data: matrices, error: matricesError }] = await Promise.all([
     table("branches").select("*").limit(5000),
@@ -110,7 +124,7 @@ async function importMatrixWorkbook(input: any) {
       receiptForecast: extra?.receiptForecast ?? previous.receiptForecast ?? 0, closingForecast: extra?.closingForecast ?? previous.closingForecast ?? 0, closingForecastPercent: extra?.closingForecastPercent ?? previous.closingForecastPercent ?? 0,
       accumulatedLossGoal: extra?.accumulatedLossGoal ?? previous.accumulatedLossGoal ?? 0, accumulatedLossReceived: extra?.accumulatedLossReceived ?? previous.accumulatedLossReceived ?? 0, accumulatedLossBalance: extra?.accumulatedLossBalance ?? previous.accumulatedLossBalance ?? 0,
       previousDayGoal: tracking?.previousDayGoal ?? previous.previousDayGoal ?? 0, dailyReceived: tracking?.received ?? previous.dailyReceived ?? 0, previousDayDifference: tracking?.previousDayDifference ?? previous.previousDayDifference ?? 0, accumulatedDifference: tracking?.accumulatedDifference ?? previous.accumulatedDifference ?? 0, redesignedDailyGoal: tracking?.redesignedDailyGoal ?? previous.redesignedDailyGoal ?? 0,
-      challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge.dailyReceived) : previous.challengeDailyReceivedJson ?? null, sales: receipts?.sales ?? previous.sales ?? 0, receiptDailyJson: receipts?.dailyReceived ? JSON.stringify(receipts.dailyReceived) : previous.receiptDailyJson ?? null, updatedAt: new Date().toISOString(),
+      challengeDailyReceivedJson: challenge?.dailyReceived ? JSON.stringify(challenge?.dailyReceived) : previous.challengeDailyReceivedJson ?? null, sales: receipts?.sales ?? previous.sales ?? 0, receiptDailyJson: receipts?.dailyReceived ? JSON.stringify(receipts?.dailyReceived) : previous.receiptDailyJson ?? null, updatedAt: new Date().toISOString(),
     };
     const { error } = await table("matrixMetrics").upsert(values, { onConflict: "branchId" });
     if (error) throw error;
@@ -139,6 +153,13 @@ async function matrixAutofillForCurrentUser() {
 
 async function invokeCredentialFunction(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("admin-user-credentials", { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function invokeMatrixImportFunction(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("admin-matrix-import", { body });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data;
