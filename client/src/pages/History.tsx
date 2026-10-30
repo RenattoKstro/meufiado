@@ -124,7 +124,7 @@ export default function History() {
   const [manualIndicators, setManualIndicators] = useState<Record<string, string>>({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
   const utils = api.useUtils();
   const profileQuery = api.profile.mine.useQuery();
-  const hasBranch = Boolean(profileQuery.data?.profile?.branchId);
+  const hasBranch = Boolean(profileQuery.data?.profile?.branchId || profileQuery.data?.user?.role === "admin");
   const historyQuery = api.history.list.useQuery({ month }, { enabled: hasBranch });
   const previousHistoryQuery = api.history.list.useQuery({ month: previousMonth(month) }, { enabled: hasBranch });
   const metricsQuery = api.metrics.mine.useQuery(undefined, { enabled: hasBranch });
