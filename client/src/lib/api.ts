@@ -72,14 +72,16 @@ async function branchForCurrentUser() {
 async function subscriptionMine() {
   const user = await currentUser();
   if (!user) return null;
-  const [{ data: settings, error: settingsError }, { data: subscription, error: subscriptionError }] = await Promise.all([
+  const [{ data: settings, error: settingsError }, { data: subscription, error: subscriptionError }, { data: latestPixPayment, error: pixError }] = await Promise.all([
     table("subscriptionSettings").select("*").limit(1).maybeSingle(),
     table("mercadoPagoSubscriptions").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
+    table("mercadoPagoPixPayments").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (settingsError) throw settingsError;
   if (subscriptionError) throw subscriptionError;
+  if (pixError) throw pixError;
   const isPro = user.role === "admin" || (user.plan === "pro" && (!user.proExpiresAt || new Date(user.proExpiresAt).getTime() >= Date.now()));
-  return { user, settings, subscription, isPro, plan: user.plan, proExpiresAt: user.proExpiresAt };
+  return { user, settings, subscription, latestPixPayment, isPro, plan: user.plan, proExpiresAt: user.proExpiresAt };
 }
 
 async function importMatrixWorkbook(input: any) {
@@ -185,6 +187,13 @@ async function invokeMatrixImportFunction(body: Record<string, unknown>) {
   return data;
 }
 
+async function invokePaymentFunction(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("mercado-pago-pix", { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function dispatchQuery(path: string[], input: unknown) {
   const key = path.join(".");
   switch (key) {
@@ -244,7 +253,7 @@ async function dispatchMutation(path: string[], input: any) {
     case "updatesAdmin.create": case "updatesAdmin.update": { const id = input.id; const { data, error } = id ? await table("updateNotes").update(input).eq("id", id).select().single() : await table("updateNotes").insert(input).select().single(); if (error) throw error; return data; }
     case "updatesAdmin.delete": { const { error } = await table("updateNotes").delete().eq("id", input.id); if (error) throw error; return { success: true }; }
     case "romaneio.create": { const { data, error } = await table("romaneios").insert({ ...input, createdByUserId: user?.id }).select().single(); if (error) throw error; return data; }
-    case "subscription.createPixPayment": throw new Error("Pagamento Mercado Pago requer uma Edge Function Supabase segura.");
+    case "subscription.createPixPayment": return invokePaymentFunction({ action: "createPixPayment", planId: input.planId });
     default: throw new Error(`Operação ainda não migrada: ${key}`);
   }
 }
