@@ -5,6 +5,12 @@ import { applyWorkingDaysMode } from "../../../shared/workingDays";
 
 const table = (name: string) => supabase.from(name);
 
+function nextMonthDate(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!year || !monthNumber) return `${month}-32`;
+  return new Date(Date.UTC(year, monthNumber, 1)).toISOString().slice(0, 10);
+}
+
 async function currentUser() {
   const { data: session } = await supabase.auth.getSession();
   const authId = session.session?.user.id;
@@ -116,7 +122,7 @@ async function importMatrixWorkbook(input: any) {
   const challengeDaily = parseRows(input.challengeDaily, challengeDailyRowFromSpreadsheet);
   const receiptDaily = parseRows(input.receiptDaily, receiptDailyRowFromSpreadsheet);
   if (!analytic.length) throw new Error("A aba Analítico não possui filiais válidas. Verifique se a Filial está na coluna A.");
-  return invokeMatrixImportFunction({
+  const result = await invokeMatrixImportFunction({
     analytic,
     data,
     dailyTracking,
@@ -130,6 +136,21 @@ async function importMatrixWorkbook(input: any) {
       receiptDaily: input.receiptDaily?.length ?? 0,
     },
   });
+  const actor = await currentUser();
+  if (actor?.role === "admin") {
+    const importedAt = new Date().toISOString();
+    const { error: notificationError } = await table("updateNotes").insert({
+      title: "Nova atualização da Matriz",
+      description: `A Administração importou novos dados da Matriz em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(importedAt))}. Consulte a aba Matriz para acompanhar os indicadores atualizados.`,
+      category: "Matriz",
+      isVisible: true,
+      createdByUserId: actor.id,
+      createdAt: importedAt,
+      updatedAt: importedAt,
+    });
+    if (notificationError) console.warn("Não foi possível publicar a notificação da Matriz", notificationError);
+  }
+  return result;
 
   const [{ data: branches, error: branchesError }, { data: matrices, error: matricesError }] = await Promise.all([
     table("branches").select("*").limit(5000),
@@ -232,12 +253,13 @@ async function dispatchQuery(path: string[], input: unknown) {
     case "matrix.importStatus": case "admin.importStatus": { const { data, error } = await table("matrixImportSources").select("*").order("importedAt", { ascending: false }); if (error) throw error; return key.startsWith("admin.") ? { lastImportedAt: data?.[0]?.importedAt ?? null, sources: data ?? [] } : data ?? []; }
     case "admin.branches": { const { data, error } = await table("branches").select("*").order("name"); if (error) throw error; return data ?? []; }
     case "admin.users": { const [{ data: users, error: usersError }, { data: profiles, error: profilesError }, { data: branches, error: branchesError }] = await Promise.all([table("users").select("*"), table("userProfiles").select("*"), table("branches").select("*")]); if (usersError) throw usersError; if (profilesError) throw profilesError; if (branchesError) throw branchesError; return (profiles ?? []).map((profile: any) => ({ profile, account: (users ?? []).find((item: any) => item.id === profile.userId) ?? null, branch: (branches ?? []).find((item: any) => item.id === profile.branchId) ?? { id: profile.branchId, name: "Filial", code: null, regional: null } })); }
-    case "branches.overview": { const [{ data: branches, error: branchesError }, { data: profiles, error: profilesError }, { data: metrics, error: metricsError }] = await Promise.all([table("branches").select("*").order("name"), table("userProfiles").select("*"), table("branchMetrics").select("*")]); if (branchesError) throw branchesError; if (profilesError) throw profilesError; if (metricsError) throw metricsError; return (branches ?? []).map((branch: any) => ({ branch, operator: (profiles ?? []).find((item: any) => item.branchId === branch.id) ?? null, metrics: (metrics ?? []).find((item: any) => item.branchId === branch.id) ?? {}, updatedAt: branch.updatedAt })); }
-    case "history.list": { const month = (input as { month?: string } | undefined)?.month; const { branchId } = await historyBranchForCurrentUser(); let query = table("receiptHistoryEntries").select("*").order("entryDate", { ascending: false }); if (branchId) query = query.eq("branchId", branchId); if (month) query = query.gte("entryDate", `${month}-01`).lt("entryDate", `${month}-32`); const { data, error } = await query; if (error) throw error; const entries = data ?? []; const totalReceived = entries.reduce((sum: number, entry: any) => sum + Number(entry.receivedAmount ?? 0), 0); const first = entries[0] as any; return { month, entries, totalReceived, daysRecorded: entries.length, averagePerDay: entries.length ? totalReceived / entries.length : 0, indicators: first ? { monthOpening: first.monthOpening ?? 0, creditGoal: first.creditGoal ?? 0, challengeGoal: first.challengeGoal ?? 0, currentOverdue: first.currentOverdue ?? 0, delinquencyPercent: first.delinquencyPercent ?? 0, previousMonthDifference: first.previousMonthDifference ?? 0 } : null }; }
+    case "branches.overview": { const [{ data: branches, error: branchesError }, { data: profiles, error: profilesError }, { data: metrics, error: metricsError }, { data: matrixMetrics, error: matrixError }] = await Promise.all([table("branches").select("*").order("name"), table("userProfiles").select("*"), table("branchMetrics").select("*"), table("matrixMetrics").select("branchId,updatedAt")]); if (branchesError) throw branchesError; if (profilesError) throw profilesError; if (metricsError) throw metricsError; if (matrixError) throw matrixError; const matrixByBranch = new Map((matrixMetrics ?? []).map((item: any) => [item.branchId, item])); return (branches ?? []).map((branch: any) => ({ branch, operator: (profiles ?? []).find((item: any) => item.branchId === branch.id) ?? null, metrics: (metrics ?? []).find((item: any) => item.branchId === branch.id) ?? {}, updatedAt: matrixByBranch.get(branch.id)?.updatedAt ?? branch.updatedAt })); }
+    case "history.list": { const month = (input as { month?: string } | undefined)?.month; const { branchId } = await historyBranchForCurrentUser(); let query = table("receiptHistoryEntries").select("*").order("entryDate", { ascending: false }); if (branchId) query = query.eq("branchId", branchId); if (month) query = query.gte("entryDate", `${month}-01`).lt("entryDate", nextMonthDate(month)); const { data, error } = await query; if (error) throw error; const entries = data ?? []; const totalReceived = entries.reduce((sum: number, entry: any) => sum + Number(entry.receivedAmount ?? 0), 0); const first = entries[0] as any; return { month, entries, totalReceived, daysRecorded: entries.length, averagePerDay: entries.length ? totalReceived / entries.length : 0, indicators: first ? { monthOpening: first.monthOpening ?? 0, creditGoal: first.creditGoal ?? 0, challengeGoal: first.challengeGoal ?? 0, currentOverdue: first.currentOverdue ?? 0, delinquencyPercent: first.delinquencyPercent ?? 0, previousMonthDifference: first.previousMonthDifference ?? 0 } : null }; }
     case "history.dailyStatus": { const { branchId } = await historyBranchForCurrentUser(); const date = (input as any)?.entryDate; const { data } = branchId ? await table("receiptHistoryEntries").select("id").eq("branchId", branchId).eq("entryDate", date).maybeSingle() : { data: null }; return { hasBranch: Boolean(branchId), hasEntry: Boolean(data), entryDate: date }; }
     case "chat.supportRecipient": { const { data, error } = await table("users").select("id,name,role,supportAvailability").eq("role", "admin").limit(1).maybeSingle(); if (error) throw error; return data; }
     case "chat.general": case "chat.private": case "chat.privateThreads": { const { data, error } = await table("chatMessages").select("*").order("createdAt"); if (error) throw error; return data ?? []; }
-    case "chat.unreadCount": case "updates.unreadCount": return 0;
+    case "chat.unreadCount": return 0;
+    case "updates.unreadCount": { const actor = await currentUser(); if (!actor) return 0; const [{ data: notes, error: notesError }, { data: state, error: stateError }] = await Promise.all([table("updateNotes").select("id").eq("isVisible", true).limit(5000), table("updateReadStates").select("lastReadUpdateId").eq("userId", actor.id).maybeSingle()]); if (notesError) throw notesError; if (stateError) throw stateError; const lastReadId = Number(state?.lastReadUpdateId ?? 0); return (notes ?? []).filter((note: any) => Number(note.id) > lastReadId).length; }
     case "chat.mySupportAvailability": { const user = await currentUser(); return user?.supportAvailability ?? "available"; }
     case "romaneio.parties": case "romaneio.products": { const name = key.endsWith("parties") ? "romaneioParties" : "romaneioProducts"; const { data, error } = await table(name).select("*").order(name === "romaneioParties" ? "name" : "description"); if (error) throw error; return data ?? []; }
     case "romaneio.list": { const user = await currentUser(); const { data, error } = await table("romaneios").select("*").eq("createdByUserId", user?.id ?? 0).order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
@@ -284,7 +306,8 @@ async function dispatchMutation(path: string[], input: any) {
     case "appTexts.update": case "maintenance.update": { const name = key.startsWith("appTexts") ? "appTextSettings" : "maintenanceSettings"; const { data, error } = await table(name).update(input).gt("id", 0).select().single(); if (error) throw error; return data; }
     case "profile.complete": { const { error } = await table("userProfiles").upsert({ ...input, userId: user?.id, profileComplete: true }, { onConflict: "userId" }); if (error) throw error; return { success: true }; }
     case "chat.send": { const { data, error } = await table("chatMessages").insert({ ...input, senderUserId: user?.id }).select().single(); if (error) throw error; return data; }
-    case "chat.markRead": case "updates.markRead": return { success: true };
+    case "chat.markRead": return { success: true };
+    case "updates.markRead": { if (!user) return { success: false }; const { data: latest, error: latestError } = await table("updateNotes").select("id").eq("isVisible", true).order("id", { ascending: false }).limit(1).maybeSingle(); if (latestError) throw latestError; const { error } = await table("updateReadStates").upsert({ userId: user.id, lastReadUpdateId: latest?.id ?? 0, updatedAt: new Date().toISOString() }, { onConflict: "userId" }); if (error) throw error; return { success: true }; }
     case "chat.setSupportAvailability": { const { error } = await table("users").update({ supportAvailability: input.status }).eq("id", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "admin.setBranchStatus": { const { data, error } = await table("branches").update({ isActive: input.isActive }).eq("id", input.id).select().single(); if (error) throw error; return data; }
     case "admin.createBranch": { const { data, error } = await table("branches").insert({ name: input.name, code: input.code ?? null, isActive: true }).select().single(); if (error) throw error; return data; }
