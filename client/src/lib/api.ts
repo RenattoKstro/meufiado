@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { analyticRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dataRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, receiptDailyRowFromSpreadsheet, uniqueRowsByBranchCode, normalizeBranchCode } from "../../../shared/importRules";
+import { applyWorkingDaysMode } from "../../../shared/workingDays";
 
 const table = (name: string) => supabase.from(name);
 
@@ -36,7 +37,10 @@ async function profileMine() {
 async function metricsMine() {
   const user = await currentUser();
   if (!user) return null;
-  const { data, error } = await table("metricSettings").select("*").eq("userId", user.id).maybeSingle();
+  const { data: profile, error: profileError } = await table("userProfiles").select("branchId").eq("userId", user.id).maybeSingle();
+  if (profileError) throw profileError;
+  const source = profile?.branchId ? table("branchMetrics").select("*").eq("branchId", profile.branchId).maybeSingle() : table("metricSettings").select("*").eq("userId", user.id).maybeSingle();
+  const { data, error } = await source;
   if (error) throw error;
   if (!data) return {
     userId: user.id,
@@ -58,7 +62,14 @@ async function metricsMine() {
     includeSunday: false,
     fiadoAtDay15: false,
   };
-  return { ...data, manualHolidayDates: data.manualHolidayDatesJson ? JSON.parse(data.manualHolidayDatesJson) : [] };
+  let manualHolidayDates: string[] = [];
+  try {
+    const parsed = data.manualHolidayDatesJson ? JSON.parse(data.manualHolidayDatesJson) : [];
+    manualHolidayDates = Array.isArray(parsed) ? Array.from(new Set(parsed.filter((value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)))).slice(0, 31) : [];
+  } catch {
+    manualHolidayDates = [];
+  }
+  return applyWorkingDaysMode({ ...data, manualHolidayDates } as any);
 }
 
 async function branchForCurrentUser() {
@@ -235,7 +246,24 @@ async function dispatchMutation(path: string[], input: any) {
     case "profile.account": { const { error } = await table("userProfiles").update({ fullName: input.fullName, phone: input.phone, instagram: input.instagram }).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "profile.preferences": { const { error } = await table("userProfiles").update(input).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "profile.presence": { const { error } = await table("users").update({ lastSignedIn: new Date().toISOString() }).eq("id", user?.id ?? 0); if (error) throw error; return { success: true }; }
-    case "metrics.save": { const { manualHolidayDates, ...rest } = input ?? {}; const payload = { ...rest, userId: user?.id, manualHolidayDatesJson: JSON.stringify(Array.isArray(manualHolidayDates) ? manualHolidayDates : []) }; const { data, error } = await table("metricSettings").upsert(payload, { onConflict: "userId" }).select().single(); if (error) throw error; return { ...data, manualHolidayDates: manualHolidayDates ?? [] }; }
+    case "metrics.save": {
+      const inputValues = input ?? {};
+      const rawHolidayDates = Array.isArray(inputValues.manualHolidayDates) ? inputValues.manualHolidayDates : [];
+      const manualHolidayDates = Array.from(new Set(rawHolidayDates.filter((value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)))).slice(0, 31);
+      const normalized = applyWorkingDaysMode({ ...inputValues, manualHolidayDates } as any);
+      const { manualHolidayDates: _ignored, ...rest } = normalized;
+      const { data: profile, error: profileError } = await table("userProfiles").select("branchId").eq("userId", user?.id ?? 0).maybeSingle();
+      if (profileError) throw profileError;
+      const hasBranchScope = typeof profile?.branchId === "number" && profile.branchId > 0;
+      const payload = hasBranchScope
+        ? { ...rest, branchId: profile.branchId, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) }
+        : { ...rest, userId: user?.id, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) };
+      const { data, error } = hasBranchScope
+        ? await table("branchMetrics").upsert(payload, { onConflict: "branchId" }).select().single()
+        : await table("metricSettings").upsert(payload, { onConflict: "userId" }).select().single();
+      if (error) throw error;
+      return { ...data, manualHolidayDates };
+    }
     case "history.create": { const branchId = input.branchId ?? (await profileMine())?.profile?.branchId; if (!branchId) throw new Error("Nenhuma filial está vinculada ao seu perfil."); const { data: existing } = await table("receiptHistoryEntries").select("id").eq("branchId", branchId).eq("entryDate", input.entryDate).maybeSingle(); if (existing) throw new Error("Já existe um lançamento para esta data. Edite o lançamento existente."); const { data, error } = await table("receiptHistoryEntries").insert({ ...input, branchId, createdByUserId: user?.id }).select().single(); if (error) throw error; return data; }
     case "history.update": { const payload = input.data ?? input; const { data: current } = await table("receiptHistoryEntries").select("branchId").eq("id", input.id).maybeSingle(); const { data, error } = await table("receiptHistoryEntries").update({ entryDate: payload.entryDate, receivedAmount: payload.receivedAmount, monthOpening: payload.monthOpening, creditGoal: payload.creditGoal, challengeGoal: payload.challengeGoal, currentOverdue: payload.currentOverdue, delinquencyPercent: payload.delinquencyPercent, previousMonthDifference: payload.previousMonthDifference, updatedAt: new Date().toISOString() }).eq("id", input.id).eq("branchId", current?.branchId ?? 0).select().single(); if (error) throw error; return data; }
     case "history.importFromMatrix": { const month = input.month as string; const { branchId } = await branchForCurrentUser(); if (!branchId) throw new Error("Nenhuma filial está vinculada ao seu perfil."); const { data: matrix, error: matrixError } = await table("matrixMetrics").select("receiptDailyJson,overdueOpening,creditGoal,challengeGoal,received,delinquencyPercent").eq("branchId", branchId).maybeSingle(); if (matrixError) throw matrixError; const daily = matrix?.receiptDailyJson ? JSON.parse(matrix.receiptDailyJson) : []; let created = 0; let updated = 0; for (let index = 0; index < (daily as any[]).length; index += 1) { const amount = (daily as any[])[index]; if (amount === null || amount === undefined) continue; const entryDate = `${month}-${String(index + 1).padStart(2, "0")}`; const { data: existing } = await table("receiptHistoryEntries").select("id").eq("branchId", branchId).eq("entryDate", entryDate).maybeSingle(); const payload = { branchId, entryDate, receivedAmount: Number(amount) || 0, monthOpening: matrix?.overdueOpening ?? 0, creditGoal: matrix?.creditGoal ?? 0, challengeGoal: matrix?.challengeGoal ?? 0, currentOverdue: matrix?.received ?? 0, delinquencyPercent: matrix?.delinquencyPercent ?? 0, createdByUserId: user?.id }; if (existing) { await table("receiptHistoryEntries").update(payload).eq("id", existing.id); updated += 1; } else { await table("receiptHistoryEntries").insert(payload); created += 1; } } return { created, updated }; }

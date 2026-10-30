@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matrixReceivedAmount } from "./goalRules";
+import { dailyCollectionGoal, matrixReceivedAmount } from "./goalRules";
 
 describe("matrixReceivedAmount", () => {
   it("calcula o recebido pela diferença entre vencido atual e Meta Fiado", () => {
@@ -8,5 +8,9 @@ describe("matrixReceivedAmount", () => {
 
   it("não altera o sinal da diferença informada pela Matriz", () => {
     expect(matrixReceivedAmount(90, 100)).toBe(-10);
+  });
+
+  it("divide o saldo da meta pelos dias úteis restantes", () => {
+    expect(dailyCollectionGoal(939_915.48, 667_582.89, 18)).toBeCloseTo(15_129.59, 2);
   });
 });

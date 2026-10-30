@@ -19,6 +19,23 @@ describe("calendário de dias úteis", () => {
     expect(manual).toEqual({ workingDaysMode: "manual", workingDaysTotal: 20, workingDaysElapsed: 7, ticketWorkingDaysRemaining: 4 });
   });
 
+  it("recalcula os valores persistidos no modo automático conforme a data atual", () => {
+    const recalculated = applyWorkingDaysMode({
+      workingDaysMode: "automatic",
+      workingDaysTotal: 0,
+      workingDaysElapsed: 0,
+      ticketWorkingDaysRemaining: 0,
+      countToday: true,
+      includeSaturday: true,
+      includeSunday: false,
+      manualHolidayDates: [],
+    }, new Date("2026-08-10T15:00:00.000Z"));
+
+    expect(recalculated.workingDaysTotal).toBe(26);
+    expect(recalculated.workingDaysElapsed).toBe(8);
+    expect(recalculated.ticketWorkingDaysRemaining).toBe(6);
+  });
+
   it("não conta hoje quando a opção está desativada", () => {
     const calendar = automaticWorkingDays(new Date("2026-08-10T15:00:00.000Z"), { countToday: false });
 

@@ -152,6 +152,7 @@ export function MetricsSettings() {
     event.preventDefault();
     try {
       await save.mutateAsync(form);
+      await metricsQuery.refetch();
       toast.success("Ajustes salvos. O painel foi atualizado.");
     } catch {
       toast.error("Não foi possível salvar os ajustes.");
