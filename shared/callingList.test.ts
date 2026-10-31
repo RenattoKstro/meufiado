@@ -20,6 +20,7 @@ describe("convertCallingListRows", () => {
       id: "acao-1",
       vendor: "Ana",
       delay: "18",
+      renegotiation: "Não",
       overdueValue: "R$ 1.240,50",
       document: "123.456.789-00",
       customer: "Cliente Teste",
@@ -35,8 +36,17 @@ describe("convertCallingListRows", () => {
     ]);
 
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({ delay: "2", document: "00.000.000/0001-00", overdueValue: "R$ 250,50" });
+    expect(rows[0]).toMatchObject({ delay: "2", renegotiation: "Não", document: "00.000.000/0001-00", overdueValue: "R$ 250,50" });
     expect(listCallingVendors(rows)).toEqual(["Ana", "Bruno"]);
+  });
+
+  it("marca renegociação somente quando o atraso passa de 45 dias", () => {
+    const rows = convertCallingListRows([
+      { Vendedor: "Ana", Atraso: "45", Cliente: "No limite" },
+      { Vendedor: "Bruno", Atraso: "46", Cliente: "Acima do limite" },
+    ]);
+
+    expect(rows.map(row => row.renegotiation)).toEqual(["Não", "Sim"]);
   });
 
   it("filtra o Valor Vencido entre os limites mínimo e máximo em formato brasileiro", () => {

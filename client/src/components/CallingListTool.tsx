@@ -24,6 +24,7 @@ const densityClasses: Record<ListDensity, string> = {
 const columnWidths: Record<CallingListColumn, string> = {
   vendor: "min-w-40",
   delay: "min-w-24",
+  renegotiation: "min-w-32",
   overdueValue: "min-w-36",
   document: "min-w-40",
   customer: "min-w-52",
@@ -68,7 +69,12 @@ export default function CallingListTool() {
   }
 
   function updateRow(id: string, column: CallingListColumn, value: string) {
-    setRows(current => current.map(row => row.id === id ? { ...row, [column]: value } : row));
+    setRows(current => current.map(row => {
+      if (row.id !== id) return row;
+      if (column !== "delay") return { ...row, [column]: value };
+      const delay = Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
+      return { ...row, delay: value, renegotiation: Number.isFinite(delay) && delay > 45 ? "Sim" : "Não" };
+    }));
   }
 
   function removeRow(id: string) {

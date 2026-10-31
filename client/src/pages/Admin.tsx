@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { Activity, Building2, CalendarOff, CheckCircle2, FileSpreadsheet, KeyRound, Loader2, Mail, MessageCircle, Phone, Trash2, UploadCloud, UserPlus, Users } from "lucide-react";
-import React, { ChangeEvent, FormEvent, useState } from "react";
+import React, { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import * as XLSX from "xlsx";
@@ -32,6 +32,7 @@ type SpreadsheetRow = (string | number | null)[];
 type MatrixSheetKey = "analytic" | "data" | "dailyTracking" | "challengeDaily" | "receiptDaily";
 type MatrixSheets = Record<MatrixSheetKey, SpreadsheetRow[]>;
 const EMPTY_MATRIX_SHEETS: MatrixSheets = { analytic: [], data: [], dailyTracking: [], challengeDaily: [], receiptDaily: [] };
+const IMPORT_DRAFT_PREFIX = "meu-fiado:matrix-import-draft:";
 const MATRIX_SHEET_DETAILS: Record<MatrixSheetKey, { title: string; acceptedNames: string; columns: string }> = {
   analytic: { title: "Analítico", acceptedNames: "Analítico", columns: "A Filial · C Regional · G–L Fiado/Desafio · N–P Ticket · R–V Perdas" },
   data: { title: "Dados", acceptedNames: "Dados", columns: "B Filial · E Regional · K–M carteira · O–Q previsão · V–X recuperação" },
@@ -100,10 +101,15 @@ export default function Admin() {
 /** Compatibilidade de importação: o painel gerencial foi removido da interface. */
 export function ManagementOverview(_props: { rows?: unknown[]; isLoading?: boolean }) { return null; }
 function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "analytics"; onComplete: () => Promise<void> }) {
+  const draftKey = `${IMPORT_DRAFT_PREFIX}${kind}`;
+  function readDraft<T>(fallback: T): T {
+    if (typeof window === "undefined") return fallback;
+    try { const value = window.sessionStorage.getItem(draftKey); return value ? JSON.parse(value) as T : fallback; } catch { return fallback; }
+  }
   const [open, setOpen] = useState(false);
-  const [fileName, setFileName] = useState("");
-  const [rows, setRows] = useState<SpreadsheetRow[]>([]);
-  const [matrixSheets, setMatrixSheets] = useState<MatrixSheets>(EMPTY_MATRIX_SHEETS);
+  const [fileName, setFileName] = useState(() => readDraft<{ fileName?: string }>({}).fileName ?? "");
+  const [rows, setRows] = useState<SpreadsheetRow[]>(() => readDraft<{ rows?: SpreadsheetRow[] }>({}).rows ?? []);
+  const [matrixSheets, setMatrixSheets] = useState<MatrixSheets>(() => readDraft<{ matrixSheets?: MatrixSheets }>({}).matrixSheets ?? EMPTY_MATRIX_SHEETS);
   const utils = api.useUtils();
   const importBranches = api.admin.importBranches.useMutation();
   const importAnalytics = api.admin.importAnalytics.useMutation();
@@ -121,6 +127,15 @@ function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "ana
   const duplicateRows = parsedCodes.length - new Set(parsedCodes).size;
   const hasRequiredMatrixSheets = (Object.keys(matrixSheets) as MatrixSheetKey[]).every(key => matrixSheets[key].length > 0);
   const readyRows = isBranches ? validRows - duplicateRows : validRows;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!fileName && !rows.length && !Object.values(matrixSheets).some(sheet => sheet.length)) {
+      window.sessionStorage.removeItem(draftKey);
+      return;
+    }
+    try { window.sessionStorage.setItem(draftKey, JSON.stringify({ fileName, rows, matrixSheets })); } catch { /* A sessão pode não ter espaço para o rascunho completo. */ }
+  }, [draftKey, fileName, matrixSheets, rows]);
 
   async function loadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -146,20 +161,21 @@ function SpreadsheetImportDialog({ kind, onComplete }: { kind: "branches" | "ana
   }
   async function confirmImport() {
     if (isBranches ? !rows.length : !hasRequiredMatrixSheets) return;
+    if (typeof window !== "undefined") window.sessionStorage.setItem("meu-fiado:matrix-import-active", String(Date.now()));
     try {
       if (isBranches) {
-        const result = await importBranches.mutateAsync({ rows });
-        toast.success(`${result.created} filiais criadas, ${result.updated} atualizadas e ${result.skipped} repetidas ignoradas.`);
+        await importBranches.mutateAsync({ rows });
       } else {
-        const result = await importAnalytics.mutateAsync(matrixSheets);
-        toast.success(`${result.imported} filiais atualizadas${result.createdBranches ? `, ${result.createdBranches} filiais criadas` : ""}${result.unmatched ? ` e ${result.unmatched} códigos sem referência no Analítico` : ""}.`);
+        await importAnalytics.mutateAsync(matrixSheets);
       }
       await onComplete();
       await utils.admin.importStatus.invalidate();
       await utils.matrix.overview.invalidate();
       await utils.matrix.importStatus.invalidate();
       setOpen(false); setRows([]); setMatrixSheets(EMPTY_MATRIX_SHEETS); setFileName("");
-    } catch { toast.error("A importação não pôde ser concluída. Revise as colunas e tente novamente."); }
+      toast.success(isBranches ? "Importação de filiais concluída com sucesso." : "Importação da Matriz concluída com sucesso.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "A importação não pôde ser concluída. Revise as colunas e tente novamente."); }
+    finally { if (typeof window !== "undefined") window.sessionStorage.removeItem("meu-fiado:matrix-import-active"); }
   }
   const lastImport = importStatusQuery.data?.lastImportedAt ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(importStatusQuery.data.lastImportedAt)) : "Nenhuma importação da Matriz registrada";
   return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="outline" className="rounded-xl font-bold"><FileSpreadsheet className="mr-2 h-4 w-4" />{isBranches ? "Importar filiais" : "Importar Matriz"}</Button></DialogTrigger><DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-2xl"><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>O arquivo é lido no navegador e enviado somente após sua confirmação. {columns}</DialogDescription></DialogHeader><div className="space-y-5">{!isBranches && <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4"><p className="text-xs font-black text-primary">Atualização recorrente da Matriz</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Último envio: <strong className="text-foreground">{lastImport}</strong>. A aba <strong>Analítico</strong> define a Filial e a Regional de referência; as demais abas são associadas somente pelo código da Filial. A importação atualiza apenas a Matriz e não altera metas ou lançamentos dos operadores.</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{(Object.keys(MATRIX_SHEET_DETAILS) as MatrixSheetKey[]).map(key => <div key={key} className={`rounded-xl border px-3 py-2 text-xs ${matrixSheets[key].length ? "border-emerald-500/25 bg-emerald-500/5" : "border-border/70 bg-background/50"}`}><p className="font-extrabold">{MATRIX_SHEET_DETAILS[key].title}</p><p className="mt-0.5 text-muted-foreground">{MATRIX_SHEET_DETAILS[key].columns}</p></div>)}</div></div>}<div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-5"><Label htmlFor={`spreadsheet-${kind}`} className="flex cursor-pointer flex-col items-center gap-2 text-center"><span className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground"><UploadCloud className="h-5 w-5" /></span><span className="font-bold">Selecionar arquivo Excel</span><span className="text-xs font-normal text-muted-foreground">{isBranches ? "Arquivos .xlsx, .xls ou .csv" : "Um arquivo .xlsx com as cinco abas exigidas"}</span></Label><Input id={`spreadsheet-${kind}`} type="file" accept={isBranches ? ".xlsx,.xls,.csv" : ".xlsx,.xls"} className="sr-only" onChange={loadFile} /></div>{fileName && <div className="rounded-xl border border-border/70 bg-muted/40 p-4"><p className="flex items-center gap-2 text-sm font-extrabold"><CheckCircle2 className="h-4 w-4 text-emerald-600" />{fileName}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4"><ImportCount label="Lidas" value={totalRows} /><ImportCount label="Válidas" value={validRows} tone="text-emerald-600" /><ImportCount label="Incompletas" value={invalidRows} tone={invalidRows ? "text-destructive" : undefined} /><ImportCount label="Duplicadas" value={isBranches ? duplicateRows : 0} tone={isBranches && duplicateRows ? "text-amber-600" : undefined} /></div>{!isBranches && <p className={`mt-3 text-xs font-bold ${hasRequiredMatrixSheets ? "text-emerald-700 dark:text-emerald-300" : "text-destructive"}`}>{hasRequiredMatrixSheets ? "As cinco abas foram localizadas e podem ser importadas." : "Falta ao menos uma aba obrigatória. Revise os nomes informados acima."}</p>}<p className="mt-2 text-xs font-bold text-primary">{readyRows} linha{readyRows === 1 ? "" : "s"} válida{readyRows === 1 ? "" : "s"} será{readyRows === 1 ? "" : "ão"} enviada{readyRows === 1 ? "" : "s"} para processamento.</p></div>}{isBranches && rows.length > 0 && <div className="overflow-hidden rounded-xl border border-border/70"><div className="border-b border-border/70 bg-muted/40 px-4 py-3 text-xs font-extrabold">Prévia e validação das primeiras linhas</div><div className="max-h-44 overflow-auto"><table className="w-full text-left text-xs"><tbody>{rows.slice(0, 5).map((row, index) => <tr key={index} className="border-b border-border/50 last:border-0"><td className="w-10 px-3 py-2 font-bold text-muted-foreground">{index + 2}</td><td className="px-3 py-2 text-muted-foreground">{row.filter(value => value !== null && value !== "").slice(0, 6).join(" · ") || "Linha vazia"}</td><td className="px-3 py-2 text-right font-bold"><span className={isValidRow(row) ? "text-emerald-600" : "text-destructive"}>{isValidRow(row) ? "Válida" : "Incompleta"}</span></td></tr>)}</tbody></table></div></div>}<Button className="w-full rounded-xl" disabled={!readyRows || (!isBranches && !hasRequiredMatrixSheets) || loading} onClick={confirmImport}>{loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-2 h-4 w-4" />}Confirmar importação de {readyRows} linha{readyRows === 1 ? "" : "s"}</Button></div></DialogContent></Dialog>;

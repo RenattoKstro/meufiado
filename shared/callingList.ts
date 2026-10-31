@@ -1,4 +1,4 @@
-export const CALLING_LIST_COLUMNS = ["vendor", "delay", "overdueValue", "document", "customer", "phone"] as const;
+export const CALLING_LIST_COLUMNS = ["vendor", "delay", "renegotiation", "overdueValue", "document", "customer", "phone"] as const;
 
 export type CallingListColumn = typeof CALLING_LIST_COLUMNS[number];
 export type CallingListRow = Record<CallingListColumn, string> & { id: string };
@@ -15,6 +15,7 @@ export type CallingListSort = "none" | "overdueAsc" | "overdueDesc";
 export const CALLING_LIST_LABELS: Record<CallingListColumn, string> = {
   vendor: "Vendedor",
   delay: "Atraso",
+  renegotiation: "Renegociação",
   overdueValue: "Valor Vencido",
   document: "CPF/CNPJ Cliente",
   customer: "Cliente",
@@ -40,6 +41,11 @@ function valueFrom(row: Record<string, unknown>, candidates: string[]) {
   return "";
 }
 
+function delayInDays(value: string) {
+  const parsed = Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function formatOverdueValue(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -51,19 +57,21 @@ function formatOverdueValue(value: string) {
 
 export function convertCallingListRows(sourceRows: Record<string, unknown>[]): CallingListRow[] {
   return sourceRows.map((source, index) => {
+    const delay = valueFrom(source, ["Atraso"]);
     const phones = ["Telefone Móvel 1", "Telefone Móvel 2", "Telefone Móvel 3", "Telefone Móvel 4", "Telefone Móvel 5"]
       .map(column => valueFrom(source, [column]))
       .filter((phone, phoneIndex, items) => phone && items.indexOf(phone) === phoneIndex);
     return {
       id: `acao-${index + 1}`,
       vendor: valueFrom(source, ["Vendedor"]),
-      delay: valueFrom(source, ["Atraso"]),
+      delay,
+      renegotiation: delayInDays(delay) > 45 ? "Sim" : "Não",
       overdueValue: formatOverdueValue(valueFrom(source, ["Valor Vencido"])),
       document: valueFrom(source, ["CPF/CNPJ Cliente", "CPF CNPJ Cliente"]),
       customer: valueFrom(source, ["Cliente"]),
       phone: phones.join(" • "),
     };
-  }).filter(row => CALLING_LIST_COLUMNS.some(column => row[column]));
+  }).filter(row => ["vendor", "delay", "overdueValue", "document", "customer", "phone"].some(column => row[column as Exclude<CallingListColumn, "renegotiation">]));
 }
 
 export function listCallingVendors(rows: CallingListRow[]) {
@@ -96,7 +104,7 @@ export function filterCallingListRows(rows: CallingListRow[], filters: CallingLi
 
   return rows.filter(row => {
     const matchesVendor = vendor === "all" || row.vendor === vendor;
-    const searchable = `${row.customer} ${row.document} ${row.phone} ${row.vendor}`.toLocaleLowerCase("pt-BR");
+    const searchable = `${row.customer} ${row.document} ${row.phone} ${row.vendor} ${row.renegotiation}`.toLocaleLowerCase("pt-BR");
     const overdueValue = parseCallingListOverdueValue(row.overdueValue);
     const matchesMinimum = minimum === null || (overdueValue !== null && overdueValue >= minimum);
     const matchesMaximum = maximum === null || (overdueValue !== null && overdueValue <= maximum);

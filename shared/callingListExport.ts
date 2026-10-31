@@ -3,6 +3,7 @@ import { CALLING_LIST_LABELS, type CallingListColumn, type CallingListRow } from
 export const callingListPdfColumnWidths: Record<CallingListColumn, number> = {
   vendor: 26,
   delay: 16,
+  renegotiation: 25,
   overdueValue: 26,
   document: 32,
   customer: 58,
@@ -12,6 +13,7 @@ export const callingListPdfColumnWidths: Record<CallingListColumn, number> = {
 export const callingListExcelColumnWidths: Record<CallingListColumn, number> = {
   vendor: 14,
   delay: 6,
+  renegotiation: 13,
   overdueValue: 11,
   document: 15,
   customer: 28,

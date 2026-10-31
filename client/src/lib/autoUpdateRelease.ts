@@ -2,6 +2,7 @@ const RELEASE_ENDPOINT = "/__manus__/version.json";
 const RELEASE_STORAGE_KEY = "meu-fiado:published-release";
 const POLL_INTERVAL_MS = 5_000;
 const CACHE_BUSTER_PARAM = "_meu_fiado_release";
+const ACTIVE_IMPORT_KEY = "meu-fiado:matrix-import-active";
 
 type ReleasePayload = {
   version?: string;
@@ -40,6 +41,12 @@ function forceRefresh(publishedRelease: string) {
 
 export async function checkForPublishedRelease(): Promise<boolean> {
   if (typeof window === "undefined" || typeof fetch === "undefined") return false;
+  try {
+    const activeImportAt = Number(window.sessionStorage.getItem(ACTIVE_IMPORT_KEY) ?? 0);
+    if (activeImportAt > 0 && Date.now() - activeImportAt < 10 * 60_000) return false;
+  } catch {
+    // O bloqueio é apenas uma proteção adicional; a atualização continua funcionando.
+  }
 
   try {
     const response = await fetch(`${RELEASE_ENDPOINT}?_=${Date.now()}-${Math.random().toString(36).slice(2)}`, {
