@@ -27,7 +27,7 @@ import {
   dailyCollectionGoal,
   remainingToGoal,
 } from "../../../shared/goalRules";
-import { AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, CircleDollarSign, CircleHelp, Clock3, Medal, Percent, Settings2, TicketCheck, Trophy, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, Check, CheckCircle2, CircleDollarSign, CircleHelp, Clock3, Gift, Medal, Percent, Settings2, TicketCheck, Trophy, X } from "lucide-react";
 import { Link } from "wouter";
 import { shouldShowTicketGoal } from "../../../shared/ticketVisibility";
 
@@ -145,6 +145,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     {view === "overview" && dailyStatusQuery?.data?.hasBranch && !dailyStatusQuery.data.hasEntry && !dailyReminderDismissed && <div className="mb-7 flex items-start justify-between gap-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4"><div className="flex items-start gap-3"><CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><p className="text-xs leading-relaxed text-amber-950 dark:text-amber-100"><strong>Lembrete diário:</strong> ainda não há recebimento salvo para hoje. Registre o valor ao encerrar a rotina da filial.</p></div><div className="flex shrink-0 items-center gap-3"><Link href="/historicos" className="text-xs font-extrabold text-amber-800 underline-offset-2 hover:underline dark:text-amber-200">Lançar agora</Link><button type="button" onClick={dismissDailyReminder} aria-label="Fechar lembrete diário" className="grid h-7 w-7 place-items-center rounded-lg text-amber-800 transition-colors hover:bg-amber-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 dark:text-amber-200"><X className="h-4 w-4" /></button></div></div>}
     {view === "fiado" ? <div className="max-w-2xl">{fiado}</div> : view === "challenge" ? <div className="max-w-2xl">{challenge}</div> : <>
       <div className="grid gap-5 lg:grid-cols-2">{fiado}{challenge}</div>
+      <RewardsOverview currentType={type} fiadoProgress={fiadoProgress} challengeProgress={challengeProgress} ticketValid={ticketValid} showPossibleRewards={showPossibleRewards} />
       <section className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_.9fr]">{showTicketGoal ? type === "leader" ? <TicketStatus ticket={ticket} dailyReceived={receipts.today} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} /> : <AssistantNotice /> : null}{profile.showLostGoal && <LostGoal progress={lostProgress} received={metrics.lostReceived} total={metrics.lostGoal} showPossibleRewards={showPossibleRewards} showRewardAmounts={showRewardAmounts} />}</section>
       <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {showRewardAmounts && <QuickStat icon={Trophy} label="Premiação atual" value={currency(accumulatedReward(fiadoTiers, fiadoProgress) + accumulatedReward(challengeTiers, challengeProgress) + (ticketValid ? 100 : 0) + (profile.showLostGoal ? accumulatedReward(LOST_TIERS, lostProgress) : 0))} note="Conforme percentual atingidos" />}
@@ -164,6 +165,24 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
 }
 
 type GoalGap = { status: "inside" | "outside" | "unavailable"; amount: number; projected: number; message: string };
+
+function RewardsOverview({ currentType, fiadoProgress, challengeProgress, ticketValid, showPossibleRewards }: { currentType: "leader" | "assistant"; fiadoProgress: number; challengeProgress: number; ticketValid: boolean; showPossibleRewards: boolean }) {
+  const sections = [
+    { title: "Operador Líder", type: "leader" as const, fiado: FIADO_TIERS.leader, challenge: CHALLENGE_TIERS.leader, accent: "border-sky-500/40 bg-sky-500/[0.04]", icon: "text-sky-600" },
+    { title: "Operador Auxiliar", type: "assistant" as const, fiado: FIADO_TIERS.assistant, challenge: CHALLENGE_TIERS.assistant, accent: "border-violet-500/40 bg-violet-500/[0.04]", icon: "text-violet-600" },
+  ];
+  return <section className="mt-7 space-y-4"><div><p className="flex items-center gap-2 text-lg font-black tracking-tight"><Gift className="h-5 w-5 text-primary" />Tabela de ganhos</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cada check aparece automaticamente quando o percentual da respectiva faixa é atingido.</p></div><div className="grid gap-4 xl:grid-cols-2">{sections.map(section => <RewardOperatorCard key={section.type} {...section} active={currentType === section.type} fiadoProgress={fiadoProgress} challengeProgress={challengeProgress} ticketValid={ticketValid} showPossibleRewards={showPossibleRewards} />)}</div></section>;
+}
+
+function RewardOperatorCard({ title, type, fiado, challenge, accent, icon, active, fiadoProgress, challengeProgress, ticketValid, showPossibleRewards }: { title: string; type: "leader" | "assistant"; fiado: typeof FIADO_TIERS.leader; challenge: typeof CHALLENGE_TIERS.leader; accent: string; icon: string; active: boolean; fiadoProgress: number; challengeProgress: number; ticketValid: boolean; showPossibleRewards: boolean }) {
+  const total = totalReward(fiado) + totalReward(challenge) + (type === "leader" ? 100 : 0);
+  return <Card className={`overflow-hidden rounded-[1.5rem] border shadow-sm ${accent} ${active ? "ring-2 ring-primary/25" : ""}`}><CardContent className="p-5"><div className="flex items-start justify-between gap-3"><div><p className={`flex items-center gap-2 text-sm font-black ${icon}`}><Gift className="h-4 w-4" />{title}</p><p className="mt-1 text-[11px] text-muted-foreground">Faixas de premiação {active ? "do seu perfil" : "da função"}</p></div>{active && <Badge className="rounded-full bg-primary/10 text-[10px] font-black text-primary hover:bg-primary/10">Seu perfil</Badge>}</div><div className="mt-4 grid gap-4 md:grid-cols-2"><RewardTable title="Meta Fiado" tiers={fiado} progress={fiadoProgress} showPossibleRewards={showPossibleRewards} /><RewardTable title="Meta Desafio" tiers={challenge} progress={challengeProgress} showPossibleRewards={showPossibleRewards} /></div>{type === "leader" && <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3"><div className="flex items-center justify-between gap-3"><span className="text-xs font-extrabold">Vale Alimentação · 100%</span><span className={`text-xs font-black ${ticketValid ? "text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>{ticketValid ? "✓ Atingido · R$ 100,00" : showPossibleRewards ? "R$ 100,00" : "Disponível"}</span></div></div>}<div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3"><span className="text-xs font-extrabold">Total possível da função</span><span className="text-sm font-black">{showPossibleRewards ? currency(total) : "—"}</span></div></CardContent></Card>;
+}
+
+function RewardTable({ title, tiers, progress, showPossibleRewards }: { title: string; tiers: { target: number; reward: number }[]; progress: number; showPossibleRewards: boolean }) {
+  return <div className="rounded-xl border border-border/60 bg-card/70 p-3"><div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-black">{title}</p><span className="text-[10px] font-bold text-muted-foreground">Total {showPossibleRewards ? currency(totalReward(tiers)) : "—"}</span></div><div className="space-y-1.5">{tiers.map(tier => { const reached = progress >= tier.target; return <div key={`${title}-${tier.target}`} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${reached ? "bg-emerald-500/10" : "bg-muted/35"}`}><span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full ${reached ? "bg-emerald-500 text-white" : "bg-muted-foreground/25 text-transparent"}`}><Check className="h-3 w-3" /></span><span className="font-bold tabular-nums">{tier.target.toFixed(2)}%</span><span className={`ml-auto tabular-nums ${reached ? "font-black text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>{showPossibleRewards ? currency(tier.reward) : "—"}</span></div>; })}</div></div>;
+}
+
 function goalGapFromClosingForecast(closingForecast: number, goal: number): GoalGap {
   const projected = Math.max(Number.isFinite(closingForecast) ? closingForecast : 0, 0);
   const target = Math.max(Number.isFinite(goal) ? goal : 0, 0);
