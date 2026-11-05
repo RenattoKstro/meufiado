@@ -67,7 +67,15 @@ const sourceLabels: Record<MatrixImportSource["source"], string> = {
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const compactMoney = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(value);
 const imported = (item: MatrixItem) => item.metrics !== null;
-const percent = (value: number) => `${(Math.abs(value) > 0 && Math.abs(value) <= 1 ? value * 100 : value).toFixed(2)}%`;
+function percent(value: number | string | null | undefined) {
+  const source = String(value ?? "").trim();
+  const hasPercentSymbol = source.includes("%");
+  const raw = source.replace(/%/g, "").replace(/\s/g, "");
+  const parsed = Number(raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw);
+  if (!Number.isFinite(parsed)) return "0,00%";
+  const normalized = !hasPercentSymbol && Math.abs(parsed) > 0 && Math.abs(parsed) <= 1 ? parsed * 100 : parsed;
+  return `${normalized.toFixed(2).replace(".", ",")}%`;
+}
 function challengeDailyValues(value: string | null) {
   try { const parsed: unknown = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed.map(item => Number(item) || 0).slice(0, 31) : []; } catch { return []; }
 }

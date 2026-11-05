@@ -66,14 +66,14 @@ export function normalizeBranchCode(value: unknown) {
 }
 
 export function spreadsheetNumber(value: unknown) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value * 100) / 100;
   const raw = String(value ?? "").replace(/[R$\s]/g, "").trim();
   if (!raw) return 0;
   const normalized = raw.includes(",")
     ? raw.replace(/\./g, "").replace(",", ".")
     : raw;
   const parsed = Number(normalized.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? Math.round(parsed * 100) / 100 : 0;
 }
 
 /**

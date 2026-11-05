@@ -5,6 +5,17 @@ import { applyWorkingDaysMode } from "../../../shared/workingDays";
 
 const table = (name: string) => supabase.from(name);
 
+function roundMoney(value: unknown) {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
+}
+
+function integerInRange(value: unknown, minimum: number, maximum: number) {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return minimum;
+  return Math.min(maximum, Math.max(minimum, Math.round(numeric)));
+}
+
 function nextMonthDate(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
   if (!year || !monthNumber) return `${month}-32`;
@@ -215,7 +226,16 @@ async function matrixAutofillForCurrentUser() {
   const { data, error } = await table("matrixMetrics").select("*").eq("branchId", branchId).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Não há dados da sua filial na Matriz.");
-  return { portfolioTotal: data.portfolioTotal ?? 0, monthOpening: data.overdueOpening ?? 0, dayOpening: data.overdueOpening ?? 0, currentOverdue: data.received ?? 0, creditGoal: data.creditGoal ?? 0, challengeGoal: data.challengeGoal ?? 0, lostGoal: data.lostGoal ?? 0, lostReceived: data.lostReceived ?? 0 };
+  return {
+    portfolioTotal: roundMoney(data.portfolioTotal),
+    monthOpening: roundMoney(data.overdueOpening),
+    dayOpening: roundMoney(data.overdueOpening),
+    currentOverdue: roundMoney(data.received),
+    creditGoal: roundMoney(data.creditGoal),
+    challengeGoal: roundMoney(data.challengeGoal),
+    lostGoal: roundMoney(data.lostGoal),
+    lostReceived: roundMoney(data.lostReceived),
+  };
 }
 
 async function invokeCredentialFunction(body: Record<string, unknown>) {
@@ -287,13 +307,31 @@ async function dispatchMutation(path: string[], input: any) {
       const rawHolidayDates = Array.isArray(inputValues.manualHolidayDates) ? inputValues.manualHolidayDates : [];
       const manualHolidayDates = Array.from(new Set(rawHolidayDates.filter((value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)))).slice(0, 31);
       const normalized = applyWorkingDaysMode({ ...inputValues, manualHolidayDates } as any);
-      const { manualHolidayDates: _ignored, ...rest } = normalized;
       const { data: profile, error: profileError } = await table("userProfiles").select("branchId").eq("userId", user?.id ?? 0).maybeSingle();
       if (profileError) throw profileError;
       const hasBranchScope = typeof profile?.branchId === "number" && profile.branchId > 0;
-      const payload = hasBranchScope
-        ? { ...rest, branchId: profile.branchId, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) }
-        : { ...rest, userId: user?.id, manualHolidayDatesJson: JSON.stringify(manualHolidayDates) };
+      const metricsFields = {
+        portfolioTotal: roundMoney(normalized.portfolioTotal),
+        monthOpening: roundMoney(normalized.monthOpening),
+        dayOpening: roundMoney(normalized.dayOpening),
+        currentOverdue: roundMoney(normalized.currentOverdue),
+        creditGoal: roundMoney(normalized.creditGoal),
+        challengeGoal: roundMoney(normalized.challengeGoal),
+        lostGoal: roundMoney(normalized.lostGoal),
+        lostReceived: roundMoney(normalized.lostReceived),
+        workingDaysTotal: integerInRange(normalized.workingDaysTotal, 0, 31),
+        workingDaysElapsed: integerInRange(normalized.workingDaysElapsed, 0, 31),
+        ticketWorkingDaysRemaining: integerInRange(normalized.ticketWorkingDaysRemaining, 0, 15),
+        fiadoAtDay15: Boolean(normalized.fiadoAtDay15),
+        workingDaysMode: normalized.workingDaysMode === "manual" ? "manual" : "automatic",
+        countToday: normalized.countToday !== false,
+        includeSaturday: normalized.includeSaturday !== false,
+        includeSunday: normalized.includeSunday === true,
+        manualHolidayDatesJson: JSON.stringify(manualHolidayDates),
+      };
+      const payload: Record<string, unknown> = hasBranchScope
+        ? { ...metricsFields, branchId: profile.branchId }
+        : { ...metricsFields, userId: user?.id };
       const { data, error } = hasBranchScope
         ? await table("branchMetrics").upsert(payload, { onConflict: "branchId" }).select().single()
         : await table("metricSettings").upsert(payload, { onConflict: "userId" }).select().single();
