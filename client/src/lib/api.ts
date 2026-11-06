@@ -286,6 +286,7 @@ async function dispatchQuery(path: string[], input: unknown) {
     case "romaneio.list": { const user = await currentUser(); const { data, error } = await table("romaneios").select("*").eq("createdByUserId", user?.id ?? 0).order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
     case "romaneio.get": { const id = (input as any)?.id ?? 0; const { data, error } = await table("romaneios").select("*, romaneioItems(*), romaneioActivities(*)").eq("id", id).maybeSingle(); if (error) throw error; return data; }
     case "subscriptionAdmin.settings": { const { data, error } = await table("subscriptionSettings").select("*").limit(1).maybeSingle(); if (error) throw error; return data; }
+    case "subscriptionAdmin.coupons": { const { data, error } = await table("subscriptionCoupons").select("*").order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
     default: return null;
   }
 }
@@ -357,6 +358,18 @@ async function dispatchMutation(path: string[], input: any) {
     case "updatesAdmin.delete": { const { error } = await table("updateNotes").delete().eq("id", input.id); if (error) throw error; return { success: true }; }
     case "romaneio.create": { const { data, error } = await table("romaneios").insert({ ...input, createdByUserId: user?.id }).select().single(); if (error) throw error; return data; }
     case "subscription.createPixPayment": return invokePaymentFunction({ action: "createPixPayment", planId: input.planId });
+    case "subscription.applyCoupon": return invokePaymentFunction({ action: "applyCoupon", code: input.code, planId: input.planId });
+    case "subscription.createPixPaymentWithCoupon": return invokePaymentFunction({ action: "createPixPayment", planId: input.planId, couponCode: input.couponCode });
+    case "subscriptionAdmin.createCoupon": {
+      const payload = { ...input, code: String(input.code || "").trim().toUpperCase(), discountValue: Number(input.discountValue) || 0, durationDays: Math.max(1, Math.round(Number(input.durationDays) || 1)), assignedUserId: input.assignedUserId ? Number(input.assignedUserId) : null, createdByUserId: user?.id, updatedAt: new Date().toISOString() };
+      const { data, error } = await table("subscriptionCoupons").insert(payload).select().single(); if (error) throw error; return data;
+    }
+    case "subscriptionAdmin.updateCoupon": {
+      const { id, ...changes } = input; const payload = { ...changes, code: String(changes.code || "").trim().toUpperCase(), discountValue: Number(changes.discountValue) || 0, durationDays: Math.max(1, Math.round(Number(changes.durationDays) || 1)), assignedUserId: changes.assignedUserId ? Number(changes.assignedUserId) : null, updatedAt: new Date().toISOString() };
+      const { data, error } = await table("subscriptionCoupons").update(payload).eq("id", id).select().single(); if (error) throw error; return data;
+    }
+    case "subscriptionAdmin.revokeCoupon": { const { data, error } = await table("subscriptionCoupons").update({ isActive: false, revokedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).eq("id", input.id).select().single(); if (error) throw error; return data; }
+    case "subscriptionAdmin.deleteCoupon": { const { error } = await table("subscriptionCoupons").delete().eq("id", input.id); if (error) throw error; return { success: true }; }
     default: throw new Error(`Operação ainda não migrada: ${key}`);
   }
 }

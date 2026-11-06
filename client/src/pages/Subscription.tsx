@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { useAppTexts } from "@/contexts/AppTextContext";
-import { AlertTriangle, CheckCircle2, Clipboard, Crown, Loader2, QrCode } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clipboard, Crown, Loader2, QrCode, Tag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ const planInfoBackgroundClasses = {
 } as const;
 type CustomPlan = { id: string; name: string; description: string; monthlyPrice: number; promotionPrice: number; isVisible: boolean };
 type PixPayment = { id: number; planId: string; status: string; statusDetail: string | null; amount: number; qrCode: string | null; qrCodeBase64: string | null; ticketUrl: string | null; dateOfExpiration: Date | string | null; updatedAt: Date | string };
+type CouponResult = { code: string; description: string; discountType: "percent" | "fixed"; discountValue: number; discountAmount: number; amount: number; durationDays: number; freeAccess: boolean };
 function readCustomPlans(value: string | null | undefined): CustomPlan[] {
   try {
     const parsed = JSON.parse(value || "[]");
@@ -43,9 +44,13 @@ export default function Subscription() {
   const texts = useAppTexts();
   const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 5_000, refetchIntervalInBackground: true });
   const createPixPayment = api.subscription.createPixPayment.useMutation();
+  const createPixPaymentWithCoupon = api.subscription.createPixPaymentWithCoupon.useMutation();
+  const applyCoupon = api.subscription.applyCoupon.useMutation();
   const subscription = subscriptionQuery.data;
   const [selectedPlanId, setSelectedPlanId] = useState("default");
   const [activePixPayment, setActivePixPayment] = useState<PixPayment | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
   const settings = subscription?.settings;
   const customPlans = readCustomPlans(settings?.customPlansJson);
   const selectedPlan = customPlans.find(plan => plan.id === selectedPlanId);
@@ -63,22 +68,39 @@ export default function Subscription() {
   async function copyToClipboard(value: string, successMessage: string) {
     try { await navigator.clipboard.writeText(value); toast.success(successMessage); } catch { toast.error("Não foi possível copiar agora."); }
   }
-  async function generatePixForPlan(planId: string) {
+  async function generatePixForPlan(planId: string, coupon?: CouponResult | null) {
     try {
-      const payment = await createPixPayment.mutateAsync({ planId });
+      const payment = coupon?.code ? await createPixPaymentWithCoupon.mutateAsync({ planId, couponCode: coupon.code }) : await createPixPayment.mutateAsync({ planId });
       setActivePixPayment(payment as PixPayment);
       toast.success("PIX gerado para o plano escolhido.");
       await utils.subscription.mine.invalidate();
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível gerar o PIX."); }
   }
   async function createAutomaticPix() {
-    if (!(chargeAmount > 0)) { toast.error("Este plano ainda não tem preço configurado."); return; }
-    await generatePixForPlan(selectedPlanId);
+    const amount = appliedCoupon?.amount ?? chargeAmount;
+    if (!(amount > 0)) { toast.error("Este plano ainda não tem preço configurado."); return; }
+    await generatePixForPlan(selectedPlanId, appliedCoupon);
   }
   async function choosePlan(planId: string) {
     setSelectedPlanId(planId);
     setActivePixPayment(null);
+    setAppliedCoupon(null);
     await generatePixForPlan(planId);
+  }
+  async function redeemCoupon() {
+    const code = couponCode.trim().toUpperCase();
+    if (!code) { toast.error("Digite o código do cupom."); return; }
+    try {
+      const result = await applyCoupon.mutateAsync({ code, planId: selectedPlanId }) as CouponResult;
+      if (result.freeAccess) {
+        await utils.subscription.mine.invalidate();
+        setCouponCode("");
+        toast.success(`Cupom aplicado. Seu PRO foi liberado por ${result.durationDays} dias, sem cobrança.`);
+      } else {
+        setAppliedCoupon(result);
+        toast.success(`Cupom aplicado. Desconto de ${money.format(result.discountAmount)} no PIX.`);
+      }
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível aplicar o cupom."); }
   }
 
   if (subscriptionQuery.isLoading) return <section className="mx-auto max-w-4xl"><div className="h-9 w-52 animate-pulse rounded-lg bg-muted" /><div className="mt-7 h-80 animate-pulse rounded-[1.6rem] bg-muted" /></section>;
@@ -106,6 +128,7 @@ export default function Subscription() {
     <div className="grid gap-5 lg:grid-cols-[.92fr_1.08fr]">
       <Card className={`lg:self-start rounded-[1.6rem] border-border/70 shadow-sm ${isPro ? "bg-primary/[0.03]" : ""}`}><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />{isPro ? "Boas-vindas ao PRO" : "Plano Free"}</CardTitle><CardDescription className="mt-1">{isGracePeriod ? "Sua assinatura venceu, mas você ainda está no período de carência." : isPro ? "Seu acesso premium está ativo." : "Sua conta está no plano Free."}</CardDescription></div>{isGracePeriod ? <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-400">CARÊNCIA</span> : isPro ? <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">PRO</span> : <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-extrabold text-muted-foreground">FREE</span>}</div></CardHeader><CardContent className="space-y-4"><div className={`rounded-2xl p-4 ${promotionIsActive ? `border ${promotionBackground}` : "bg-muted/55"}`}>{promotionIsActive ? <><span className="inline-flex rounded-full border border-border/70 bg-background/75 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{settings.promotionBadge}</span><p className="mt-3 text-base font-extrabold tracking-tight">{settings.promotionTitle}</p><p className="mt-1 text-xs leading-relaxed text-foreground/75">{settings.promotionDescription}</p><div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2"><span className="flex flex-col gap-0.5"><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Preço normal</span><span className="text-sm font-bold text-muted-foreground line-through">{money.format(settings.promotionOriginalPrice)}</span></span><span className="flex flex-col gap-0.5"><span className="text-[10px] font-bold uppercase tracking-[0.1em] text-primary">Preço promocional</span><span className="text-2xl font-black text-primary">{money.format(chargeAmount)}</span></span></div></> : <><p className="text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Mensalidade PRO</p><p className="mt-1 text-2xl font-black">{chargeAmount > 0 ? money.format(chargeAmount) : "A definir"}</p></>}<p className="mt-2 text-xs text-muted-foreground">O pagamento aprovado pelo Mercado Pago libera o acesso automaticamente.</p></div>{isGracePeriod && graceEndsAt ? <p className="flex items-start gap-2 text-sm font-bold text-amber-700 dark:text-amber-400"><Crown className="mt-0.5 h-4 w-4 shrink-0" />Renove até {new Date(graceEndsAt).toLocaleDateString("pt-BR")}. Depois dessa data, sua conta passará para o plano Free.</p> : isPro && <p className="flex items-center gap-2 text-sm font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />{proExpiresAt ? `Sua assinatura é válida até ${new Date(proExpiresAt).toLocaleDateString("pt-BR")}. Após o vencimento, há cinco dias de carência.` : "Acesso liberado pela administração."}</p>}</CardContent></Card>
       <div className="space-y-5">
+        <Card className="rounded-[1.6rem] border-amber-500/25 bg-amber-500/[0.04] shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Tag className="h-5 w-5 text-amber-600" />Cupom promocional</CardTitle><CardDescription>Digite o cupom enviado pela Administração. Ele pode dar desconto ou liberar o PRO gratuitamente por alguns dias.</CardDescription></CardHeader><CardContent className="space-y-3"><div className="flex flex-col gap-2 sm:flex-row"><input aria-label="Código do cupom" value={couponCode} onChange={event => setCouponCode(event.target.value.toUpperCase())} placeholder="Ex.: BEMVINDO3" maxLength={80} className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-sm font-bold uppercase outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring" /><Button type="button" className="h-11 rounded-xl font-extrabold" onClick={() => void redeemCoupon()} disabled={applyCoupon.isPending || !couponCode.trim()}>{applyCoupon.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Tag className="mr-2 h-4 w-4" />}Aplicar cupom</Button></div>{appliedCoupon && <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm"><p className="font-black text-emerald-700 dark:text-emerald-300">Cupom {appliedCoupon.code} aplicado</p><p className="mt-1 text-xs text-emerald-800/80 dark:text-emerald-100/80">Desconto de {money.format(appliedCoupon.discountAmount)}. Total do PIX: <strong>{money.format(appliedCoupon.amount)}</strong>. O acesso liberado terá duração de {appliedCoupon.durationDays} dias.</p></div>}</CardContent></Card>
         <Card className="rounded-[1.6rem] border-primary/25 bg-primary/[0.03] shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><QrCode className="h-5 w-5 text-primary" />PIX automático</CardTitle><CardDescription>Gere o PIX pelo Mercado Pago. A confirmação do pagamento é automatico e libera ou renova seu PRO sem envio de comprovante.</CardDescription></CardHeader><CardContent className="space-y-4">{!currentPixPayment || (automaticExpired && !automaticApproved) ? <><div className="rounded-2xl border border-dashed border-primary/25 bg-background/60 p-5 text-sm text-muted-foreground">{automaticExpired ? "Esta cobrança PIX expirou e foi ocultada para evitar um pagamento inválido." : <>Plano selecionado: <strong className="text-foreground">{money.format(chargeAmount)}</strong>. Clique para gerar uma cobrança PIX exclusiva para sua conta.</>}</div><Button type="button" className="h-11 w-full rounded-xl font-extrabold" disabled={createPixPayment.isPending || chargeAmount <= 0} onClick={() => { setActivePixPayment(null); void createAutomaticPix(); }}>{createPixPayment.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}{automaticExpired ? "Gerar novo PIX" : "Gerar PIX automático"}</Button></> : <><div className="grid gap-4 sm:grid-cols-[auto_1fr]"><div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-border bg-white p-3">{automaticQr ? <img src={automaticQr} alt={`QR Code PIX de ${money.format(currentPixPayment.amount)}`} className="h-40 w-40 object-contain" /> : <div className="flex h-40 w-40 items-center justify-center rounded-xl bg-muted px-3 text-center text-xs text-muted-foreground">Aguardando o QR Code.</div>}</div><div className="space-y-3"><div><p className="text-sm font-extrabold">Cobrança PIX {money.format(currentPixPayment.amount)}</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{automaticApproved ? "Pagamento aprovado. Atualizando seu acesso..." : automaticPending ? "Aguardando a confirmação automática do Mercado Pago." : `Status: ${currentPixPayment.statusDetail || currentPixPayment.status}.`}</p></div>{!automaticExpired && currentPixPayment.qrCode && <Button type="button" variant="outline" className="w-full rounded-xl font-bold" onClick={() => void copyToClipboard(currentPixPayment.qrCode!, "PIX Copia e Cola copiado.")}><Clipboard className="mr-2 h-4 w-4" />Copiar PIX Copia e Cola</Button>}{!automaticExpired && currentPixPayment.ticketUrl && <a href={currentPixPayment.ticketUrl} target="_blank" rel="noreferrer" className="inline-flex w-full items-center justify-center rounded-xl border border-border px-4 py-2 text-sm font-bold hover:bg-muted">Abrir cobrança</a>}</div></div>{automaticApproved ? <p className="flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-sm font-bold text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" />Pagamento reconhecido automaticamente.</p> : <p className="text-xs text-muted-foreground">{formatDate(currentPixPayment.dateOfExpiration) ? `Válido até ${formatDate(currentPixPayment.dateOfExpiration)}.` : "A cobrança fica disponível no Mercado Pago."} Esta tela consulta o status a cada 5 segundos.</p>}{!automaticPending && !automaticApproved && !automaticExpired && <Button type="button" variant="outline" className="w-full rounded-xl font-bold" onClick={() => { setActivePixPayment(null); void createAutomaticPix(); }} disabled={createPixPayment.isPending}>Gerar novo PIX</Button>}</>}</CardContent></Card>
       </div>
     </div>

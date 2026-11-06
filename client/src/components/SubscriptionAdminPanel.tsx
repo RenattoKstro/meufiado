@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import CouponAdminPanel from "@/components/CouponAdminPanel";
 import { Crown, Loader2, Save, XCircle } from "lucide-react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -120,6 +121,7 @@ export default function SubscriptionAdminPanel({ users, onChanged }: { users: Ar
   const promotionPreviewClass = planInfoBackgroundOptions.find(option => option.value === form.promotionBackground)?.previewClass ?? planInfoBackgroundOptions[1].previewClass;
 
   return <div className="grid gap-5">
+    <CouponAdminPanel users={users} />
     <Card className="rounded-[1.6rem] border-border/70 shadow-sm">
       <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Crown className="h-5 w-5 text-primary" />Mensalidade e páginas por plano</CardTitle><CardDescription>Novas contas começam no Free. Ative o controle de cada aba para torná-la exclusiva do PRO; desative-o para liberá-la no Free. Plano e Conta ficam sempre acessíveis para contratação e ajustes de perfil.</CardDescription></CardHeader>
       <CardContent className="space-y-6">
