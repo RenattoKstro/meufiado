@@ -122,7 +122,9 @@ async function subscriptionMine() {
   if (subscriptionError) throw subscriptionError;
   if (pixError) throw pixError;
   const isPro = user.role === "admin" || (user.plan === "pro" && (!user.proExpiresAt || new Date(user.proExpiresAt).getTime() >= Date.now()));
-  return { user, settings, subscription, latestPixPayment, isPro, plan: user.plan, proExpiresAt: user.proExpiresAt };
+  let pageAccess: Record<string, boolean> = {};
+  try { const parsed = JSON.parse(String((user as any).pageAccessJson || "{}")); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) pageAccess = Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([, value]) => value === true).map(([key]) => [key, true])); } catch { pageAccess = {}; }
+  return { user, settings, subscription, latestPixPayment, isPro, pageAccess, plan: user.plan, proExpiresAt: user.proExpiresAt };
 }
 
 async function importMatrixWorkbook(input: any) {
@@ -370,6 +372,13 @@ async function dispatchMutation(path: string[], input: any) {
     }
     case "subscriptionAdmin.revokeCoupon": { const { data, error } = await table("subscriptionCoupons").update({ isActive: false, revokedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).eq("id", input.id).select().single(); if (error) throw error; return data; }
     case "subscriptionAdmin.deleteCoupon": { const { error } = await table("subscriptionCoupons").delete().eq("id", input.id); if (error) throw error; return { success: true }; }
+    case "subscriptionAdmin.updateUserPageAccess": {
+      const allowed = new Set(["overview", "matrix", "branches", "history", "utilities", "chat", "metrics", "appearance", "help", "updates"]);
+      const pageAccess = Object.fromEntries(Object.entries(input.pageAccess ?? {}).filter(([key, value]) => allowed.has(key) && value === true));
+      const { data, error } = await table("users").update({ pageAccessJson: JSON.stringify(pageAccess), updatedAt: new Date().toISOString() }).eq("id", input.userId).select("id,pageAccessJson").single();
+      if (error) throw error;
+      return data;
+    }
     default: throw new Error(`Operação ainda não migrada: ${key}`);
   }
 }

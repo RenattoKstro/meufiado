@@ -109,6 +109,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (user?.role === "admin") return false;
     if (item.feature === "chat") return false;
     if (!item.feature) return false;
+    if (subscriptionQuery.data?.pageAccess?.[item.feature] === true) return false;
     const configuredPlan = subscriptionQuery.data?.settings[`${item.feature}Plan` as const] ?? "pro";
     return !subscriptionQuery.data?.isPro && configuredPlan === "pro";
   }

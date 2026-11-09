@@ -26,7 +26,7 @@ export default function Chat() {
   const [selectedSupportTopic, setSelectedSupportTopic] = useState<string | null>(null);
   const utils = api.useUtils();
   const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 15_000, refetchOnWindowFocus: true });
-  const canUseGeneralChat = user?.role === "admin" || Boolean(subscriptionQuery.data?.isPro) || subscriptionQuery.data?.settings.chatPlan === "free";
+  const canUseGeneralChat = user?.role === "admin" || Boolean(subscriptionQuery.data?.isPro) || subscriptionQuery.data?.pageAccess?.chat === true || subscriptionQuery.data?.settings.chatPlan === "free";
   const privateThreadsQuery = api.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
   const supportRecipientQuery = api.chat.supportRecipient.useQuery(undefined, { staleTime: 30_000 });
   const generalMessagesQuery = api.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 5_000 });

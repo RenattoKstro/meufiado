@@ -83,7 +83,7 @@ function SubscriptionFeature({ feature, children }: { feature: SubscriptionFeatu
   if (subscriptionQuery.isLoading) return <LoadingScreen />;
   const settings = subscriptionQuery.data?.settings;
   const requiredPlan = settings?.[subscriptionFeatureSettings[feature]] ?? "pro";
-  if (subscriptionQuery.data?.isPro || requiredPlan === "free") return <>{children}</>;
+  if (subscriptionQuery.data?.isPro || subscriptionQuery.data?.pageAccess?.[feature] === true || requiredPlan === "free") return <>{children}</>;
   return <ProFeatureGate />;
 }
 
