@@ -21,7 +21,7 @@ type HistoryEntry = {
   challengeGoal: number;
   currentOverdue: number;
   delinquencyPercent: number;
-  previousMonthDifference: number;
+  previousMonthDifference: number | null;
 };
 
 function brazilDateParts(date = new Date()) {
@@ -77,7 +77,6 @@ const indicatorFields = [
   ["challengeGoal", "Meta Desafio"],
   ["currentOverdue", "Vencido atual"],
   ["delinquencyPercent", "Inadimplência (%)"],
-  ["previousMonthDifference", "Diferença do mês anterior"],
 ] as const;
 
 function ManualIndicators({ values, onChange }: { values: Record<string, string>; onChange: (key: string, value: string) => void }) {
@@ -88,14 +87,14 @@ function EntryDialog({ entry, onSaved, children }: { entry: HistoryEntry; onSave
   const [open, setOpen] = useState(false);
   const [entryDate, setEntryDate] = useState(entry.entryDate);
   const [receivedAmount, setReceivedAmount] = useState(String(entry.receivedAmount));
-  const [indicators, setIndicators] = useState<Record<string, string>>({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent), previousMonthDifference: String(entry.previousMonthDifference) });
+  const [indicators, setIndicators] = useState<Record<string, string>>({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent) });
   const update = api.history.update.useMutation();
 
   useEffect(() => {
     if (open) {
       setEntryDate(entry.entryDate);
       setReceivedAmount(String(entry.receivedAmount));
-      setIndicators({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent), previousMonthDifference: String(entry.previousMonthDifference) });
+      setIndicators({ entryDate: entry.entryDate, monthOpening: String(entry.monthOpening), creditGoal: String(entry.creditGoal), challengeGoal: String(entry.challengeGoal), currentOverdue: String(entry.currentOverdue), delinquencyPercent: String(entry.delinquencyPercent) });
     }
   }, [entry, open]);
 
@@ -121,7 +120,7 @@ export default function History() {
   const [month, setMonth] = useState(currentMonth);
   const [entryDate, setEntryDate] = useState(currentDate);
   const [receivedAmount, setReceivedAmount] = useState("");
-  const [manualIndicators, setManualIndicators] = useState<Record<string, string>>({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
+  const [manualIndicators, setManualIndicators] = useState<Record<string, string>>({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0" });
   const utils = api.useUtils();
   const profileQuery = api.profile.mine.useQuery();
   const hasBranch = Boolean(profileQuery.data?.profile?.branchId || profileQuery.data?.user?.role === "admin");
@@ -173,7 +172,7 @@ export default function History() {
       await create.mutateAsync({ entryDate, receivedAmount: amount, ...manual });
       setMonth(entryDate.slice(0, 7));
       setReceivedAmount("");
-      setManualIndicators({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0", previousMonthDifference: "0" });
+      setManualIndicators({ monthOpening: "0", creditGoal: "0", challengeGoal: "0", currentOverdue: "0", delinquencyPercent: "0" });
       await refreshHistory();
       toast.success("Recebimento diário salvo.");
     } catch (error) {
@@ -200,7 +199,7 @@ export default function History() {
     <Card className="overflow-hidden rounded-[1.7rem] border-primary/20 shadow-sm"><CardContent className="p-0"><div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-primary/5 p-5 sm:flex-row sm:items-center"><div><p className="text-[11px] font-bold uppercase tracking-[0.13em] text-primary">Fechamento mensal</p><h2 className="mt-1 text-xl font-black capitalize">Resumo de {selectedMonthLabel}</h2><p className="mt-1 text-xs text-muted-foreground">Consolidado dos lançamentos da filial, com comparação ao mês anterior.</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-extrabold ${monthlyEvolution.direction === "up" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : monthlyEvolution.direction === "down" ? "bg-rose-500/10 text-rose-700 dark:text-rose-300" : "bg-muted text-muted-foreground"}`}>{monthlyEvolution.percent === null ? "Sem base anterior" : `${monthlyEvolution.direction === "up" ? "+" : ""}${monthlyEvolution.percent.toFixed(2)}% vs. mês anterior`}</span></div><div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4"><ClosingMetric label="Recebido registrado" value={money(history?.totalReceived ?? 0)} note="Soma dos dias lançados" /><ClosingMetric label="Variação mensal" value={money(monthlyEvolution.difference)} note={monthlyEvolution.percent === null ? "Aguardando base anterior" : "Comparado ao mês anterior"} /><ClosingMetric label="Faixas atuais" value={`${metricsQuery.data ? fiadoPercentage(metricsQuery.data.creditGoal, metricsQuery.data.currentOverdue).toFixed(2) : "—"}% Fiado`} note={metricsQuery.data ? `${challengePercentage(metricsQuery.data.challengeGoal, metricsQuery.data.currentOverdue).toFixed(2)}% Desafio` : "Carregando metas"} /><ClosingMetric label="Premiação estimada" value={money(fiadoReward + challengeReward)} note="Conforme metas atuais" /></div></CardContent></Card>
 
 
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Abertura do mês" value={indicators ? money(indicators.monthOpening) : "—"} hint="Valor salvo no lançamento mais recente" /><SummaryCard icon={TrendingUp} label="Meta Fiado" value={indicators ? money(indicators.creditGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={TrendingUp} label="Meta Desafio" value={indicators ? money(indicators.challengeGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={CircleDollarSign} label="Vencido atual" value={indicators ? money(indicators.currentOverdue) : "—"} hint="Valor salvo no histórico" /><SummaryCard icon={TrendingUp} label="Inadimplência" value={indicators ? `${indicators.delinquencyPercent.toFixed(2)}%` : "—"} hint="Vencido atual ÷ carteira total" /><SummaryCard icon={TrendingUp} label="Diferença do mês anterior" value={indicators ? money(indicators.previousMonthDifference) : "—"} hint={indicators && indicators.previousMonthDifference > 0 ? "Aumentou em relação ao mês anterior" : "Comparação com o mês anterior"} /></div>
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Abertura do mês" value={indicators ? money(indicators.monthOpening) : "—"} hint="Valor salvo no lançamento mais recente" /><SummaryCard icon={CircleDollarSign} label="A receber" value={indicators ? money(indicators.amountReceivable) : "—"} hint="Abertura do mês − Meta Fiado" /><SummaryCard icon={TrendingUp} label="Meta Fiado" value={indicators ? money(indicators.creditGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={TrendingUp} label="Meta Desafio" value={indicators ? money(indicators.challengeGoal) : "—"} hint="Meta registrada para o mês" /><SummaryCard icon={CircleDollarSign} label="Vencido atual" value={indicators ? money(indicators.currentOverdue) : "—"} hint="Valor salvo no histórico" /><SummaryCard icon={TrendingUp} label="Inadimplência" value={indicators ? `${indicators.delinquencyPercent.toFixed(2)}%` : "—"} hint="Vencido atual ÷ carteira total" /><SummaryCard icon={TrendingUp} label="Diferença do mês anterior" value={indicators?.previousMonthDifference === null || indicators?.previousMonthDifference === undefined ? "—" : money(indicators.previousMonthDifference)} hint={indicators?.previousMonthDifference === null || indicators?.previousMonthDifference === undefined ? "Sem histórico do mês anterior" : "A receber atual − A receber anterior"} /></div>
     <div className="grid gap-4 sm:grid-cols-3"><SummaryCard icon={CircleDollarSign} label="Recebido no mês" value={money(history?.totalReceived ?? 0)} hint="Soma dos dias salvos" /><SummaryCard icon={CalendarDays} label="Dias registrados" value={String(history?.daysRecorded ?? 0)} hint="Lançamentos na filial" /><SummaryCard icon={TrendingUp} label="Média por dia" value={money(history?.averagePerDay ?? 0)} hint="Considera dias registrados" /></div>
 
     <div className="grid gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"><Card className="h-fit rounded-[1.7rem] border-border/70 shadow-sm"><CardHeader><CardTitle className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary"><Plus className="h-4 w-4" /></span>Novo lançamento</CardTitle><CardDescription>Registre o valor total recebido em um dia. Cada data possui um único lançamento por filial.</CardDescription></CardHeader><CardContent><form className="space-y-4" onSubmit={submit}><div className="space-y-2"><Label htmlFor="history-entry-date">Data do recebimento</Label><Input id="history-entry-date" type="date" value={entryDate} onChange={event => setEntryDate(event.target.value)} required /></div><div className="space-y-2"><Label htmlFor="history-entry-amount">Valor recebido</Label><div className="relative"><span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-bold text-muted-foreground">R$</span><Input id="history-entry-amount" className="pl-10" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0,00" value={receivedAmount} onChange={event => setReceivedAmount(event.target.value)} required /></div></div><ManualIndicators values={{ ...manualIndicators, entryDate }} onChange={(key, value) => setManualIndicators(current => ({ ...current, [key]: value }))} /><Button type="submit" className="w-full" disabled={create.isPending}>{create.isPending ? "Salvando…" : "Salvar recebimento"}</Button></form></CardContent></Card>
