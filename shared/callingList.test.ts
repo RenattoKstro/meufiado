@@ -21,6 +21,7 @@ describe("convertCallingListRows", () => {
       vendor: "Ana",
       delay: "18",
       renegotiation: "Não",
+      preLosses: "Não",
       overdueValue: "R$ 1.240,50",
       document: "123.456.789-00",
       customer: "Cliente Teste",
@@ -47,6 +48,18 @@ describe("convertCallingListRows", () => {
     ]);
 
     expect(rows.map(row => row.renegotiation)).toEqual(["Não", "Sim"]);
+  });
+
+  it("marca pré-perdas entre 160 e 180 dias, inclusive", () => {
+    const rows = convertCallingListRows([
+      { Cliente: "Abaixo", Atraso: "159" },
+      { Cliente: "Início", Atraso: "160" },
+      { Cliente: "Meio", Atraso: "170" },
+      { Cliente: "Fim", Atraso: "180" },
+      { Cliente: "Acima", Atraso: "181" },
+    ]);
+
+    expect(rows.map(row => row.preLosses)).toEqual(["Não", "Sim", "Sim", "Sim", "Não"]);
   });
 
   it("filtra o Valor Vencido entre os limites mínimo e máximo em formato brasileiro", () => {

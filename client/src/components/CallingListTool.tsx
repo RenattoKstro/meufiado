@@ -25,6 +25,7 @@ const columnWidths: Record<CallingListColumn, string> = {
   vendor: "min-w-40",
   delay: "min-w-24",
   renegotiation: "min-w-32",
+  preLosses: "min-w-28",
   overdueValue: "min-w-36",
   document: "min-w-40",
   customer: "min-w-52",
@@ -73,7 +74,7 @@ export default function CallingListTool() {
       if (row.id !== id) return row;
       if (column !== "delay") return { ...row, [column]: value };
       const delay = Number(value.replace(/[^\d,.-]/g, "").replace(",", "."));
-      return { ...row, delay: value, renegotiation: Number.isFinite(delay) && delay > 45 ? "Sim" : "Não" };
+      return { ...row, delay: value, renegotiation: Number.isFinite(delay) && delay > 45 ? "Sim" : "Não", preLosses: Number.isFinite(delay) && delay >= 160 && delay <= 180 ? "Sim" : "Não" };
     }));
   }
 

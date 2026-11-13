@@ -1,4 +1,4 @@
-export const CALLING_LIST_COLUMNS = ["vendor", "delay", "renegotiation", "overdueValue", "document", "customer", "phone"] as const;
+export const CALLING_LIST_COLUMNS = ["vendor", "delay", "renegotiation", "preLosses", "overdueValue", "document", "customer", "phone"] as const;
 
 export type CallingListColumn = typeof CALLING_LIST_COLUMNS[number];
 export type CallingListRow = Record<CallingListColumn, string> & { id: string };
@@ -16,6 +16,7 @@ export const CALLING_LIST_LABELS: Record<CallingListColumn, string> = {
   vendor: "Vendedor",
   delay: "Atraso",
   renegotiation: "Renegociação",
+  preLosses: "PRÉ-PERDAS",
   overdueValue: "Valor Vencido",
   document: "CPF/CNPJ Cliente",
   customer: "Cliente",
@@ -66,12 +67,13 @@ export function convertCallingListRows(sourceRows: Record<string, unknown>[]): C
       vendor: valueFrom(source, ["Vendedor"]),
       delay,
       renegotiation: delayInDays(delay) > 45 ? "Sim" : "Não",
+      preLosses: delayInDays(delay) >= 160 && delayInDays(delay) <= 180 ? "Sim" : "Não",
       overdueValue: formatOverdueValue(valueFrom(source, ["Valor Vencido"])),
       document: valueFrom(source, ["CPF/CNPJ Cliente", "CPF CNPJ Cliente"]),
       customer: valueFrom(source, ["Cliente"]),
       phone: phones.join(" • "),
     };
-  }).filter(row => ["vendor", "delay", "overdueValue", "document", "customer", "phone"].some(column => row[column as Exclude<CallingListColumn, "renegotiation">]));
+  }).filter(row => ["vendor", "delay", "overdueValue", "document", "customer", "phone"].some(column => row[column as Exclude<CallingListColumn, "renegotiation" | "preLosses">]));
 }
 
 export function listCallingVendors(rows: CallingListRow[]) {
