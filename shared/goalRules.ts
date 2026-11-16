@@ -103,6 +103,7 @@ export function ticketGoalState(input: {
   receivableAmount: number;
   workingDaysRemaining: number;
   reachedByDay15: boolean;
+  manualStatus?: boolean | null;
   referenceDate?: Date;
 }) {
   const target = ticketGoalAmount(input.receivableAmount);
@@ -110,7 +111,9 @@ export function ticketGoalState(input: {
   const dailyNeeded = input.workingDaysRemaining > 0 ? remaining / input.workingDaysRemaining : 0;
   const afterDay15 = (input.referenceDate ?? new Date()).getDate() > 15;
   const reachedNow = input.receivedAccumulated >= target;
-  const achieved = afterDay15 ? input.reachedByDay15 : reachedNow;
+  const achieved = input.manualStatus === null || input.manualStatus === undefined
+    ? (afterDay15 ? input.reachedByDay15 : reachedNow)
+    : input.manualStatus;
   return {
     target,
     remaining,

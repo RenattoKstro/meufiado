@@ -89,6 +89,7 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
     receivableAmount,
     workingDaysRemaining: metrics.ticketWorkingDaysRemaining,
     reachedByDay15: metrics.ticketReachedByMatrix ?? false,
+    manualStatus: metrics.ticketManualStatus ?? null,
   });
   const challengeProgress = challengePercentage(metrics.challengeGoal, metrics.currentOverdue);
   const fiadoRemaining = remainingToGoal(metrics.currentOverdue, metrics.creditGoal);

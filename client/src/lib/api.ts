@@ -78,6 +78,7 @@ async function metricsMine() {
     includeSaturday: true,
     includeSunday: false,
     fiadoAtDay15: false,
+    ticketManualStatus: null,
   };
   let manualHolidayDates: string[] = [];
   try {
@@ -326,6 +327,7 @@ async function dispatchMutation(path: string[], input: any) {
         workingDaysElapsed: integerInRange(normalized.workingDaysElapsed, 0, 31),
         ticketWorkingDaysRemaining: integerInRange(normalized.ticketWorkingDaysRemaining, 0, 15),
         fiadoAtDay15: Boolean(normalized.fiadoAtDay15),
+        ticketManualStatus: normalized.ticketManualStatus === true ? true : normalized.ticketManualStatus === false ? false : null,
         workingDaysMode: normalized.workingDaysMode === "manual" ? "manual" : "automatic",
         countToday: normalized.countToday !== false,
         includeSaturday: normalized.includeSaturday !== false,

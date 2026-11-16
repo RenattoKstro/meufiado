@@ -41,6 +41,7 @@ const initialMetrics = {
   ticketWorkingDaysRemaining: 0,
   manualHolidayDates: [] as string[],
   fiadoAtDay15: false,
+  ticketManualStatus: null as boolean | null,
 };
 
 function brazilCalendarDate(date = new Date()) {
@@ -88,6 +89,7 @@ export function MetricsSettings() {
         includeSaturday: metricsQuery.data.includeSaturday ?? true,
         includeSunday: metricsQuery.data.includeSunday ?? false,
         manualHolidayDates: metricsQuery.data.manualHolidayDates ?? [],
+        ticketManualStatus: metricsQuery.data.ticketManualStatus ?? null,
       });
     }
   }, [metricsQuery.data]);
@@ -331,6 +333,7 @@ export function MetricsSettings() {
               <div className="space-y-2"><Label>Dias úteis restantes até dia 15</Label><Input type="number" min="0" max="15" disabled={isAutomatic} value={form.ticketWorkingDaysRemaining} onChange={event => updateNumber("ticketWorkingDaysRemaining", event.target.value)} /><p className="text-[11px] leading-relaxed text-muted-foreground">{isAutomatic ? "Atualizado pelo calendário atual e pelas opções de hoje, sábado, domingo e feriados." : "Informe os dias da filial; os feriados abaixo ajustam os totais automaticamente."}</p></div>
               <div className="rounded-2xl border border-border/70 bg-muted/25 p-4"><Label htmlFor="manual-holiday">Excluir dia como feriado</Label><div className="mt-2 flex flex-col gap-2 sm:flex-row"><Input id="manual-holiday" type="date" value={holidayDate} onChange={event => setHolidayDate(event.target.value)} /><Button type="button" variant="outline" onClick={() => adjustHoliday(holidayDate, "add")} disabled={!holidayDate} className="shrink-0 rounded-xl font-bold"><CalendarPlus className="mr-2 h-4 w-4" />Excluir dia</Button></div><p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">O dia excluído fica salvo para este mês e reduz a contagem automática ou os totais manuais, quando aplicável.</p>{form.manualHolidayDates.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{form.manualHolidayDates.map(date => <span key={date} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-bold"><span>{new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR")}</span><button type="button" aria-label={`Remover feriado ${date}`} onClick={() => removeHoliday(date)} className="rounded-full text-muted-foreground transition-colors hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></span>)}</div>}</div>
               <div className="rounded-xl bg-muted/60 px-3 py-3"><p className="text-xs font-extrabold">Validação automática</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Até o dia 15, o sistema acompanha 80% do valor a receber. Após o prazo, sem atingimento registrado, a Meta Ticket fica não atingida.</p></div>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4"><div><p className="text-sm font-extrabold">Resultado manual da Meta Alimentação</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Use esta opção quando precisar informar diretamente se a meta foi batida. Enquanto nenhuma opção for escolhida, o sistema usa a validação automática.</p></div><div className="mt-3 grid gap-2 sm:grid-cols-3"><button type="button" onClick={() => setForm(current => ({ ...current, ticketManualStatus: null }))} className={`rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${form.ticketManualStatus === null ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted/60"}`}>Automático</button><button type="button" onClick={() => setForm(current => ({ ...current, ticketManualStatus: true }))} className={`rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${form.ticketManualStatus === true ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-border hover:bg-muted/60"}`}>Meta batida</button><button type="button" onClick={() => setForm(current => ({ ...current, ticketManualStatus: false }))} className={`rounded-xl border px-3 py-2 text-xs font-extrabold transition-colors ${form.ticketManualStatus === false ? "border-destructive bg-destructive/10 text-destructive" : "border-border hover:bg-muted/60"}`}>Meta não batida</button></div></div>
             </CardContent>
           </Card>
         </div>
