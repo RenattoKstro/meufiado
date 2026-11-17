@@ -74,6 +74,7 @@ export function MetricsSettings() {
   const metricsQuery = api.metrics.mine.useQuery();
   const profileQuery = api.profile.mine.useQuery();
   const subscriptionQuery = api.subscription.mine.useQuery();
+  const matrixImportStatusQuery = api.matrix?.importStatus?.useQuery ? api.matrix.importStatus.useQuery() : { data: [] as any[] };
   const save = api.metrics.save.useMutation();
   const autofillFromMatrix = api.metrics.autofillFromMatrix.useMutation();
   const preferences = api.profile.preferences.useMutation();
@@ -252,6 +253,14 @@ export function MetricsSettings() {
     { key: "challengeGoal", label: "Meta Desafio" },
   ];
   const isAutomatic = form.workingDaysMode === "automatic";
+  const latestMatrixImport = (matrixImportStatusQuery.data ?? []).reduce((latest: Date | string | null, source: any) => {
+    if (!source?.importedAt) return latest;
+    if (!latest || new Date(source.importedAt).getTime() > new Date(latest).getTime()) return source.importedAt;
+    return latest;
+  }, null);
+  const latestMatrixImportLabel = latestMatrixImport && Number.isFinite(new Date(latestMatrixImport).getTime())
+    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(latestMatrixImport))
+    : "Nenhuma importação registrada";
 
   return (
     <section className="mx-auto max-w-5xl">
@@ -272,6 +281,7 @@ export function MetricsSettings() {
               <Button type="button" variant="outline" onClick={loadFromMatrix} disabled={autofillFromMatrix.isPending} className="h-10 shrink-0 rounded-xl border-primary/25 bg-primary/5 font-extrabold text-primary hover:bg-primary/10 hover:text-primary">
                 {autofillFromMatrix.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}Preencher com a Matriz
               </Button>
+              <p className="text-right text-[11px] font-semibold text-muted-foreground">Última importação da Matriz: <span className="font-black text-foreground">{latestMatrixImportLabel}</span></p>
             </div>
           </CardHeader>
           <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -81,7 +81,9 @@ export function receiptAmounts(monthOpening: number, dayOpening: number, current
 // esse número bruto para integrações, mas apresenta Recebido como a diferença
 // entre o Vencido Atual e a Meta Fiado.
 export function matrixReceivedAmount(currentOverdue: number, creditGoal: number) {
-  return currentOverdue - creditGoal;
+  const overdue = Number(currentOverdue);
+  const goal = Number(creditGoal);
+  return (Number.isFinite(overdue) ? overdue : 0) - (Number.isFinite(goal) ? goal : 0);
 }
 
 export function amountReceivable(monthOpening: number, creditGoal: number) {

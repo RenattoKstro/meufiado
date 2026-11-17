@@ -302,6 +302,7 @@ async function dispatchMutation(path: string[], input: any) {
     case "metrics.autofillFromMatrix": return matrixAutofillForCurrentUser();
     case "admin.updateUserCredentials": return invokeCredentialFunction({ action: "updateUserCredentials", ...input });
     case "admin.createLocalUser": return invokeCredentialFunction({ action: "createLocalUser", ...input });
+    case "admin.deleteUser": return invokeCredentialFunction({ action: "deleteUser", profileId: input.profileId });
     case "adminAuth.updateCredentials": return invokeCredentialFunction({ action: "updateAdminCredentials", username: input.username, newPassword: input.newPassword });
     case "profile.account": { const { error } = await table("userProfiles").update({ fullName: input.fullName, phone: input.phone, instagram: input.instagram }).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }
     case "profile.preferences": { const { error } = await table("userProfiles").update(input).eq("userId", user?.id ?? 0); if (error) throw error; return { success: true }; }

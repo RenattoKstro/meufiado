@@ -10,6 +10,11 @@ describe("matrixReceivedAmount", () => {
     expect(matrixReceivedAmount(90, 100)).toBe(-10);
   });
 
+  it("trata valores inválidos da Matriz como zero em vez de produzir NaN", () => {
+    expect(matrixReceivedAmount(Number.NaN, Number.NaN)).toBe(0);
+    expect(matrixReceivedAmount(undefined as unknown as number, 10)).toBe(-10);
+  });
+
   it("divide o saldo da meta pelos dias úteis restantes", () => {
     expect(dailyCollectionGoal(939_915.48, 667_582.89, 18)).toBeCloseTo(15_129.59, 2);
   });

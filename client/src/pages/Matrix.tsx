@@ -64,8 +64,17 @@ const sourceLabels: Record<MatrixImportSource["source"], string> = {
   receiptDaily: "Recebimento diário",
 };
 
-const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-const compactMoney = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(value);
+function safeNumber(value: unknown) {
+  if (typeof value === "string") {
+    const normalized = value.replace(/R\$/gi, "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+const money = (value: unknown) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(safeNumber(value));
+const compactMoney = (value: unknown) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", compactDisplay: "short", maximumFractionDigits: 1 }).format(safeNumber(value));
 const imported = (item: MatrixItem) => item.metrics !== null;
 function percent(value: number | string | null | undefined) {
   const source = String(value ?? "").trim();
@@ -172,8 +181,8 @@ export default function Matrix() {
 
 function MatrixCard({ item, compact, effectivenessHighlight, expanded, onToggle }: { item: MatrixItem; compact: boolean; effectivenessHighlight?: ComparisonEffectivenessHighlight; expanded: boolean; onToggle: () => void }) {
   const data = item.metrics;
-  const fiadoRemaining = data ? matrixReceivedAmount(data.currentOverdue, data.creditGoal) : 0;
-  const challengeRemaining = data ? matrixReceivedAmount(data.currentOverdue, data.challengeGoal) : 0;
+  const fiadoRemaining = data ? matrixReceivedAmount(safeNumber(data.currentOverdue), safeNumber(data.creditGoal)) : 0;
+  const challengeRemaining = data ? matrixReceivedAmount(safeNumber(data.currentOverdue), safeNumber(data.challengeGoal)) : 0;
   const challengeDays = data ? challengeDailyValues(data.challengeDailyReceivedJson) : [];
   const receiptDays = data ? receiptDailyValues(data.receiptDailyJson) : [];
   const highlightClass = effectivenessHighlight === "best" ? "border-emerald-500/50 ring-1 ring-emerald-500/20" : effectivenessHighlight === "worst" ? "border-rose-500/45 ring-1 ring-rose-500/15" : "border-border/70";
