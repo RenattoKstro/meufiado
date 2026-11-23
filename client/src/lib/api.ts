@@ -12,15 +12,16 @@ function roundMoney(value: unknown) {
 
 function normalizePixPayment(value: any) {
   if (!value) return value;
+  const source = value.data && typeof value.data === "object" && !Array.isArray(value.data) ? value.data : value;
   return {
-    ...value,
-    planId: value.planId ?? value.plan_id ?? "default",
-    statusDetail: value.statusDetail ?? value.status_detail ?? null,
-    qrCode: value.qrCode ?? value.qr_code ?? null,
-    qrCodeBase64: value.qrCodeBase64 ?? value.qr_code_base64 ?? null,
-    ticketUrl: value.ticketUrl ?? value.ticket_url ?? null,
-    dateOfExpiration: value.dateOfExpiration ?? value.date_of_expiration ?? null,
-    updatedAt: value.updatedAt ?? value.updated_at ?? null,
+    ...source,
+    planId: source.planId ?? source.plan_id ?? "default",
+    statusDetail: source.statusDetail ?? source.status_detail ?? null,
+    qrCode: typeof (source.qrCode ?? source.qr_code) === "string" ? String(source.qrCode ?? source.qr_code).trim() || null : null,
+    qrCodeBase64: typeof (source.qrCodeBase64 ?? source.qr_code_base64) === "string" ? String(source.qrCodeBase64 ?? source.qr_code_base64).trim() || null : null,
+    ticketUrl: source.ticketUrl ?? source.ticket_url ?? null,
+    dateOfExpiration: source.dateOfExpiration ?? source.date_of_expiration ?? null,
+    updatedAt: source.updatedAt ?? source.updated_at ?? null,
   };
 }
 
