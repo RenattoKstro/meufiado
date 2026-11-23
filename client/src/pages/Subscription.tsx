@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api } from "@/lib/api";
 import { useAppTexts } from "@/contexts/AppTextContext";
 import { AlertTriangle, CheckCircle2, Clipboard, Crown, Loader2, QrCode, Tag } from "lucide-react";
+import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,7 +27,9 @@ function readCustomPlans(value: string | null | undefined): CustomPlan[] {
 }
 function qrSource(payment: PixPayment | null) {
   if (!payment?.qrCodeBase64) return null;
-  return payment.qrCodeBase64.startsWith("data:") ? payment.qrCodeBase64 : `data:image/png;base64,${payment.qrCodeBase64}`;
+  const value = payment.qrCodeBase64.trim();
+  if (!value) return null;
+  return value.startsWith("data:") ? value : `data:image/png;base64,${value}`;
 }
 function formatDate(value: Date | string | null) {
   return value ? new Date(value).toLocaleDateString("pt-BR") : null;
@@ -49,6 +52,7 @@ export default function Subscription() {
   const subscription = subscriptionQuery.data;
   const [selectedPlanId, setSelectedPlanId] = useState("default");
   const [activePixPayment, setActivePixPayment] = useState<PixPayment | null>(null);
+  const [generatedQrCode, setGeneratedQrCode] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult | null>(null);
   const settings = subscription?.settings;
@@ -64,6 +68,17 @@ export default function Subscription() {
   useEffect(() => {
     if (latestPixPayment?.planId === selectedPlanId && (!activePixPayment || latestPixPayment.id === activePixPayment.id)) setActivePixPayment(latestPixPayment);
   }, [latestPixPayment?.id, latestPixPayment?.planId, latestPixPayment?.status, latestPixPayment?.updatedAt, selectedPlanId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setGeneratedQrCode(null);
+    const rawPix = currentPixPayment?.qrCode?.trim();
+    if (!rawPix || qrSource(currentPixPayment)) return () => { cancelled = true; };
+    void QRCode.toDataURL(rawPix, { width: 512, margin: 1, errorCorrectionLevel: "M" })
+      .then(source => { if (!cancelled) setGeneratedQrCode(source); })
+      .catch(() => { if (!cancelled) setGeneratedQrCode(null); });
+    return () => { cancelled = true; };
+  }, [currentPixPayment?.id, currentPixPayment?.qrCode, currentPixPayment?.qrCodeBase64]);
 
   async function copyToClipboard(value: string, successMessage: string) {
     try { await navigator.clipboard.writeText(value); toast.success(successMessage); } catch { toast.error("Não foi possível copiar agora."); }
@@ -115,7 +130,7 @@ export default function Subscription() {
   const isExternalPlanInfoCta = /^https?:\/\//.test(settings.planInfoCtaUrl);
   const planOptions: CustomPlan[] = [{ id: "default", name: "Plano PRO padrão", description: "Acesso aos recursos PRO do Meu Fiado.", monthlyPrice: settings.monthlyPrice, promotionPrice: promotionIsActive ? settings.promotionPrice : 0, isVisible: true }, ...customPlans];
   const automaticExpired = isPixPaymentExpired(currentPixPayment);
-  const automaticQr = automaticExpired ? null : qrSource(currentPixPayment);
+  const automaticQr = automaticExpired ? null : qrSource(currentPixPayment) ?? generatedQrCode;
   const automaticStatus = currentPixPayment?.status;
   const automaticPending = Boolean(currentPixPayment && !automaticExpired && ["pending", "in_process", "authorized"].includes(automaticStatus || ""));
   const automaticApproved = automaticStatus === "approved";

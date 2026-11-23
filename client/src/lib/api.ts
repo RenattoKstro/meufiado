@@ -10,6 +10,20 @@ function roundMoney(value: unknown) {
   return Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
 }
 
+function normalizePixPayment(value: any) {
+  if (!value) return value;
+  return {
+    ...value,
+    planId: value.planId ?? value.plan_id ?? "default",
+    statusDetail: value.statusDetail ?? value.status_detail ?? null,
+    qrCode: value.qrCode ?? value.qr_code ?? null,
+    qrCodeBase64: value.qrCodeBase64 ?? value.qr_code_base64 ?? null,
+    ticketUrl: value.ticketUrl ?? value.ticket_url ?? null,
+    dateOfExpiration: value.dateOfExpiration ?? value.date_of_expiration ?? null,
+    updatedAt: value.updatedAt ?? value.updated_at ?? null,
+  };
+}
+
 function integerInRange(value: unknown, minimum: number, maximum: number) {
   const numeric = Number(value ?? 0);
   if (!Number.isFinite(numeric)) return minimum;
@@ -125,7 +139,7 @@ async function subscriptionMine() {
   const isPro = user.role === "admin" || (user.plan === "pro" && (!user.proExpiresAt || new Date(user.proExpiresAt).getTime() >= Date.now()));
   let pageAccess: Record<string, boolean> = {};
   try { const parsed = JSON.parse(String((user as any).pageAccessJson || "{}")); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) pageAccess = Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([, value]) => value === true).map(([key]) => [key, true])); } catch { pageAccess = {}; }
-  return { user, settings, subscription, latestPixPayment, isPro, pageAccess, plan: user.plan, proExpiresAt: user.proExpiresAt };
+  return { user, settings, subscription, latestPixPayment: normalizePixPayment(latestPixPayment), isPro, pageAccess, plan: user.plan, proExpiresAt: user.proExpiresAt };
 }
 
 async function importMatrixWorkbook(input: any) {
@@ -362,9 +376,9 @@ async function dispatchMutation(path: string[], input: any) {
     case "updatesAdmin.create": case "updatesAdmin.update": { const id = input.id; const { data, error } = id ? await table("updateNotes").update(input).eq("id", id).select().single() : await table("updateNotes").insert(input).select().single(); if (error) throw error; return data; }
     case "updatesAdmin.delete": { const { error } = await table("updateNotes").delete().eq("id", input.id); if (error) throw error; return { success: true }; }
     case "romaneio.create": { const { data, error } = await table("romaneios").insert({ ...input, createdByUserId: user?.id }).select().single(); if (error) throw error; return data; }
-    case "subscription.createPixPayment": return invokePaymentFunction({ action: "createPixPayment", planId: input.planId });
+    case "subscription.createPixPayment": return normalizePixPayment(await invokePaymentFunction({ action: "createPixPayment", planId: input.planId }));
     case "subscription.applyCoupon": return invokePaymentFunction({ action: "applyCoupon", code: input.code, planId: input.planId });
-    case "subscription.createPixPaymentWithCoupon": return invokePaymentFunction({ action: "createPixPayment", planId: input.planId, couponCode: input.couponCode });
+    case "subscription.createPixPaymentWithCoupon": return normalizePixPayment(await invokePaymentFunction({ action: "createPixPayment", planId: input.planId, couponCode: input.couponCode }));
     case "subscriptionAdmin.createCoupon": {
       const payload = { ...input, code: String(input.code || "").trim().toUpperCase(), discountValue: Number(input.discountValue) || 0, durationDays: Math.max(1, Math.round(Number(input.durationDays) || 1)), assignedUserId: input.assignedUserId ? Number(input.assignedUserId) : null, createdByUserId: user?.id, updatedAt: new Date().toISOString() };
       const { data, error } = await table("subscriptionCoupons").insert(payload).select().single(); if (error) throw error; return data;
