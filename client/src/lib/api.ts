@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { analyticRowFromSpreadsheet, challengeDailyRowFromSpreadsheet, dataRowFromSpreadsheet, dailyTrackingRowFromSpreadsheet, receiptDailyRowFromSpreadsheet, uniqueRowsByBranchCode, normalizeBranchCode } from "../../../shared/importRules";
 import { applyWorkingDaysMode } from "../../../shared/workingDays";
+import { resolveSubscriptionAccess } from "../../../shared/subscriptionAccess";
 
 const table = (name: string) => supabase.from(name);
 
@@ -142,16 +143,17 @@ async function subscriptionMine(input?: { includeQrCode?: boolean }) {
   if (!user) return null;
   const [{ data: settings, error: settingsError }, { data: subscription, error: subscriptionError }, { data: latestPixPayment, error: pixError }] = await Promise.all([
     table("subscriptionSettings").select("id,monthlyPrice,customPlansJson,promotionBadge,promotionTitle,promotionDescription,promotionOriginalPrice,promotionPrice,promotionBackground,promotionCtaLabel,planInfoTitle,planInfoDescription,planInfoBackground,planInfoCtaEnabled,planInfoCtaLabel,planInfoCtaUrl,chatPlan,historyPlan,branchesPlan,utilitiesPlan,matrixPlan,overviewPlan,metricsPlan,appearancePlan,helpPlan,updatesPlan,subscriberGoalMinimum,subscriberGoalCurrent,subscriberGoalContext").limit(1).maybeSingle(),
-    table("mercadoPagoSubscriptions").select("id,userId,planId,status,amount,dateOfExpiration,createdAt,updatedAt").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
+    table("mercadoPagoSubscriptions").select("id,userId,externalReference,preapprovalId,checkoutUrl,providerStatus,amount,currencyId,nextPaymentDate,createdAt,updatedAt").eq("userId", user.id).order("updatedAt", { ascending: false }).limit(1).maybeSingle(),
     table("mercadoPagoPixPayments").select(input?.includeQrCode ? PIX_SCREEN_COLUMNS : PIX_STATUS_COLUMNS).eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (settingsError) throw settingsError;
   if (subscriptionError) throw subscriptionError;
   if (pixError) throw pixError;
-  const isPro = user.role === "admin" || (user.plan === "pro" && (!user.proExpiresAt || new Date(user.proExpiresAt).getTime() >= Date.now()));
+  const access = resolveSubscriptionAccess({ plan: user.plan, proExpiresAt: user.proExpiresAt });
+  const isPro = user.role === "admin" || access.isPro;
   let pageAccess: Record<string, boolean> = {};
   try { const parsed = JSON.parse(String((user as any).pageAccessJson || "{}")); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) pageAccess = Object.fromEntries(Object.entries(parsed as Record<string, unknown>).filter(([, value]) => value === true).map(([key]) => [key, true])); } catch { pageAccess = {}; }
-  return { user, settings, subscription, latestPixPayment: normalizePixPayment(latestPixPayment), isPro, pageAccess, plan: user.plan, proExpiresAt: user.proExpiresAt };
+  return { user, settings, subscription, latestPixPayment: normalizePixPayment(latestPixPayment), isPro, pageAccess, plan: user.role === "admin" ? "pro" : access.plan, proExpiresAt: user.proExpiresAt, status: user.role === "admin" ? "active" : access.status, graceEndsAt: user.role === "admin" ? null : access.graceEndsAt };
 }
 
 async function importMatrixWorkbook(input: any) {
