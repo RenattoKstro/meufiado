@@ -5,6 +5,17 @@ import { applyWorkingDaysMode } from "../../../shared/workingDays";
 
 const table = (name: string) => supabase.from(name);
 
+const USER_COLUMNS = "id,authUserId,name,email,loginMethod,role,plan,proExpiresAt,supportAvailability,pageAccessJson,lastSignedIn";
+const PROFILE_COLUMNS = "id,userId,email,fullName,branchId,phone,instagram,operatorType,isActive,isOnVacation,showLostGoal,colorMode,colorPalette,profileComplete,createdAt,updatedAt,avatarUrl,messageNotificationsEnabled,showTicketGoal,showPossibleRewards,showRewardAmounts,showTicketGoalAfterDeadline";
+const BRANCH_COLUMNS = "id,name,code,isActive,createdAt,updatedAt,regional";
+const METRICS_COLUMNS = "id,branchId,creditGoal,challengeGoal,currentOverdue,monthlyLoss,lossSalesPercent,lostGoal,lostReceived,updatedAt,portfolioTotal,monthOpening,dayOpening,workingDaysTotal,workingDaysElapsed,ticketWorkingDaysRemaining,fiadoAtDay15,workingDaysMode,manualHolidayDatesJson,countToday,includeSaturday,includeSunday,fiadoAtDay15Month,ticketManualStatus";
+const PIX_STATUS_COLUMNS = "id,userId,planId,status,statusDetail,amount,currencyId,ticketUrl,dateOfExpiration,dateApproved,createdAt,updatedAt";
+const PIX_SCREEN_COLUMNS = `${PIX_STATUS_COLUMNS},qrCode,qrCodeBase64`;
+const MATRIX_COLUMNS = "id,branchId,creditGoal,challengeGoal,received,delinquencyPercent,creditEffectivenessPercent,challengeEffectivenessPercent,ticketGoal,ticketPercent,ticketBonus,monthlyLoss,lossSalesPercent,lostGoal,lostReceived,lossEffectivenessPercent,amountReceivable,overdueOpening,portfolioTotal,receiptForecast,closingForecast,closingForecastPercent,accumulatedLossGoal,accumulatedLossReceived,accumulatedLossBalance,previousDayGoal,dailyReceived,previousDayDifference,accumulatedDifference,redesignedDailyGoal,challengeDailyReceivedJson,sales,receiptDailyJson,updatedAt";
+const APP_TEXT_COLUMNS = "id,appName,slogan,welcomeTitle,welcomeDescription,overviewTitle,overviewDescription,utilitiesTitle,utilitiesDescription,subscriptionTitle,subscriptionDescription,navOverview,navBranches,navHistory,navUtilities,navChat,navSettings,navPreferences,navAccount";
+const MAINTENANCE_COLUMNS = "id,isEnabled,title,message,imageUrl,primaryLabel,primaryUrl,secondaryLabel,secondaryUrl,updatedAt";
+const UPDATE_COLUMNS = "id,title,description,category,isVisible,createdByUserId,createdAt,updatedAt";
+
 function roundMoney(value: unknown) {
   const numeric = Number(value ?? 0);
   return Number.isFinite(numeric) ? Math.round(numeric * 100) / 100 : 0;
@@ -41,7 +52,7 @@ async function currentUser() {
   const { data: session } = await supabase.auth.getSession();
   const authId = session.session?.user.id;
   if (!authId) return null;
-  const { data, error } = await table("users").select("*").eq("authUserId", authId).maybeSingle();
+  const { data, error } = await table("users").select(USER_COLUMNS).eq("authUserId", authId).maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -50,7 +61,7 @@ async function profileBranch(userId: number) {
   const { data: profile, error } = await table("userProfiles").select("branchId").eq("userId", userId).maybeSingle();
   if (error) throw error;
   if (!profile?.branchId) return null;
-  const { data: branch, error: branchError } = await table("branches").select("*").eq("id", profile.branchId).maybeSingle();
+  const { data: branch, error: branchError } = await table("branches").select(BRANCH_COLUMNS).eq("id", profile.branchId).maybeSingle();
   if (branchError) throw branchError;
   return branch;
 }
@@ -59,7 +70,7 @@ async function profileMine() {
   const user = await currentUser();
   if (!user) return null;
   const [{ data: profile, error: profileError }, branch] = await Promise.all([
-    table("userProfiles").select("*").eq("userId", user.id).maybeSingle(),
+    table("userProfiles").select(PROFILE_COLUMNS).eq("userId", user.id).maybeSingle(),
     profileBranch(user.id),
   ]);
   if (profileError) throw profileError;
@@ -71,7 +82,7 @@ async function metricsMine() {
   if (!user) return null;
   const { data: profile, error: profileError } = await table("userProfiles").select("branchId").eq("userId", user.id).maybeSingle();
   if (profileError) throw profileError;
-  const source = profile?.branchId ? table("branchMetrics").select("*").eq("branchId", profile.branchId).maybeSingle() : table("metricSettings").select("*").eq("userId", user.id).maybeSingle();
+  const source = profile?.branchId ? table("branchMetrics").select(METRICS_COLUMNS).eq("branchId", profile.branchId).maybeSingle() : table("metricSettings").select(METRICS_COLUMNS).eq("userId", user.id).maybeSingle();
   const { data, error } = await source;
   if (error) throw error;
   if (!data) return {
@@ -126,13 +137,13 @@ async function historyBranchForCurrentUser() {
   return { ...current, branchId };
 }
 
-async function subscriptionMine() {
+async function subscriptionMine(input?: { includeQrCode?: boolean }) {
   const user = await currentUser();
   if (!user) return null;
   const [{ data: settings, error: settingsError }, { data: subscription, error: subscriptionError }, { data: latestPixPayment, error: pixError }] = await Promise.all([
-    table("subscriptionSettings").select("*").limit(1).maybeSingle(),
-    table("mercadoPagoSubscriptions").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
-    table("mercadoPagoPixPayments").select("*").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
+    table("subscriptionSettings").select("id,monthlyPrice,customPlansJson,promotionBadge,promotionTitle,promotionDescription,promotionOriginalPrice,promotionPrice,promotionBackground,promotionCtaLabel,planInfoTitle,planInfoDescription,planInfoBackground,planInfoCtaEnabled,planInfoCtaLabel,planInfoCtaUrl,chatPlan,historyPlan,branchesPlan,utilitiesPlan,matrixPlan,overviewPlan,metricsPlan,appearancePlan,helpPlan,updatesPlan,subscriberGoalMinimum,subscriberGoalCurrent,subscriberGoalContext").limit(1).maybeSingle(),
+    table("mercadoPagoSubscriptions").select("id,userId,planId,status,amount,dateOfExpiration,createdAt,updatedAt").eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
+    table("mercadoPagoPixPayments").select(input?.includeQrCode ? PIX_SCREEN_COLUMNS : PIX_STATUS_COLUMNS).eq("userId", user.id).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
   ]);
   if (settingsError) throw settingsError;
   if (subscriptionError) throw subscriptionError;
@@ -182,8 +193,8 @@ async function importMatrixWorkbook(input: any) {
   return result;
 
   const [{ data: branches, error: branchesError }, { data: matrices, error: matricesError }] = await Promise.all([
-    table("branches").select("*").limit(5000),
-    table("matrixMetrics").select("*").limit(5000),
+    table("branches").select(BRANCH_COLUMNS).limit(5000),
+    table("matrixMetrics").select(MATRIX_COLUMNS).limit(5000),
   ]);
   if (branchesError) throw branchesError;
   if (matricesError) throw matricesError;
@@ -200,7 +211,7 @@ async function importMatrixWorkbook(input: any) {
   for (const [code, row] of Array.from(analyticByCode.entries())) {
     let branch = branchByCode.get(code);
     if (!branch) {
-      const { data: created, error } = await table("branches").insert({ code, name: `Filial ${code}`, regional: row.regional || null, isActive: true }).select("*").single();
+      const { data: created, error } = await table("branches").insert({ code, name: `Filial ${code}`, regional: row.regional || null, isActive: true }).select(BRANCH_COLUMNS).single();
       if (error) throw error;
       branch = created;
       branchByCode.set(code, branch);
@@ -241,7 +252,7 @@ async function importMatrixWorkbook(input: any) {
 async function matrixAutofillForCurrentUser() {
   const { branchId } = await branchForCurrentUser();
   if (!branchId) throw new Error("Nenhuma filial está vinculada ao seu perfil.");
-  const { data, error } = await table("matrixMetrics").select("*").eq("branchId", branchId).maybeSingle();
+  const { data, error } = await table("matrixMetrics").select("id,branchId,creditGoal,challengeGoal,received,delinquencyPercent,creditEffectivenessPercent,challengeEffectivenessPercent,ticketGoal,ticketPercent,ticketBonus,monthlyLoss,lossSalesPercent,lostGoal,lostReceived,lossEffectivenessPercent,amountReceivable,overdueOpening,portfolioTotal,receiptForecast,closingForecast,closingForecastPercent,accumulatedLossGoal,accumulatedLossReceived,accumulatedLossBalance,previousDayGoal,dailyReceived,previousDayDifference,accumulatedDifference,redesignedDailyGoal,challengeDailyReceivedJson,sales,receiptDailyJson,updatedAt").eq("branchId", branchId).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("Não há dados da sua filial na Matriz.");
   return {
@@ -282,29 +293,31 @@ async function dispatchQuery(path: string[], input: unknown) {
   switch (key) {
     case "profile.mine": return profileMine();
     case "metrics.mine": return metricsMine();
-    case "subscription.mine": return subscriptionMine();
-    case "appTexts.get": case "maintenance.get": { const { data, error } = await table(key === "appTexts.get" ? "appTextSettings" : "maintenanceSettings").select("*").limit(1).maybeSingle(); if (error) throw error; return data; }
-    case "profile.branches": { const { data, error } = await table("branches").select("*").eq("isActive", true).order("name"); if (error) throw error; return data ?? []; }
-    case "utilities.downloads": case "utilities.reports": { const name = key.endsWith("downloads") ? "utilityDownloads" : "utilityReports"; const { data, error } = await table(name).select("*").order(key.endsWith("downloads") ? "title" : "createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
-    case "updates.list": { const { data, error } = await table("updateNotes").select("*").eq("isVisible", true).order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
-    case "updatesAdmin.list": { const { data, error } = await table("updateNotes").select("*").order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
-    case "matrix.mine": case "matrix.overview": { const { data, error } = await table("matrixMetrics").select("*, branches(*)").order("branchId"); if (error) throw error; const items = (data ?? []).map((row: any) => ({ branch: row.branches, metrics: row, updatedAt: row.updatedAt })); if (key.endsWith("overview")) return items; const { branchId } = await branchForCurrentUser(); return { metrics: items.find(item => item.metrics.branchId === branchId)?.metrics ?? null }; }
-    case "matrix.importStatus": case "admin.importStatus": { const { data, error } = await table("matrixImportSources").select("*").order("importedAt", { ascending: false }); if (error) throw error; return key.startsWith("admin.") ? { lastImportedAt: data?.[0]?.importedAt ?? null, sources: data ?? [] } : data ?? []; }
-    case "admin.branches": { const { data, error } = await table("branches").select("*").order("name"); if (error) throw error; return data ?? []; }
-    case "admin.users": { const [{ data: users, error: usersError }, { data: profiles, error: profilesError }, { data: branches, error: branchesError }] = await Promise.all([table("users").select("*"), table("userProfiles").select("*"), table("branches").select("*")]); if (usersError) throw usersError; if (profilesError) throw profilesError; if (branchesError) throw branchesError; return (profiles ?? []).map((profile: any) => ({ profile, account: (users ?? []).find((item: any) => item.id === profile.userId) ?? null, branch: (branches ?? []).find((item: any) => item.id === profile.branchId) ?? { id: profile.branchId, name: "Filial", code: null, regional: null } })); }
-    case "branches.overview": { const [{ data: branches, error: branchesError }, { data: profiles, error: profilesError }, { data: metrics, error: metricsError }, { data: matrixMetrics, error: matrixError }] = await Promise.all([table("branches").select("*").order("name"), table("userProfiles").select("*"), table("branchMetrics").select("*"), table("matrixMetrics").select("branchId,updatedAt")]); if (branchesError) throw branchesError; if (profilesError) throw profilesError; if (metricsError) throw metricsError; if (matrixError) throw matrixError; const matrixByBranch = new Map((matrixMetrics ?? []).map((item: any) => [item.branchId, item])); return (branches ?? []).map((branch: any) => ({ branch, operator: (profiles ?? []).find((item: any) => item.branchId === branch.id) ?? null, metrics: (metrics ?? []).find((item: any) => item.branchId === branch.id) ?? {}, updatedAt: matrixByBranch.get(branch.id)?.updatedAt ?? branch.updatedAt })); }
-    case "history.list": { const month = (input as { month?: string } | undefined)?.month; const { branchId } = await historyBranchForCurrentUser(); let query = table("receiptHistoryEntries").select("*").order("entryDate", { ascending: false }); if (branchId) query = query.eq("branchId", branchId); if (month) query = query.gte("entryDate", `${month}-01`).lt("entryDate", nextMonthDate(month)); const { data, error } = await query; if (error) throw error; const entries = data ?? []; const totalReceived = entries.reduce((sum: number, entry: any) => sum + Number(entry.receivedAmount ?? 0), 0); const first = entries[0] as any; let previousFirst: any = null; if (branchId && month) { const [year, monthNumber] = month.split("-").map(Number); const previousDate = new Date(Date.UTC(year, monthNumber - 2, 1)); const previousMonth = `${previousDate.getUTCFullYear()}-${String(previousDate.getUTCMonth() + 1).padStart(2, "0")}`; const previousQuery = table("receiptHistoryEntries").select("monthOpening,creditGoal").eq("branchId", branchId).gte("entryDate", `${previousMonth}-01`).lt("entryDate", nextMonthDate(previousMonth)).order("entryDate", { ascending: false }).limit(1).maybeSingle(); const previousResult = await previousQuery; if (previousResult.error) throw previousResult.error; previousFirst = previousResult.data; } const currentReceivable = first ? roundMoney(Number(first.monthOpening ?? 0) - Number(first.creditGoal ?? 0)) : 0; const previousReceivable = previousFirst ? roundMoney(Number(previousFirst.monthOpening ?? 0) - Number(previousFirst.creditGoal ?? 0)) : null; const previousMonthDifference = previousReceivable === null ? null : roundMoney(currentReceivable - previousReceivable); return { month, entries, totalReceived, daysRecorded: entries.length, averagePerDay: entries.length ? totalReceived / entries.length : 0, indicators: first ? { monthOpening: first.monthOpening ?? 0, creditGoal: first.creditGoal ?? 0, challengeGoal: first.challengeGoal ?? 0, currentOverdue: first.currentOverdue ?? 0, delinquencyPercent: first.delinquencyPercent ?? 0, amountReceivable: currentReceivable, previousAmountReceivable: previousReceivable, previousMonthDifference } : null }; }
+    case "subscription.mine": return subscriptionMine((input as { includeQrCode?: boolean } | undefined) ?? undefined);
+    case "appTexts.get": case "maintenance.get": { const { data, error } = await table(key === "appTexts.get" ? "appTextSettings" : "maintenanceSettings").select(key === "appTexts.get" ? APP_TEXT_COLUMNS : MAINTENANCE_COLUMNS).limit(1).maybeSingle(); if (error) throw error; return data; }
+    case "profile.branches": { const { data, error } = await table("branches").select(BRANCH_COLUMNS).eq("isActive", true).order("name").limit(500); if (error) throw error; return data ?? []; }
+    case "utilities.downloads": case "utilities.reports": { const name = key.endsWith("downloads") ? "utilityDownloads" : "utilityReports"; const { data, error } = await table(name).select(key.endsWith("downloads") ? "id,title,description,fileType,externalUrl,isPinned,isVisible,updatedAt,createdAt" : "id,title,description,isVisible,createdAt,updatedAt").order(key.endsWith("downloads") ? "title" : "createdAt", { ascending: false }).limit(200); if (error) throw error; return data ?? []; }
+    case "updates.list": { const { data, error } = await table("updateNotes").select(UPDATE_COLUMNS).eq("isVisible", true).order("createdAt", { ascending: false }).limit(200); if (error) throw error; return data ?? []; }
+    case "updatesAdmin.list": { const { data, error } = await table("updateNotes").select(UPDATE_COLUMNS).order("createdAt", { ascending: false }).limit(500); if (error) throw error; return data ?? []; }
+    case "matrix.mine": case "matrix.overview": { const { data, error } = await table("matrixMetrics").select(`${MATRIX_COLUMNS},branches(id,name,code,isActive,updatedAt,regional)`).order("branchId"); if (error) throw error; const items = (data ?? []).map((row: any) => ({ branch: row.branches, metrics: row, updatedAt: row.updatedAt })); if (key.endsWith("overview")) return items; const { branchId } = await branchForCurrentUser(); return { metrics: items.find(item => item.metrics.branchId === branchId)?.metrics ?? null }; }
+    case "matrix.importStatus": case "admin.importStatus": { const { data, error } = await table("matrixImportSources").select("id,source,importedAt,receivedRows,validRows,updatedAt").order("importedAt", { ascending: false }); if (error) throw error; return key.startsWith("admin.") ? { lastImportedAt: data?.[0]?.importedAt ?? null, sources: data ?? [] } : data ?? []; }
+    case "admin.branches": { const { data, error } = await table("branches").select(BRANCH_COLUMNS).order("name").limit(500); if (error) throw error; return data ?? []; }
+    case "admin.users": { const [{ data: users, error: usersError }, { data: profiles, error: profilesError }, { data: branches, error: branchesError }] = await Promise.all([table("users").select(USER_COLUMNS).limit(500), table("userProfiles").select(PROFILE_COLUMNS).limit(500), table("branches").select(BRANCH_COLUMNS).limit(500)]); if (usersError) throw usersError; if (profilesError) throw profilesError; if (branchesError) throw branchesError; return (profiles ?? []).map((profile: any) => ({ profile, account: (users ?? []).find((item: any) => item.id === profile.userId) ?? null, branch: (branches ?? []).find((item: any) => item.id === profile.branchId) ?? { id: profile.branchId, name: "Filial", code: null, regional: null } })); }
+    case "branches.overview": { const [{ data: branches, error: branchesError }, { data: profiles, error: profilesError }, { data: metrics, error: metricsError }, { data: matrixMetrics, error: matrixError }] = await Promise.all([table("branches").select(BRANCH_COLUMNS).order("name").limit(500), table("userProfiles").select(PROFILE_COLUMNS), table("branchMetrics").select(METRICS_COLUMNS), table("matrixMetrics").select("branchId,updatedAt")]); if (branchesError) throw branchesError; if (profilesError) throw profilesError; if (metricsError) throw metricsError; if (matrixError) throw matrixError; const matrixByBranch = new Map((matrixMetrics ?? []).map((item: any) => [item.branchId, item])); return (branches ?? []).map((branch: any) => ({ branch, operator: (profiles ?? []).find((item: any) => item.branchId === branch.id) ?? null, metrics: (metrics ?? []).find((item: any) => item.branchId === branch.id) ?? {}, updatedAt: matrixByBranch.get(branch.id)?.updatedAt ?? branch.updatedAt })); }
+    case "history.list": { const month = (input as { month?: string } | undefined)?.month; const { branchId } = await historyBranchForCurrentUser(); let query = table("receiptHistoryEntries").select("id,branchId,entryDate,receivedAmount,createdByUserId,createdAt,updatedAt,monthOpening,creditGoal,challengeGoal,currentOverdue,delinquencyPercent,previousMonthDifference").order("entryDate", { ascending: false }).limit(50); if (branchId) query = query.eq("branchId", branchId); if (month) query = query.gte("entryDate", `${month}-01`).lt("entryDate", nextMonthDate(month)); const { data, error } = await query; if (error) throw error; const entries = data ?? []; const totalReceived = entries.reduce((sum: number, entry: any) => sum + Number(entry.receivedAmount ?? 0), 0); const first = entries[0] as any; let previousFirst: any = null; if (branchId && month) { const [year, monthNumber] = month.split("-").map(Number); const previousDate = new Date(Date.UTC(year, monthNumber - 2, 1)); const previousMonth = `${previousDate.getUTCFullYear()}-${String(previousDate.getUTCMonth() + 1).padStart(2, "0")}`; const previousQuery = table("receiptHistoryEntries").select("monthOpening,creditGoal").eq("branchId", branchId).gte("entryDate", `${previousMonth}-01`).lt("entryDate", nextMonthDate(previousMonth)).order("entryDate", { ascending: false }).limit(1).maybeSingle(); const previousResult = await previousQuery; if (previousResult.error) throw previousResult.error; previousFirst = previousResult.data; } const currentReceivable = first ? roundMoney(Number(first.monthOpening ?? 0) - Number(first.creditGoal ?? 0)) : 0; const previousReceivable = previousFirst ? roundMoney(Number(previousFirst.monthOpening ?? 0) - Number(previousFirst.creditGoal ?? 0)) : null; const previousMonthDifference = previousReceivable === null ? null : roundMoney(currentReceivable - previousReceivable); return { month, entries, totalReceived, daysRecorded: entries.length, averagePerDay: entries.length ? totalReceived / entries.length : 0, indicators: first ? { monthOpening: first.monthOpening ?? 0, creditGoal: first.creditGoal ?? 0, challengeGoal: first.challengeGoal ?? 0, currentOverdue: first.currentOverdue ?? 0, delinquencyPercent: first.delinquencyPercent ?? 0, amountReceivable: currentReceivable, previousAmountReceivable: previousReceivable, previousMonthDifference } : null }; }
     case "history.dailyStatus": { const { branchId } = await historyBranchForCurrentUser(); const date = (input as any)?.entryDate; const { data } = branchId ? await table("receiptHistoryEntries").select("id").eq("branchId", branchId).eq("entryDate", date).maybeSingle() : { data: null }; return { hasBranch: Boolean(branchId), hasEntry: Boolean(data), entryDate: date }; }
     case "chat.supportRecipient": { const { data, error } = await table("users").select("id,name,role,supportAvailability").eq("role", "admin").limit(1).maybeSingle(); if (error) throw error; return data; }
-    case "chat.general": case "chat.private": case "chat.privateThreads": { const { data, error } = await table("chatMessages").select("*").order("createdAt"); if (error) throw error; return data ?? []; }
+    case "chat.general": { const { data, error } = await table("chatMessages").select("id,senderUserId,recipientUserId,body,supportTopic,createdAt,expiresAt").is("recipientUserId", null).gt("expiresAt", new Date().toISOString()).order("createdAt").limit(100); if (error) throw error; return data ?? []; }
+    case "chat.private": { const recipientUserId = Number((input as any)?.recipientUserId ?? 0); const actor = await currentUser(); const { data, error } = await table("chatMessages").select("id,senderUserId,recipientUserId,body,supportTopic,createdAt,expiresAt").gt("expiresAt", new Date().toISOString()).or(`and(senderUserId.eq.${actor?.id ?? 0},recipientUserId.eq.${recipientUserId}),and(senderUserId.eq.${recipientUserId},recipientUserId.eq.${actor?.id ?? 0})`).order("createdAt").limit(100); if (error) throw error; return data ?? []; }
+    case "chat.privateThreads": { const actor = await currentUser(); const { data, error } = await table("chatMessages").select("id,senderUserId,recipientUserId,body,supportTopic,createdAt,expiresAt").gt("expiresAt", new Date().toISOString()).or(`senderUserId.eq.${actor?.id ?? 0},recipientUserId.eq.${actor?.id ?? 0}`).order("createdAt", { ascending: false }).limit(100); if (error) throw error; return data ?? []; }
     case "chat.unreadCount": return 0;
     case "updates.unreadCount": { const actor = await currentUser(); if (!actor) return 0; const [{ data: notes, error: notesError }, { data: state, error: stateError }] = await Promise.all([table("updateNotes").select("id").eq("isVisible", true).limit(5000), table("updateReadStates").select("lastReadUpdateId").eq("userId", actor.id).maybeSingle()]); if (notesError) throw notesError; if (stateError) throw stateError; const lastReadId = Number(state?.lastReadUpdateId ?? 0); return (notes ?? []).filter((note: any) => Number(note.id) > lastReadId).length; }
     case "chat.mySupportAvailability": { const user = await currentUser(); return user?.supportAvailability ?? "available"; }
-    case "romaneio.parties": case "romaneio.products": { const name = key.endsWith("parties") ? "romaneioParties" : "romaneioProducts"; const { data, error } = await table(name).select("*").order(name === "romaneioParties" ? "name" : "description"); if (error) throw error; return data ?? []; }
-    case "romaneio.list": { const user = await currentUser(); const { data, error } = await table("romaneios").select("*").eq("createdByUserId", user?.id ?? 0).order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
+    case "romaneio.parties": case "romaneio.products": { const name = key.endsWith("parties") ? "romaneioParties" : "romaneioProducts"; const columns = name === "romaneioParties" ? "id,name,document,phone,address,city,state" : "id,description,unit,createdAt,updatedAt"; const { data, error } = await table(name).select(columns).order(name === "romaneioParties" ? "name" : "description").limit(500); if (error) throw error; return data ?? []; }
+    case "romaneio.list": { const user = await currentUser(); const { data, error } = await table("romaneios").select("id,createdByUserId,createdAt,updatedAt,status,shareToken,documentNumber,branchId").eq("createdByUserId", user?.id ?? 0).order("createdAt", { ascending: false }).limit(50); if (error) throw error; return data ?? []; }
     case "romaneio.get": { const id = (input as any)?.id ?? 0; const { data, error } = await table("romaneios").select("*, romaneioItems(*), romaneioActivities(*)").eq("id", id).maybeSingle(); if (error) throw error; return data; }
-    case "subscriptionAdmin.settings": { const { data, error } = await table("subscriptionSettings").select("*").limit(1).maybeSingle(); if (error) throw error; return data; }
-    case "subscriptionAdmin.coupons": { const { data, error } = await table("subscriptionCoupons").select("*").order("createdAt", { ascending: false }); if (error) throw error; return data ?? []; }
+    case "subscriptionAdmin.settings": { const { data, error } = await table("subscriptionSettings").select("id,monthlyPrice,customPlansJson,promotionBadge,promotionTitle,promotionDescription,promotionOriginalPrice,promotionPrice,promotionBackground,promotionCtaLabel,planInfoTitle,planInfoDescription,planInfoBackground,planInfoCtaEnabled,planInfoCtaLabel,planInfoCtaUrl,chatPlan,historyPlan,branchesPlan,utilitiesPlan,matrixPlan,overviewPlan,metricsPlan,appearancePlan,helpPlan,updatesPlan,subscriberGoalMinimum,subscriberGoalCurrent,subscriberGoalContext").limit(1).maybeSingle(); if (error) throw error; return data; }
+    case "subscriptionAdmin.coupons": { const { data, error } = await table("subscriptionCoupons").select("id,code,description,discountType,discountValue,durationDays,validUntil,assignedUserId,isActive,revokedAt,createdAt,updatedAt").order("createdAt", { ascending: false }).limit(500); if (error) throw error; return data ?? []; }
     default: return null;
   }
 }

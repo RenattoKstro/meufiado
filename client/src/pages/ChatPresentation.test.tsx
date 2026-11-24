@@ -76,8 +76,8 @@ describe("apresentação do chat", () => {
     render(<Chat />);
 
     expect(screen.getAllByText("Conversa privada").length).toBeGreaterThan(0);
-    expect(privateQuery).toHaveBeenCalledWith({ recipientUserId: 41 }, { enabled: true, refetchInterval: 5_000 });
-    expect(generalQuery).toHaveBeenCalledWith(undefined, { enabled: false, refetchInterval: 5_000 });
+    expect(privateQuery).toHaveBeenCalledWith({ recipientUserId: 41 }, { enabled: true, refetchInterval: 30_000, refetchIntervalInBackground: false });
+    expect(generalQuery).toHaveBeenCalledWith(undefined, { enabled: false, refetchInterval: 30_000, refetchIntervalInBackground: false });
     const input = screen.getByPlaceholderText("Digite uma mensagem…");
     fireEvent.change(input, { target: { value: "Mensagem restrita" } });
     fireEvent.submit(input.closest("form")!);

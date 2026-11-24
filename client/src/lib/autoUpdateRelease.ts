@@ -1,6 +1,6 @@
 const RELEASE_ENDPOINT = "/__manus__/version.json";
 const RELEASE_STORAGE_KEY = "meu-fiado:published-release";
-const POLL_INTERVAL_MS = 5_000;
+const POLL_INTERVAL_MS = 60_000;
 const CACHE_BUSTER_PARAM = "_meu_fiado_release";
 const ACTIVE_IMPORT_KEY = "meu-fiado:matrix-import-active";
 

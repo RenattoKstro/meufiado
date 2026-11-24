@@ -25,12 +25,12 @@ export default function Chat() {
   const [body, setBody] = useState("");
   const [selectedSupportTopic, setSelectedSupportTopic] = useState<string | null>(null);
   const utils = api.useUtils();
-  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined);
   const canUseGeneralChat = user?.role === "admin" || Boolean(subscriptionQuery.data?.isPro) || subscriptionQuery.data?.pageAccess?.chat === true || subscriptionQuery.data?.settings.chatPlan === "free";
-  const privateThreadsQuery = api.chat.privateThreads.useQuery(undefined, { refetchInterval: 5_000 });
+  const privateThreadsQuery = api.chat.privateThreads.useQuery(undefined, { refetchInterval: 60_000, refetchIntervalInBackground: false });
   const supportRecipientQuery = api.chat.supportRecipient.useQuery(undefined, { staleTime: 30_000 });
-  const generalMessagesQuery = api.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 5_000 });
-  const privateMessagesQuery = api.chat.private.useQuery({ recipientUserId: recipientUserId ?? 0 }, { enabled: Boolean(recipientUserId), refetchInterval: 5_000 });
+  const generalMessagesQuery = api.chat.general.useQuery(undefined, { enabled: !recipientUserId && canUseGeneralChat, refetchInterval: 30_000, refetchIntervalInBackground: false });
+  const privateMessagesQuery = api.chat.private.useQuery({ recipientUserId: recipientUserId ?? 0 }, { enabled: Boolean(recipientUserId), refetchInterval: 30_000, refetchIntervalInBackground: false });
   const messagesQuery = recipientUserId ? privateMessagesQuery : generalMessagesQuery;
   const sendMutation = api.chat.send.useMutation({
     onSuccess: async () => {

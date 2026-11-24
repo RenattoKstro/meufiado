@@ -45,7 +45,7 @@ function isPixPaymentExpired(payment: PixPayment | null) {
 export default function Subscription() {
   const utils = api.useUtils();
   const texts = useAppTexts();
-  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { refetchInterval: 5_000, refetchIntervalInBackground: true });
+  const subscriptionQuery = api.subscription.mine.useQuery({ includeQrCode: true }, { refetchInterval: 60_000, refetchIntervalInBackground: false });
   const createPixPayment = api.subscription.createPixPayment.useMutation();
   const createPixPaymentWithCoupon = api.subscription.createPixPaymentWithCoupon.useMutation();
   const applyCoupon = api.subscription.applyCoupon.useMutation();

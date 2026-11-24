@@ -52,13 +52,13 @@ export default function Dashboard({ view = "overview" }: { view?: View }) {
   const [dayOfMonth] = React.useState(currentBrazilDay);
   const profileQuery = api.profile.mine.useQuery();
   const metricsQuery = api.metrics.mine.useQuery();
-  const subscriptionQuery = api.subscription?.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const subscriptionQuery = api.subscription?.mine.useQuery(undefined, { enabled: Boolean(user) });
   const profile = profileQuery.data?.profile;
   const branch = profileQuery.data?.branch;
   const metrics = metricsQuery.data;
   const [dailyReminderDismissed, setDailyReminderDismissed] = React.useState(false);
   const canViewProjection = user?.role === "admin" || Boolean(subscriptionQuery?.data?.isPro);
-  const matrixQuery = api.matrix?.mine.useQuery(undefined, { enabled: canViewProjection && Boolean(profile?.branchId), refetchInterval: 30_000, refetchOnWindowFocus: true });
+  const matrixQuery = api.matrix?.mine.useQuery(undefined, { enabled: canViewProjection && Boolean(profile?.branchId), refetchInterval: 5 * 60_000, refetchIntervalInBackground: false });
   const dailyStatusQuery = api.history?.dailyStatus.useQuery({ entryDate: today }, { enabled: Boolean(profile?.branchId) });
 
   React.useEffect(() => {

@@ -10,7 +10,14 @@ startPublishedReleasePolling();
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: true },
+    queries: {
+      staleTime: 5 * 60_000,
+      gcTime: 30 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchIntervalInBackground: false,
+    },
   },
 });
 

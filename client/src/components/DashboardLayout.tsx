@@ -37,10 +37,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const texts = useAppTexts();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
-  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 15_000, refetchOnWindowFocus: true });
+  const subscriptionQuery = api.subscription.mine.useQuery(undefined, { enabled: Boolean(user) });
   const canUseChat = Boolean(user);
-  const unreadChatQuery = api.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5_000 });
-  const unreadUpdatesQuery = api.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchOnWindowFocus: true });
+  const unreadChatQuery = api.chat.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 60_000, refetchIntervalInBackground: false });
+  const unreadUpdatesQuery = api.updates.unreadCount.useQuery(undefined, { enabled: Boolean(user), refetchInterval: 5 * 60_000, refetchIntervalInBackground: false });
   const profileQuery = api.profile.mine.useQuery(undefined, { enabled: Boolean(user) });
   const metricsQuery = api.metrics.mine.useQuery(undefined, { enabled: Boolean(user) });
   const messageNotificationsEnabled = profileQuery.data?.profile?.messageNotificationsEnabled !== false;
