@@ -43,6 +43,13 @@ export function useAuth(options?: UseAuthOptions) {
       if (profileError) throw profileError;
       const normalized = appUser as AppUser | null;
       setUser(normalized);
+      if (normalized) {
+        const { error: presenceError } = await supabase
+          .from("users")
+          .update({ lastSignedIn: new Date().toISOString() })
+          .eq("authUserId", authUser.id);
+        if (presenceError) console.warn("Não foi possível atualizar o último acesso", presenceError);
+      }
       try { localStorage.setItem("meu-fiado-user", JSON.stringify(normalized)); } catch {}
       return normalized;
     } catch (cause) {
